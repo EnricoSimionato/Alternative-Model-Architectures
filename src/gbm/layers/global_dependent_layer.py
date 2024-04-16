@@ -634,7 +634,13 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         optimizer = torch.optim.AdamW([self.global_dependent_layer.local_layers[local_key].weight])
 
         # Define a learning rate scheduler
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=10,
+            verbose=False
+        )
 
         num_epochs = 50
 

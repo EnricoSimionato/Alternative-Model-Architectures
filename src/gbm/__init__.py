@@ -21,5 +21,6 @@ from gbm.layers.global_dependent_layer import (
 from gbm.models.global_dependent_model import (
     GlobalDependentModel,
     GlobalBaseModel,
-    GlobalFixedRandomBaseModel
+    GlobalFixedRandomBaseModel,
+    count_parameters
 )

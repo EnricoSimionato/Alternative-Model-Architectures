@@ -9,6 +9,12 @@ from gbm.layers.global_dependent_layer import GlobalBaseLinear
 from gbm.layers.global_dependent_layer import GlobalFixedRandomBaseLinear
 
 
+def count_parameters(
+        model: nn.Module
+) -> int:
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 class GlobalDependentModel(ABC, nn.Module):
     """
     Model with global layers used by other layers.
@@ -191,12 +197,35 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
         return conversions
 
 
-if __name__ == '__main__':
-    from transformers import BertModel
+import torch
+from transformers import BertModel
 
-    model = BertModel.from_pretrained('bert-base-uncased')
+if __name__ == "__main__":
+    # Load the original BERT model
+    original_model = BertModel.from_pretrained("bert-base-uncased")
 
-    global_model = GlobalBaseModel(model, rank=64)
+    # Create the global model
+    global_model = GlobalBaseModel(original_model, rank=768)
 
+    print("Original model:")
+    print(original_model)
+    print("##################################################")
+    print("Global model:")
     print(global_model)
-    print(global_model.forward(torch.tensor([[1, 2, 3]])))
+    print("##################################################")
+    print("Number of parameters original model:", count_parameters(original_model))
+    print("Number of parameters global model:", count_parameters(global_model))
+    print("Percentage of parameters:", count_parameters(global_model) / count_parameters(original_model))
+
+    # Input tensor
+    input_ids = torch.ones((1, 512)).long()  # Ensure input tensor is of type torch.LongTensor
+
+    # Output of original model
+    print("Output of original model:")
+    print(original_model(input_ids))
+    print("##################################################")
+
+    # Output of global model
+    print("Output of global model:")
+    print(global_model(input_ids))
+
