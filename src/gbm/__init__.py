@@ -3,10 +3,12 @@ __all__ = [
     "GlobalDependentLinear",
     "StructureSpecificGlobalDependentLinear",
     "GlobalBaseLinear",
+    "LocalSVDLinear",
     "GlobalFixedRandomBaseLinear",
 
     "GlobalDependentModel",
     "GlobalBaseModel",
+    "LocalSVDModel",
     "GlobalFixedRandomBaseModel"
 ]
 
@@ -22,7 +24,7 @@ from gbm.layers.global_dependent_layer import (
 from gbm.models.global_dependent_model import (
     GlobalDependentModel,
     GlobalBaseModel,
-    LocalSVDLinear,
+    LocalSVDModel,
     GlobalFixedRandomBaseModel,
     count_parameters
 )
