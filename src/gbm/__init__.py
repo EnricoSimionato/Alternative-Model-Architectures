@@ -15,12 +15,14 @@ from gbm.layers.global_dependent_layer import (
     GlobalDependentLinear,
     StructureSpecificGlobalDependentLinear,
     GlobalBaseLinear,
+    LocalSVDLinear,
     GlobalFixedRandomBaseLinear
 )
 
 from gbm.models.global_dependent_model import (
     GlobalDependentModel,
     GlobalBaseModel,
+    LocalSVDLinear,
     GlobalFixedRandomBaseModel,
     count_parameters
 )

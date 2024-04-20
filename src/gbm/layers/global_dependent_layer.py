@@ -2,6 +2,8 @@ from typing import Any
 
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 
@@ -19,7 +21,7 @@ class GlobalDependent(ABC, nn.Module):
             Number of input features.
         out_features (int):
             Number of output features.
-        global_layers (nn.ModuleList):
+        global_layers (nn.ModuleDict):
             List of global matrices used in the linear layer.
         structure:
             Structure of the layer. Each element of the list has to contain a tuple with the type of layer ('g' for
@@ -416,15 +418,12 @@ class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
-            rank: int,
             *args,
             **kwargs
     ) -> None:
         super(StructureSpecificGlobalDependentLinear, self).__init__()
 
-        self.rank = rank
-
-        structure = self.define_structure(**{"target_layer": target_layer})
+        structure = self.define_structure(**{"target_layer": target_layer}, **kwargs)
         self.global_dependent_layer = GlobalDependentLinear(
             target_layer.in_features,
             target_layer.out_features,
@@ -433,7 +432,7 @@ class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
             target_layer.bias is not None
         )
 
-        self.initialize_matrices(**{"target_layer": target_layer})
+        self.initialize_matrices(**{"target_layer": target_layer}, **kwargs)
 
     @abstractmethod
     def define_structure(
@@ -577,7 +576,8 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             *args,
             **kwargs
     ) -> None:
-        super().__init__(target_layer, global_layers, rank, *args, **kwargs)
+        kwargs["rank"] = rank
+        super().__init__(target_layer, global_layers, *args, **kwargs)
 
     def define_structure(
             self,
@@ -592,15 +592,16 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         """
 
         target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
 
         return (
             {"scope": "global",
-             "shape": (target_layer.in_features, self.rank),
-             "key": str((target_layer.in_features, self.rank)),
+             "shape": (target_layer.in_features, rank),
+             "key": str((target_layer.in_features, rank)),
              "trainable": True},
             {"scope": "local",
-             "shape": (self.rank, target_layer.out_features),
-             "key": str((self.rank, target_layer.out_features)),
+             "shape": (rank, target_layer.out_features),
+             "key": str((rank, target_layer.out_features)),
              "trainable": True}
         )
 
@@ -625,7 +626,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
 
             self.global_dependent_layer.local_layers[local_key].weight.data = local_matrix
 
-            if "trainable" in self.global_dependent_layer.structure[0].keys():
+            if "trainable" in self.global_dependent_layer.structure[1].keys():
                 for params in self.global_dependent_layer.local_layers[local_key].parameters():
                     params.requires_grad = self.global_dependent_layer.structure[1]["trainable"]
 
@@ -633,7 +634,6 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
 
         optimizer = torch.optim.AdamW([self.global_dependent_layer.local_layers[local_key].weight])
 
-        # Define a learning rate scheduler
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
@@ -654,6 +654,73 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+
+class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
+    """
+    Implementation of a Linear layer on which is performed SVD decomposition.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            rank: int,
+            *args,
+            **kwargs
+    ) -> None:
+        kwargs["rank"] = rank
+        super().__init__(target_layer, global_layers, *args, **kwargs)
+
+    def define_structure(
+            self,
+            **kwargs
+    ) -> Any:
+        """
+        Method to define the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+
+        return (
+            {"scope": "local",
+             "shape": (target_layer.in_features, rank),
+             "key": "VT",
+             "trainable": True},
+             {"scope": "local",
+              "shape": (rank, target_layer.out_features),
+              "key": "US",
+              "trainable": True}
+        )
+
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+
+        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
+
+        with torch.no_grad():
+            self.global_dependent_layer.local_layers["US"].weight.data = torch.tensor(U[:, :rank] @ np.diag(S[:rank]))
+            self.global_dependent_layer.local_layers["VT"].weight.data = torch.tensor(VT[:rank, :])
+
+            for layer in self.global_dependent_layer.structure:
+                if "trainable" in layer.keys() and layer["scope"] == "local":
+                    for params in self.global_dependent_layer.local_layers[layer["key"]].parameters():
+                        params.requires_grad = layer["trainable"]
+
+            self.global_dependent_layer.local_layers["US"].bias = target_layer.bias
 
 
 class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
@@ -737,11 +804,21 @@ if __name__ == "__main__":
     gbl = GlobalBaseLinear(
         linear_layer,
         global_matrices_dict,
-        10
+        100
     )
 
+    print("Weights")
+    print("Weights of the original layer")
+    print(linear_layer.weight)
+    print()
+    print("Weights of the global dependent layer")
+    print(gbl.weight)
+    print()
+
+    print("Output example")
     x = torch.ones(100, 100)
-
+    print("Output of the original layer")
     print(linear_layer(x))
+    print()
+    print("Output of the global dependent layer")
     print(gbl(x))
-

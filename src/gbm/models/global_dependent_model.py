@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 
 from gbm.layers.global_dependent_layer import GlobalBaseLinear
+from gbm.layers.global_dependent_layer import LocalSVDLinear
 from gbm.layers.global_dependent_layer import GlobalFixedRandomBaseLinear
 
 
@@ -155,6 +156,52 @@ class GlobalBaseModel(GlobalDependentModel):
         return conversions
 
 
+class LocalSVDModel(GlobalDependentModel):
+    """
+    Model with global base layers replacing the linear layers.
+    """
+
+    def __init__(
+            self,
+            pretrained_model,
+            rank: int,
+            **kwargs
+    ) -> None:
+        """
+        Initialize the global base model.
+
+        Args:
+            pretrained_model (PreTrainedModel):
+                Pretrained model.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        kwargs["rank"] = rank
+        super(LocalSVDModel, self).__init__(pretrained_model, **kwargs)
+
+        self.rank = rank
+
+    def define_conversion(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Define the conversion of layers into global-base layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Dictionary mapping layer types to corresponding global-base layer classes.
+        """
+
+        conversions = {nn.Linear: LocalSVDLinear}
+
+        return conversions
+
+
 class GlobalFixedRandomBaseModel(GlobalDependentModel):
     """
     Model with global random fixed base layers replacing the linear layers.
@@ -205,7 +252,7 @@ if __name__ == "__main__":
     original_model = BertModel.from_pretrained("bert-base-uncased")
 
     # Create the global model
-    global_model = GlobalBaseModel(original_model, rank=768)
+    global_model = LocalSVDModel(original_model, rank=768)
 
     print("Original model:")
     print(original_model)
