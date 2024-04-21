@@ -465,7 +465,10 @@ class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
             torch.Tensor: Output tensor.
         """
 
-        return self.global_dependent_layer(x, **kwargs)
+        return self.global_dependent_layer(
+            x,
+            **kwargs
+        )
 
     @abstractmethod
     def initialize_matrices(

@@ -5,15 +5,11 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
+from gbm.utils.parameters_count import count_parameters
+
 from gbm.layers.global_dependent_layer import GlobalBaseLinear
 from gbm.layers.global_dependent_layer import LocalSVDLinear
 from gbm.layers.global_dependent_layer import GlobalFixedRandomBaseLinear
-
-
-def count_parameters(
-        model: nn.Module
-) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -90,7 +86,8 @@ class GlobalDependentModel(ABC, nn.Module):
     def forward(
             self,
             input_ids: torch.Tensor,
-            attention_mask: torch.Tensor = None
+            attention_mask: torch.Tensor = None,
+            **kwargs
     ) -> None:
         """
         Forward pass of the model.
@@ -105,7 +102,11 @@ class GlobalDependentModel(ABC, nn.Module):
             Output tensor.
         """
 
-        output = self.model.forward(input_ids, attention_mask=attention_mask)
+        output = self.model.forward(
+            input_ids,
+            attention_mask=attention_mask,
+            **kwargs
+        )
 
         return output
 
@@ -252,7 +253,7 @@ if __name__ == "__main__":
     original_model = BertModel.from_pretrained("bert-base-uncased")
 
     # Create the global model
-    global_model = LocalSVDModel(original_model, rank=768)
+    global_model = LocalSVDModel(original_model, rank=78)
 
     print("Original model:")
     print(original_model)
@@ -274,5 +275,6 @@ if __name__ == "__main__":
 
     # Output of global model
     print("Output of global model:")
-    print(global_model(input_ids))
+    print(global_model.forward(input_ids))
 
+    print()
