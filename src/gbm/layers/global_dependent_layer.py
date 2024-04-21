@@ -689,14 +689,15 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
 
         target_layer = kwargs["target_layer"]
         rank = kwargs["rank"]
+        min_dim = min(target_layer.in_features, target_layer.out_features)
 
         return (
             {"scope": "local",
-             "shape": (target_layer.in_features, min(target_layer.in_features, rank)),
+             "shape": (target_layer.in_features, min(min_dim, rank)),
              "key": "VT",
              "trainable": True},
              {"scope": "local",
-              "shape": (min(rank, target_layer.out_features), target_layer.out_features),
+              "shape": (min(min_dim, rank), target_layer.out_features),
               "key": "US",
               "trainable": True}
         )
@@ -713,10 +714,15 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
         rank = kwargs["rank"]
 
         U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
+        min_dim = min(target_layer.in_features, target_layer.out_features)
 
         with torch.no_grad():
-            self.global_dependent_layer.local_layers["US"].weight.data = torch.tensor(U[:, :min(rank, target_layer.out_features)] @ np.diag(S[:min(rank, target_layer.out_features)]))
-            self.global_dependent_layer.local_layers["VT"].weight.data = torch.tensor(VT[:min(target_layer.in_features, rank), :])
+            self.global_dependent_layer.local_layers["US"].weight.data = torch.tensor(
+                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
+            )
+            self.global_dependent_layer.local_layers["VT"].weight.data = torch.tensor(
+                VT[:min(min_dim, rank), :]
+            )
 
             for layer in self.global_dependent_layer.structure:
                 if "trainable" in layer.keys() and layer["scope"] == "local":
