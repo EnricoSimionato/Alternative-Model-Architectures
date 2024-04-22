@@ -20,6 +20,7 @@ class GlobalDependentModel(ABC, nn.Module):
     def __init__(
             self,
             target_model: nn.Module,
+            target_layers: tuple,
             **kwargs
     ) -> None:
         """
@@ -28,12 +29,15 @@ class GlobalDependentModel(ABC, nn.Module):
         Args:
             target_model (PreTrainedModel):
                 Pretrained model.
+            target_layers:
+                Layers to factorize.
             **kwargs:
                 Additional keyword arguments.
         """
 
         super(GlobalDependentModel, self).__init__()
 
+        self.target_layers = target_layers
         self.model = deepcopy(target_model)
 
         self.global_layers = nn.ModuleDict()
@@ -75,10 +79,12 @@ class GlobalDependentModel(ABC, nn.Module):
             child = model_tree._modules[key]
             if len(child._modules) == 0:
                 if type(child) in self.conversions.keys():
-                    model_tree._modules[key] = self.conversions[type(child)](
-                        child,
-                        self.global_layers,
-                        **kwargs)
+                    if key in self.target_layers:
+                        print(key)
+                        model_tree._modules[key] = self.conversions[type(child)](
+                            child,
+                            self.global_layers,
+                            **kwargs)
 
             else:
                 self._convert_into_global_dependent_model(child, **kwargs)
@@ -119,6 +125,7 @@ class GlobalBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
+            target_layers: tuple,
             rank: int,
             **kwargs
     ) -> None:
@@ -128,12 +135,16 @@ class GlobalBaseModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
+            target_layers (tuple):
+                Layers to factorize.
+            rank (int):
+                Rank of the decomposition.
             **kwargs:
                 Additional keyword arguments.
         """
 
         kwargs["rank"] = rank
-        super(GlobalBaseModel, self).__init__(pretrained_model, **kwargs)
+        super(GlobalBaseModel, self).__init__(pretrained_model, target_layers, **kwargs)
 
         self.rank = rank
 
@@ -165,6 +176,7 @@ class LocalSVDModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
+            target_layers: tuple,
             rank: int,
             **kwargs
     ) -> None:
@@ -174,12 +186,16 @@ class LocalSVDModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
+            target_layers (tuple):
+                Layers to factorize.
+            rank (int):
+                Rank of the decomposition.
             **kwargs:
                 Additional keyword arguments.
         """
 
         kwargs["rank"] = rank
-        super(LocalSVDModel, self).__init__(pretrained_model, **kwargs)
+        super(LocalSVDModel, self).__init__(pretrained_model, target_layers, **kwargs)
 
         self.rank = rank
 
@@ -211,6 +227,8 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
+            target_layers: tuple,
+            rank: int,
             **kwargs
     ) -> None:
         """
@@ -219,11 +237,18 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
+            target_layers (tuple):
+                Layers to factorize.
+            rank (int):
+                Rank of the decomposition.
             **kwargs:
                 Additional keyword arguments.
         """
 
-        super(GlobalFixedRandomBaseModel, self).__init__(pretrained_model, **kwargs)
+        kwargs["rank"] = rank
+        super(GlobalFixedRandomBaseModel, self).__init__(pretrained_model, target_layers, **kwargs)
+
+        self.rank = rank
 
     def define_conversion(
             self,

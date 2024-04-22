@@ -779,6 +779,7 @@ class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
         """
 
         target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
 
         return (
             {"scope": "global",
@@ -805,7 +806,55 @@ class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
             self.global_dependent_layer.global_matrices[self.global_dependent_layer.structure[1]["key"]].weight.data.copy_(
                 torch.randn(self.global_dependent_layer.structure[1]["shape"][0], self.rank)
             )
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
 
+        target_layer = kwargs["target_layer"]
+        target_weight = target_layer.weight.data
+        global_key = self.global_dependent_layer.structure[0]["key"]
+        local_key = self.global_dependent_layer.structure[1]["key"]
+
+        with torch.no_grad():
+            global_matrix = self.global_dependent_layer.global_layers[global_key].weight.data
+
+            pinv_global_matrix = torch.pinverse(global_matrix)
+            local_matrix = target_weight @ pinv_global_matrix
+
+            self.global_dependent_layer.local_layers[local_key].weight.data = local_matrix
+
+            if "trainable" in self.global_dependent_layer.structure[1].keys():
+                for params in self.global_dependent_layer.local_layers[local_key].parameters():
+                    params.requires_grad = self.global_dependent_layer.structure[1]["trainable"]
+
+            self.global_dependent_layer.local_layers[local_key].bias = target_layer.bias
+
+        optimizer = torch.optim.AdamW([self.global_dependent_layer.local_layers[local_key].weight])
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=10,
+            verbose=False
+        )
+
+        num_epochs = 50
+
+        for epoch in range(num_epochs):
+            loss = torch.norm((target_weight - torch.matmul(
+                self.global_dependent_layer.local_layers[local_key].weight,
+                self.global_dependent_layer.global_layers[global_key].weight)) ** 2)
+
+            scheduler.step(loss)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
 if __name__ == "__main__":
     linear_layer = nn.Linear(100, 100, bias=True)
