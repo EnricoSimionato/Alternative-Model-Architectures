@@ -20,7 +20,7 @@ class GlobalDependentModel(ABC, nn.Module):
     def __init__(
             self,
             target_model: nn.Module,
-            target_layers: tuple,
+            target_layers: dict,
             **kwargs
     ) -> None:
         """
@@ -29,7 +29,7 @@ class GlobalDependentModel(ABC, nn.Module):
         Args:
             target_model (PreTrainedModel):
                 Pretrained model.
-            target_layers:
+            target_layers (dict):
                 Layers to factorize.
             **kwargs:
                 Additional keyword arguments.
@@ -75,15 +75,18 @@ class GlobalDependentModel(ABC, nn.Module):
                 Additional keyword arguments.
         """
 
-        for key in model_tree._modules.keys():
-            child = model_tree._modules[key]
+        for layer_name in model_tree._modules.keys():
+            child = model_tree._modules[layer_name]
             if len(child._modules) == 0:
-                if type(child) in self.conversions.keys():
-                    if key in self.target_layers:
-                        model_tree._modules[key] = self.conversions[type(child)](
-                            child,
-                            self.global_layers,
-                            **kwargs)
+                if (type(child) in self.conversions.keys() and
+                        layer_name in self.target_layers.keys()):
+
+                    kwargs_layer = kwargs.copy()
+                    kwargs_layer.update(self.target_layers[layer_name])
+                    model_tree._modules[layer_name] = self.conversions[type(child)](
+                        child,
+                        self.global_layers,
+                        **kwargs_layer)
 
             else:
                 self._convert_into_global_dependent_model(child, **kwargs)
@@ -124,7 +127,7 @@ class GlobalBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
-            target_layers: tuple,
+            target_layers: dict,
             rank: int,
             **kwargs
     ) -> None:
@@ -134,7 +137,7 @@ class GlobalBaseModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
-            target_layers (tuple):
+            target_layers (dict):
                 Layers to factorize.
             rank (int):
                 Rank of the decomposition.
@@ -175,7 +178,7 @@ class LocalSVDModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
-            target_layers: tuple,
+            target_layers: dict,
             rank: int,
             **kwargs
     ) -> None:
@@ -185,7 +188,7 @@ class LocalSVDModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
-            target_layers (tuple):
+            target_layers (dict):
                 Layers to factorize.
             rank (int):
                 Rank of the decomposition.
@@ -226,7 +229,7 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model,
-            target_layers: tuple,
+            target_layers: dict,
             rank: int,
             **kwargs
     ) -> None:
@@ -236,7 +239,7 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
         Args:
             pretrained_model (PreTrainedModel):
                 Pretrained model.
-            target_layers (tuple):
+            target_layers (dict):
                 Layers to factorize.
             rank (int):
                 Rank of the decomposition.
