@@ -11,6 +11,8 @@ from transformers import AutoTokenizer
 
 from datasets import load_dataset, concatenate_datasets
 
+import re
+
 
 class SentimentAnalysisDataset(ABC, Dataset):
     """
@@ -153,12 +155,13 @@ class IMDBDataset(SentimentAnalysisDataset):
     def preprocess_function(
             self,
             examples
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         tokenized_example = self.tokenizer(
             examples["text"],
             truncation=True,
             padding='max_length',
-            max_length=self.max_length
+            max_length=self.max_length,
+            return_tensors="pt",
         )
 
         return tokenized_example
@@ -175,7 +178,7 @@ class IMDBDataset(SentimentAnalysisDataset):
     def __getitem__(
             self,
             idx: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[str, torch.Tensor]:
         """
         Retrieves a sample from the dataset at the given index.
 
@@ -184,107 +187,18 @@ class IMDBDataset(SentimentAnalysisDataset):
                 Index of the sample to retrieve.
         """
 
-        return self.dataset[idx]
+        sample = self.dataset[idx]
 
+        # Converting input_ids, attention_mask, and labels to tensors
+        input_ids = torch.tensor(sample["input_ids"])
+        attention_mask = torch.tensor(sample["attention_mask"])
+        label = torch.tensor(sample["label"])
 
-class OpenassistantGuanacoDatasetDict:
-    def __init__(
-            self,
-            tokenizer: AutoTokenizer,
-            max_len: int,
-            split: tuple[float, float, float]
-    ) -> None:
-        """
-        Initializes the dataset loading it from .
-        """
-
-        if len(split) != 3:
-            raise ValueError(
-                "The split must have three elements (train, validation, test)."
-            )
-        if sum(split) != 1:
-            raise ValueError(
-                "The sum of the split elements must be equal to 1."
-            )
-
-        raw_dataset = load_dataset("openassistant-guanaco")
-        merged_raw_dataset = concatenate_datasets([raw_dataset[key] for key in raw_dataset.keys()])
-
-        first_split_raw_dataset = merged_raw_dataset.train_test_split(
-            test_size=split[2]
-        )
-        second_split_raw_dataset = first_split_raw_dataset["train"].train_test_split(
-            test_size=split[1]/((1-split[2]) if split[2] != 1 else 1)
-        )
-
-        self.train = OpenassistantGuanacoDataset(second_split_raw_dataset["train"], tokenizer, max_len)
-        self.validation = OpenassistantGuanacoDataset(second_split_raw_dataset["test"], tokenizer, max_len)
-        self.test = OpenassistantGuanacoDataset(first_split_raw_dataset["test"], tokenizer, max_len)
-
-
-class OpenassistantGuanacoDataset(ConversationDataset):
-    """
-    Openassistant-guanaco dataset.
-    """
-
-    def __init__(
-            self,
-            raw_dataset: datasets.Dataset,
-            tokenizer,
-            max_length: int = 512
-    ) -> None:
-        """
-        Initializes the dataset loading it from HuggingFace.
-        """
-
-        super().__init__("imdb", tokenizer)
-
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-
-        tokenized_dataset = raw_dataset.map(self.preprocess_function, batched=True)
-
-        self.input_ids = torch.tensor(tokenized_dataset["input_ids"])
-        self.attention_masks = torch.tensor(tokenized_dataset["attention_mask"])
-        self.labels = torch.tensor(tokenized_dataset["label"])
-        print(tokenized_dataset)
-
-    def preprocess_function(
-            self,
-            examples
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        tokenized_example = self.tokenizer(
-            examples["text"],
-            truncation=True,
-            padding='max_length',
-            max_length=self.max_length
-        )
-
-        return tokenized_example
-
-    def __len__(
-            self
-    ) -> int:
-        """
-        Returns the length of the dataset.
-        """
-
-        return len(self.input_ids)
-
-    def __getitem__(
-            self,
-            idx: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Retrieves a sample from the dataset at the given index.
-
-        Args:
-            idx (int):
-                Index of the sample to retrieve.
-        """
-
-        return self.input_ids[idx], self.attention_masks[idx], self.labels[idx]
-
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "label": label
+        }
 
 class LightningDataset(Dataset):
     """
@@ -348,34 +262,76 @@ class LightningDataset(Dataset):
         }
 
 
-class FormattedDataset(TorchDataset):
+class OpenAssistantGuanacoDatasetDict:
     def __init__(
             self,
-            dataset,
+            tokenizer: AutoTokenizer,
+            max_len: int,
+            split: tuple[float, float, float]
+    ) -> None:
+        """
+        Initializes the dataset loading it from .
+        """
+
+        if len(split) != 3:
+            raise ValueError(
+                "The split must have three elements (train, validation, test)."
+            )
+        if sum(split) != 1:
+            raise ValueError(
+                "The sum of the split elements must be equal to 1."
+            )
+
+        raw_dataset = load_dataset("openassistant-guanaco")
+        merged_raw_dataset = concatenate_datasets([raw_dataset[key] for key in raw_dataset.keys()])
+
+        first_split_raw_dataset = merged_raw_dataset.train_test_split(
+            test_size=split[2]
+        )
+        second_split_raw_dataset = first_split_raw_dataset["train"].train_test_split(
+            test_size=split[1]/((1-split[2]) if split[2] != 1 else 1)
+        )
+
+        self.train = OpenAssistantGuanacoDataset(second_split_raw_dataset["train"], tokenizer, max_len)
+        self.validation = OpenAssistantGuanacoDataset(second_split_raw_dataset["test"], tokenizer, max_len)
+        self.test = OpenAssistantGuanacoDataset(first_split_raw_dataset["test"], tokenizer, max_len)
+
+
+class OpenAssistantGuanacoDataset(ConversationDataset):
+    def __init__(
+            self,
+            raw_dataset,
             tokenizer,
             max_length: int = 512
     ):
-        super(TorchDataset, self).__init__()
+        super().__init__("openassistant-guanaco", tokenizer)
 
-        self.max_length = max_length
         self.tokenizer = tokenizer
+        self.max_length = max_length
+
+        self.dataset = []
 
         self.sep_regex = re.compile(r"### (Human|Assistant)")
+        self.preprocess(raw_dataset)
 
+    def preprocess(
+            self,
+            raw_dataset
+    ) -> None:
         texts = [
-            tokenizer.decode(
-                tokenizer.apply_chat_template([
+            self.tokenizer.decode(
+                self.tokenizer.apply_chat_template([
                     {
                         "role": "user" if message.split(":", 1)[0].strip() == "Human" else "assistant",
                         "content": message.split(":", 1)[1].strip()
                     } for message in self.sep_regex.sub("<sep/> \\1", dialogue["text"]).split("<sep/>") if
                     len(message) > 0
                 ]),
-                skip_special_tokens=False).strip() + tokenizer.eos_token
-            for dialogue in dataset
+                skip_special_tokens=False).strip() + self.tokenizer.eos_token
+            for dialogue in raw_dataset
         ]
 
-        tokenized_texts = [tokenizer(
+        tokenized_texts = [self.tokenizer(
             text,
             padding="max_length",
             max_length=self.max_length,
@@ -385,7 +341,7 @@ class FormattedDataset(TorchDataset):
             add_special_tokens=True
         ) for text in texts]
 
-        self.input_encodings = [
+        self.dataset = [
             {
                 "input_ids": input_encoding["input_ids"].squeeze(0),
                 "labels": input_encoding["input_ids"].clone().squeeze(0),
@@ -393,22 +349,39 @@ class FormattedDataset(TorchDataset):
             }
             for input_encoding in tokenized_texts]
 
-        for idx, _ in enumerate(self.input_encodings):
-            self.input_encodings[idx]["labels"][["attention_mask"] == 0] = -100
+        for idx, _ in enumerate(self.dataset):
+            self.dataset[idx]["labels"][["attention_mask"] == 0] = -100
 
     def __len__(
             self
     ):
-        return len(self.input_encodings)
+        """
+        Returns the length of the dataset.
+
+        Returns:
+            int:
+                Length of the dataset.
+        """
+
+        return len(self.dataset)
 
     def __getitem__(
             self,
             idx
     ) -> dict:
-        return self.input_encodings[idx]
+        """
+        Retrieves a sample from the dataset at the given index.
 
+        Args:
+            idx (int):
+                Index of the sample to retrieve.
 
+        Returns:
+            dict:
+                Dictionary containing the tokenized inputs.
+        """
 
+        return self.dataset[idx]
 
 
 if  __name__ == "__main__":
@@ -419,8 +392,10 @@ if  __name__ == "__main__":
         (0.8, 0.1, 0.1)
     )
 
-    for i in range(10):
-        print(dataset.train[i])
-        print(dataset.validation[i])
-        print(dataset.test[i])
+    for el in dataset.train:
+        print(type(el))
+        print(type(el["input_ids"]))
+        print(type(el["attention_mask"]))
+        print(type(el["label"]))
+        print(el)
         print()
