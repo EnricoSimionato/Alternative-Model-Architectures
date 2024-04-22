@@ -11,7 +11,7 @@ __all__ = {
     "count_parameters"
 }
 
-from .lightning_datasets import (
+from gbm.utils.lightning_datasets import (
     IMDBDatasetDict,
     IMDBDataset,
 
@@ -19,7 +19,6 @@ from .lightning_datasets import (
     OpenassistantGuanacoDataset,
 )
 
-from memory_usage import convert_bytes_in_other_units, compute_model_memory_usage
+from gbm.utils.memory_usage import convert_bytes_in_other_units, compute_model_memory_usage
 
-from parameters_count import count_parameters
-
+from gbm.utils.parameters_count import count_parameters

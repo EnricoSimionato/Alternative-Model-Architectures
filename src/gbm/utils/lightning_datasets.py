@@ -348,6 +348,69 @@ class LightningDataset(Dataset):
         }
 
 
+class FormattedDataset(TorchDataset):
+    def __init__(
+            self,
+            dataset,
+            tokenizer,
+            max_length: int = 512
+    ):
+        super(TorchDataset, self).__init__()
+
+        self.max_length = max_length
+        self.tokenizer = tokenizer
+
+        self.sep_regex = re.compile(r"### (Human|Assistant)")
+
+        texts = [
+            tokenizer.decode(
+                tokenizer.apply_chat_template([
+                    {
+                        "role": "user" if message.split(":", 1)[0].strip() == "Human" else "assistant",
+                        "content": message.split(":", 1)[1].strip()
+                    } for message in self.sep_regex.sub("<sep/> \\1", dialogue["text"]).split("<sep/>") if
+                    len(message) > 0
+                ]),
+                skip_special_tokens=False).strip() + tokenizer.eos_token
+            for dialogue in dataset
+        ]
+
+        tokenized_texts = [tokenizer(
+            text,
+            padding="max_length",
+            max_length=self.max_length,
+            truncation=True,
+            return_tensors="pt",
+            return_attention_mask=True,
+            add_special_tokens=True
+        ) for text in texts]
+
+        self.input_encodings = [
+            {
+                "input_ids": input_encoding["input_ids"].squeeze(0),
+                "labels": input_encoding["input_ids"].clone().squeeze(0),
+                "attention_mask": input_encoding["attention_mask"].squeeze(0)
+            }
+            for input_encoding in tokenized_texts]
+
+        for idx, _ in enumerate(self.input_encodings):
+            self.input_encodings[idx]["labels"][["attention_mask"] == 0] = -100
+
+    def __len__(
+            self
+    ):
+        return len(self.input_encodings)
+
+    def __getitem__(
+            self,
+            idx
+    ) -> dict:
+        return self.input_encodings[idx]
+
+
+
+
+
 if  __name__ == "__main__":
     bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     dataset = IMDBDatasetDict(
