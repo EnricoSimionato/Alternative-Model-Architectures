@@ -80,7 +80,6 @@ class GlobalDependentModel(ABC, nn.Module):
             if len(child._modules) == 0:
                 if type(child) in self.conversions.keys():
                     if key in self.target_layers:
-                        print(key)
                         model_tree._modules[key] = self.conversions[type(child)](
                             child,
                             self.global_layers,
