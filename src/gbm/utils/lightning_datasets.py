@@ -138,7 +138,7 @@ class IMDBDataset(SentimentAnalysisDataset):
             max_length: int = 512
     ) -> None:
         """
-        Initializes the dataset loading it from .
+        Initializes the dataset loading it from HuggingFace.
         """
 
         super().__init__("imdb", tokenizer)
@@ -148,10 +148,7 @@ class IMDBDataset(SentimentAnalysisDataset):
 
         tokenized_dataset = raw_dataset.map(self.preprocess_function, batched=True)
 
-        self.input_ids = torch.tensor(tokenized_dataset["input_ids"])
-        self.attention_masks = torch.tensor(tokenized_dataset["attention_mask"])
-        self.labels = torch.tensor(tokenized_dataset["label"])
-        print(tokenized_dataset)
+        self.dataset = tokenized_dataset
 
     def preprocess_function(
             self,
@@ -173,7 +170,7 @@ class IMDBDataset(SentimentAnalysisDataset):
         Returns the length of the dataset.
         """
 
-        return len(self.input_ids)
+        return len(self.dataset)
 
     def __getitem__(
             self,
@@ -187,10 +184,10 @@ class IMDBDataset(SentimentAnalysisDataset):
                 Index of the sample to retrieve.
         """
 
-        return self.input_ids[idx], self.attention_masks[idx], self.labels[idx]
+        return self.dataset[idx]
 
 
-class GuanacoDatasetDict:
+class OpenassistantGuanacoDatasetDict:
     def __init__(
             self,
             tokenizer: AutoTokenizer,
