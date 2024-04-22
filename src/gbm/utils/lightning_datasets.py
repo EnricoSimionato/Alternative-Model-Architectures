@@ -178,7 +178,7 @@ class IMDBDataset(SentimentAnalysisDataset):
     def __getitem__(
             self,
             idx: int
-    ) -> tuple[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Retrieves a sample from the dataset at the given index.
 
@@ -198,67 +198,6 @@ class IMDBDataset(SentimentAnalysisDataset):
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             "label": label
-        }
-
-class LightningDataset(Dataset):
-    """
-    Dataset to use in the training with Pytorch Lightning.
-    """
-
-    def __init__(
-            self,
-            dataset: Dataset
-    ) -> None:
-        """
-        Initializes the Dataset to use in the training with Pytorch Lightning.
-
-        Args:
-            dataset (Dataset):
-                The dataset to be wrapped.
-        """
-
-        self.dataset = dataset
-
-    def __len__(
-            self
-    ) -> int:
-        """
-        Returns the length of the dataset.
-
-        Returns:
-            int:
-                Length of the dataset.
-        """
-
-        return len(self.dataset)
-
-    def __getitem__(
-            self,
-            idx: int
-    ) -> dict[str, torch.Tensor]:
-        """
-        Retrieves a sample from the dataset at the given index.
-
-        Args:
-            idx (int):
-                Index of the sample to retrieve.
-
-        Returns:
-            dict[str, torch.Tensor]:
-                Dictionary containing the tokenized inputs.
-        """
-
-        sample = self.dataset[idx]
-
-        # Converting input_ids, attention_mask, and labels to tensors
-        input_ids = torch.tensor(sample["input_ids"])
-        attention_mask = torch.tensor(sample["attention_mask"])
-        labels = torch.tensor(sample["label"])
-
-        return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels
         }
 
 
@@ -384,7 +323,7 @@ class OpenAssistantGuanacoDataset(ConversationDataset):
         return self.dataset[idx]
 
 
-if  __name__ == "__main__":
+if __name__ == "__main__":
     bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     dataset = IMDBDatasetDict(
         bert_tokenizer,
