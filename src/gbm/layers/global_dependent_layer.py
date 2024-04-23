@@ -9,7 +9,25 @@ import torch
 import torch.nn as nn
 
 
-class GlobalDependent(ABC, nn.Module):
+class MergeableLayer:
+    @abstractmethod
+    def merge(
+            self,
+            **kwargs
+    ) -> nn.Module:
+        """
+        Merges the global and local layers into an equivalent layer.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            nn.Module: Equivalent linear layer with merged weights and bias.
+        """
+
+
+class GlobalDependent(ABC, MergeableLayer, nn.Module):
     """
     Abstract class that implements a layer with dependencies on global matrices.
     It implements a linear layer with dependencies on global matrices or combinations of linear layers, for other types
@@ -278,7 +296,7 @@ class GlobalDependent(ABC, nn.Module):
 
         return next(self.parameters()).device
 
-
+    
 class GlobalDependentLinear(GlobalDependent):
     """
     Implementation of a Linear layer decomposed in the matrix product of many global and local matrices.
@@ -423,7 +441,8 @@ class GlobalDependentLinear(GlobalDependent):
                     param.requires_grad = self.structure[-1]["trainable"]
 
     def merge(
-            self
+            self,
+            **kwargs
     ) -> nn.Module:
         """
         Merges the global and local layers into an equivalent linear layer.
@@ -431,8 +450,13 @@ class GlobalDependentLinear(GlobalDependent):
         This method computes the equivalent linear layer by multiplying the weights
         of the global and local layers and setting the bias accordingly.
 
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
         Returns:
-            nn.Module: Equivalent linear layer with merged weights and bias.
+            nn.Module:
+                Equivalent linear layer with merged weights and bias.
 
         Raises:
             Exception:
@@ -470,7 +494,7 @@ class GlobalDependentLinear(GlobalDependent):
         return equivalent_linear
 
 
-class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
+class StructureSpecificGlobalDependentLinear(ABC, nn.Module, MergeableLayer):
     """
     Abstract class that implements a linear layer with dependencies on global matrices that wraps a Linear layer.
     """
@@ -548,6 +572,18 @@ class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
         """
 
         self.global_dependent_layer.reset_parameters()
+
+    def merge(
+            self
+    ) -> nn.Module:
+        """
+        Merges the global and local layers into an equivalent linear layer.
+
+        Returns:
+            nn.Module: Equivalent linear layer with merged weights and bias.
+        """
+
+        return self.global_dependent_layer.merge()
 
     @property
     def shape(
@@ -982,6 +1018,50 @@ class DiagonalLinearLayer(nn.Module):
 
         return output
 
+    @property
+    def weight(
+            self,
+            return_diag: bool = False
+    ) -> nn.Parameter:
+        """
+        Returns the weight parameter of the layer.
+
+        Args:
+            return_diag (bool):
+                If True, returns the diagonal weights. Default is False.
+
+        Returns:
+            Tensor: Weight parameter.
+        """
+
+        if return_diag:
+            return self._weight
+        else:
+            return self._weight.diag()
+
+    @weight.setter
+    def weight(
+            self,
+            value: torch.Tensor
+    ) -> None:
+        """
+        Property method to set the weight parameter of the linear layer.
+
+        Args:
+            value (torch.Tensor):
+                Weight parameter value.
+
+        Raises:
+            ValueError:
+                If the shape of the value is not `(out_features,)` or `(out_features, in_features)`.
+        """
+        if value.shape == (self.out_features,):
+            self._weight = nn.Parameter(value)
+        elif value.shape == (self.out_features, self.in_features):
+            self._weight = nn.Parameter(torch.diag(value))
+        else:
+            raise ValueError("The shape of the weight should be (out_features,) or (out_features, in_features).")
+
 
 class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
     """
@@ -1093,20 +1173,30 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
 if __name__ == "__main__":
     linear_layer = nn.Linear(100, 100, bias=True)
     global_matrices_dict = nn.ModuleDict()
-    gbl = GlobalBaseLinear(
+    gbl = LocalSVDLinear(
         linear_layer,
         global_matrices_dict,
         100
     )
 
+    gbl_merged = gbl.merge()
+
+    """
     print("Weights")
     print("Weights of the original layer")
-    print(linear_layer.weight)
+    print(linear_layer.weight.shape)
     print()
     print("Weights of the global dependent layer")
-    print(gbl.weight)
+    print(gbl_merged.weight)
     print()
+    """
+    print(gbl)
+    print(gbl_merged)
+    print(gbl_merged.weight.data - linear_layer.weight.data)
+    tolerance = 1e-7
+    assert torch.allclose(gbl_merged.weight.data, linear_layer.weight.data, atol=tolerance)
 
+    """
     print("Output example")
     x = torch.ones(100, 100)
     print("Output of the original layer")
@@ -1114,3 +1204,5 @@ if __name__ == "__main__":
     print()
     print("Output of the global dependent layer")
     print(gbl(x))
+    """
+

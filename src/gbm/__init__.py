@@ -39,7 +39,6 @@ from gbm.models.global_dependent_model import (
     GlobalBaseModel,
     LocalSVDModel,
     GlobalFixedBaseModel,
-    count_parameters,
 )
 
 from gbm.utils.lightning_datasets import (
