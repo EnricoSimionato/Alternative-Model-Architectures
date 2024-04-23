@@ -114,9 +114,10 @@ class IMDBDatasetDict:
             )
 
         raw_dataset = load_dataset("imdb")
-        merged_raw_dataset = concatenate_datasets([raw_dataset[key] for key in raw_dataset.keys()])
 
-        first_split_raw_dataset = merged_raw_dataset.train_test_split(
+        concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
+
+        first_split_raw_dataset = concatenated_raw_dataset.train_test_split(
             test_size=split[2]
         )
         second_split_raw_dataset = first_split_raw_dataset["train"].train_test_split(
@@ -331,10 +332,8 @@ if __name__ == "__main__":
         (0.8, 0.1, 0.1)
     )
 
-    for el in dataset.train:
-        print(type(el))
+    for el in dataset.validation:
         print(type(el["input_ids"]))
         print(type(el["attention_mask"]))
-        print(type(el["label"]))
-        print(el)
+        print(el["label"])
         print()
