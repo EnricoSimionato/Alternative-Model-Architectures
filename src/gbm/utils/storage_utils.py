@@ -36,6 +36,10 @@ def store_model_and_info(
             Whether to print the paths where the model, tokenizer, hyperparameters and stats are stored.
             Defaults to True.
 
+    Returns:
+        str:
+            The name of the stored model.
+
     Raises:
         Exception:
             If the specified path does not exist.
@@ -82,6 +86,8 @@ def store_model_and_info(
 
     if verbose:
         print(f"Hyperparameters saved in: '{path_to_hyperparameters}'")
+
+    return model_name
 
 
 def load_model_and_info(
@@ -150,17 +156,62 @@ def load_model_and_info(
     with open(path_to_stats, 'rb') as f:
         losses = pickle.load(f)
 
-    if print_info:
+    if verbose:
         print(f"Stats loaded from: '{path_to_stats}'")
-        print(losses)
 
     path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
     with open(path_to_hyperparameters, 'rb') as f:
         hyperparameters = pickle.load(f)
 
-    if print_info:
+    if verbose:
         print(f"Hyperparameters loaded from: '{path_to_hyperparameters}'")
-        print(hyperparameters)
+        print()
+
+    if print_info:
+        print("SETTING OF THE TRAINING - HYPERPARAMETERS:")
+        for key, value in hyperparameters.items():
+            print(f"{key}: {value}")
+        print()
+
 
     return model, tokenizer, hyperparameters, losses
 
+
+def test_store() -> None:
+    model = transformers.AutoModel.from_pretrained("bert-base-uncased")
+    tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
+    hyperparameters = {
+        "batch_size": 16,
+        "learning_rate": 1e-5
+    }
+
+    losses = {
+        "train": [0.5, 0.4, 0.3],
+        "validation": [0.6, 0.5, 0.4],
+        "test": [0.7, 0.6, 0.5]
+    }
+
+    _ = store_model_and_info("bert", model, tokenizer, hyperparameters, losses, verbose=False)
+
+
+def test_load() -> None:
+    model = transformers.AutoModel.from_pretrained("bert-base-uncased")
+    tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
+    hyperparameters = {
+        "batch_size": 16,
+        "learning_rate": 1e-5
+    }
+
+    losses = {
+        "train": [0.5, 0.4, 0.3],
+        "validation": [0.6, 0.5, 0.4],
+        "test": [0.7, 0.6, 0.5]
+    }
+
+    model_name = store_model_and_info("bert", model, tokenizer, hyperparameters, losses, verbose=False)
+
+    return load_model_and_info(model_name, print_info=True, verbose=True)
+
+
+if __name__ == "__main__":
+    _, _, _, _ = test_load()
