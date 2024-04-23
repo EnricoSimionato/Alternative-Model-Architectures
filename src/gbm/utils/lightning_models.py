@@ -1,106 +1,36 @@
+import numpy as np
+
 import torch
-from torch.nn.utils.rnn import pad_sequence
+
+from torch.utils.data import DataLoader
+
+import pytorch_lightning as pl
+
+from transformers import AutoTokenizer
+from transformers.optimization import AdamW
+
+from gbm.utils.lightning_datasets import ConversationDataset
 
 
-def collate_fn(batch):
-    # Extract input_ids, attention_mask, and labels from the batch
-    input_ids = [item["input_ids"] for item in batch]
-    attention_masks = [item["attention_mask"] for item in batch]
-    labels = [item["labels"] for item in batch]
-
-    # Pad sequences dynamically to the maximum length within each batch
-    padded_input_ids = pad_sequence(input_ids, batch_first=True, padding_value=tokenizer.pad_token_id)
-    padded_attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0)
-
-    # Convert labels to tensor
-    padded_labels = torch.tensor(labels)
-
-    return {
-        "input_ids": padded_input_ids,
-        "attention_mask": padded_attention_masks,
-        "labels": padded_labels
-    }
-
-
-class LightningDataset(TorchDataset):
+class ClassifierModelWrapper(pl.LightningModule):
     """
-    Dataset to use in the training with Pytorch Lightning.
-    """
-
-    def __init__(
-            self,
-            dataset: Dataset
-    ) -> None:
-        """
-        Initializes the Dataset to use in the training with Pytorch Lightning.
-
-        Args:
-            dataset (Dataset):
-                The dataset to be wrapped.
-        """
-
-        self.dataset = dataset
-
-    def __len__(
-            self
-    ) -> int:
-        """
-        Returns the length of the dataset.
-
-        Returns:
-            int:
-                Length of the dataset.
-        """
-
-        return len(self.dataset)
-
-    def __getitem__(
-            self,
-            idx: int
-    ) -> dict[str, torch.Tensor]:
-        """
-        Retrieves a sample from the dataset at the given index.
-
-        Args:
-            idx (int):
-                Index of the sample to retrieve.
-
-        Returns:
-            dict[str, torch.Tensor]:
-                Dictionary containing the tokenized inputs.
-        """
-
-        sample = self.dataset[idx]
-
-        # Converting input_ids, attention_mask, and labels to tensors
-        input_ids = torch.tensor(sample["input_ids"])
-        attention_mask = torch.tensor(sample["attention_mask"])
-        labels = torch.tensor(sample["label"])
-
-        return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels
-        }
-
-
-class BinaryClassifier(pl.LightningModule):
-    """
-    Wrapper to train the model in Pytorch Lightning.
+    Wrapper to train a classifier model in Pytorch Lightning.
     """
 
     def __init__(
             self,
             model,
             tokenizer: AutoTokenizer,
-            train_data: LightningDataset,
-            val_data: LightningDataset,
-            test_data: LightningDataset,
+            train_data: ConversationDataset,
+            val_data: ConversationDataset,
+            test_data: ConversationDataset,
+            id2label: dict,
+            label2id: dict,
             batch_size: int = 16,
-            learning_rate: float = 1e-5,
+            learning_rate: float = 1e-5
     ) -> None:
         """
-        Initializes the LightningModelWrapper.
+        Initializes the ClassifierModelWrapper.
 
         Args:
             model (Any): The model to wrap.
@@ -112,21 +42,31 @@ class BinaryClassifier(pl.LightningModule):
                 Validation data.
             test_data (Union[Dataset, DataLoader]):
                 Test data.
+            id2label (dict):
+                Mapping from class IDs to labels.
+            label2id (dict):
+                Mapping from labels to class IDs.
             batch_size (int):
                 Batch size. Defaults to 4.
             learning_rate (float):
                 Learning rate. Defaults to 1e-5.
         """
 
-        super(BinaryClassifier, self).__init__()
+        super(ClassifierModelWrapper, self).__init__()
 
         self.model = model
         self.tokenizer = tokenizer
+
         self.train_data = train_data
         self.val_data = val_data
         self.test_data = test_data
+
+        self.id2label = id2label
+        self.label2id = label2id
+
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+
         self.training_step_index = 0
         self.loss_history = {
             "train": [],
@@ -140,7 +80,9 @@ class BinaryClassifier(pl.LightningModule):
         self.test_step_losses_sum = 0
         self.test_step_losses_count = 0
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(
+            self
+    ) -> torch.optim.Optimizer:
         """
         Configures the optimizer.
 
@@ -149,7 +91,6 @@ class BinaryClassifier(pl.LightningModule):
                 Optimizer.
         """
 
-        # Defining the optimizer to use
         optimizer = AdamW(self.parameters(), lr=self.learning_rate)
 
         return optimizer
@@ -165,7 +106,7 @@ class BinaryClassifier(pl.LightningModule):
                 Training DataLoader.
         """
 
-        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn)
+        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)#, collate_fn=collate_fn)
 
     def val_dataloader(
             self
@@ -178,7 +119,7 @@ class BinaryClassifier(pl.LightningModule):
                 Validation DataLoader.
         """
 
-        return DataLoader(self.val_data, batch_size=self.batch_size * 2, collate_fn=collate_fn)
+        return DataLoader(self.val_data, batch_size=self.batch_size * 2)#, collate_fn=collate_fn)
 
     def test_dataloader(
             self
@@ -191,7 +132,7 @@ class BinaryClassifier(pl.LightningModule):
                 Test DataLoader.
         """
 
-        return DataLoader(self.test_data, batch_size=self.batch_size * 2, collate_fn=collate_fn)
+        return DataLoader(self.test_data, batch_size=self.batch_size * 2)#, collate_fn=collate_fn)
 
     def forward(
             self,
@@ -204,6 +145,8 @@ class BinaryClassifier(pl.LightningModule):
         Args:
             input_ids (torch.Tensor):
                 Input IDs.
+            **kwargs:
+                Additional keyword arguments.
 
         Returns:
             torch.Tensor:
@@ -233,11 +176,16 @@ class BinaryClassifier(pl.LightningModule):
 
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
+        labels = batch["label"]
 
-        logits = self.forward(input_ids, **{"attention_mask": attention_mask})
-
-        loss = torch.nn.functional.cross_entropy(logits.view(-1, 2), labels.view(-1))
+        logits = self.forward(
+            input_ids,
+            **{"attention_mask": attention_mask}
+        )
+        loss = torch.nn.functional.cross_entropy(
+            logits.view(-1, 2),
+            labels.view(-1)
+        )
 
         self.training_step_losses_sum += loss.detach().cpu().numpy()
         self.training_step_losses_count += 1
@@ -267,14 +215,21 @@ class BinaryClassifier(pl.LightningModule):
 
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
+        labels = batch["label"]
 
-        logits = self.forward(input_ids, **{"attention_mask": attention_mask})
-
-        loss = torch.nn.functional.cross_entropy(logits.view(-1, 2), labels.view(-1))
+        logits = self.forward(
+            input_ids,
+            **{"attention_mask": attention_mask}
+        )
+        loss = torch.nn.functional.cross_entropy(
+            logits.view(-1, 2),
+            labels.view(-1)
+        )
 
         self.validation_step_losses_sum += loss.detach().cpu().numpy()
         self.validation_step_losses_count += 1
+
+        self.log("val_loss", loss)
 
         return loss
 
@@ -299,14 +254,21 @@ class BinaryClassifier(pl.LightningModule):
 
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
+        labels = batch["label"]
 
-        logits = self.forward(input_ids, **{"attention_mask": attention_mask})
-
-        loss = torch.nn.functional.cross_entropy(logits.view(-1, 2), labels.view(-1))
+        logits = self.forward(
+            input_ids,
+            **{"attention_mask": attention_mask}
+        )
+        loss = torch.nn.functional.cross_entropy(
+            logits.view(-1, 2),
+            labels.view(-1)
+        )
 
         self.test_step_losses_sum += loss.detach().cpu().numpy()
         self.test_step_losses_count += 1
+
+        self.log("test_loss", loss)
 
         return loss
 
@@ -366,3 +328,38 @@ class BinaryClassifier(pl.LightningModule):
             print("Number of test steps equal to 0")
         print(f'Test loss: {avg_test_loss}')
         print("----------------------------------------------------------")
+
+    def predict(
+            self,
+            text: str
+    ) -> str:
+        """
+        Predicts the class of the input text.
+
+        Args:
+            text (str):
+                Input text to classify.
+
+        Returns:
+            str:
+                Predicted label.
+        """
+
+        x = self.tokenizer(
+            text,
+            return_tensors="pt"
+        )
+
+        x = x.to(self.model.device)
+
+        with torch.no_grad():
+            logits = self.model(**x)
+
+        predicted_class_id = logits.argmax().item()
+        predicted_label = self.id2label[predicted_class_id]
+
+        print(f"Logits: {logits}")
+        print(f"Predicted class: {predicted_class_id}")
+        print(f"Predicted label: {predicted_label}")
+
+        return predicted_label

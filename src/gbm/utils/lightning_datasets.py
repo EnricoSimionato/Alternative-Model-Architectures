@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import datasets
 import torch
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 
 from transformers import AutoTokenizer
 
@@ -332,8 +332,8 @@ if __name__ == "__main__":
         (0.8, 0.1, 0.1)
     )
 
-    for el in dataset.validation:
-        print(type(el["input_ids"]))
-        print(type(el["attention_mask"]))
-        print(el["label"])
-        print()
+    dl = DataLoader(dataset.validation, batch_size=16, shuffle=True)
+
+    for batch in dl:
+        print(batch["label"])
+
