@@ -2,6 +2,7 @@ from typing import Any
 
 from abc import ABC, abstractmethod
 
+import math
 import numpy as np
 
 import torch
@@ -264,6 +265,19 @@ class GlobalDependent(ABC, nn.Module):
         else:
             raise Exception("The last layer has to be global ('g') or local ('l').")
 
+    @property
+    def device(
+            self
+    ) -> torch.device:
+        """
+        Property method to obtain the device of the layer.
+
+        Returns:
+            torch.device: Device of the layer.
+        """
+
+        return next(self.parameters()).device
+
 
 class GlobalDependentLinear(GlobalDependent):
     """
@@ -407,6 +421,53 @@ class GlobalDependentLinear(GlobalDependent):
             if "trainable" in self.structure[-1].keys():
                 for param in self.local_layers[self.structure[-1]["key"]].parameters():
                     param.requires_grad = self.structure[-1]["trainable"]
+
+    def merge(
+            self
+    ) -> nn.Module:
+        """
+        Merges the global and local layers into an equivalent linear layer.
+
+        This method computes the equivalent linear layer by multiplying the weights
+        of the global and local layers and setting the bias accordingly.
+
+        Returns:
+            nn.Module: Equivalent linear layer with merged weights and bias.
+
+        Raises:
+            Exception:
+                If the last layer's scope is neither 'global' nor 'local'.
+        """
+
+        equivalent_linear = nn.Linear(self.in_features, self.out_features, bias=self.bias is not None)
+        weight = None
+
+        for idx, layer in enumerate(self.structure):
+            if layer["scope"] == "global":
+                weight = self.global_layers[layer["key"]].weight.detach().clone() if weight is None else torch.matmul(
+                    self.global_layers[layer["key"]].weight.detach().clone(),
+                    weight
+                )
+            elif layer["scope"] == "local":
+                weight = self.local_layers[
+                    layer["key"]].weight.detach().clone() if weight is None else torch.matmul(
+                    self.local_layers[layer["key"]].weight.detach().clone(),
+                    weight
+                )
+            else:
+                raise Exception("The last layer has to be global ('global') or local ('local').")
+
+        with torch.no_grad():
+            equivalent_linear.weight.data = weight
+
+            if self.structure[-1]["scope"] == "global":
+                equivalent_linear.bias.data = self.global_layers[self.structure[-1]["key"]].bias.detach().clone()
+            elif self.structure[-1]["scope"] == "local":
+                equivalent_linear.bias.data = self.local_layers[self.structure[-1]["key"]].bias.detach().clone()
+            else:
+                raise Exception("The last layer has to be global ('global') or local ('local').")
+
+        return equivalent_linear
 
 
 class StructureSpecificGlobalDependentLinear(ABC, nn.Module):
@@ -732,13 +793,11 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
             self.global_dependent_layer.local_layers["US"].bias = target_layer.bias
 
 
-class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
+class GlobalFixedBaseLinear(StructureSpecificGlobalDependentLinear):
     """
     Implementation of a Linear layer on which is performed matrix decomposition in two matrices:
-    - a global matrix of shape (in_features, rank);
+    - a global non-trainable matrix of shape (in_features, rank);
     - a local matrix of shape (rank, out_features).
-
-
     """
 
     def __init__(
@@ -764,6 +823,8 @@ class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
             **kwargs:
                 Arbitrary keyword arguments.
         """
+
+        kwargs["rank"] = rank
         super().__init__(target_layer, global_layers, rank, *args, **kwargs)
 
     def define_structure(
@@ -783,29 +844,15 @@ class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
 
         return (
             {"scope": "global",
-             "shape": (target_layer.in_features, self.rank),
-             "key": str((target_layer.in_features, self.rank)),
+             "shape": (target_layer.in_features, rank),
+             "key": str((target_layer.in_features, rank)),
              "trainable": False},
             {"scope": "local",
-             "shape": (self.rank, target_layer.out_features),
-             "key": str((self.rank, target_layer.out_features)),
+             "shape": (rank, target_layer.out_features),
+             "key": str((rank, target_layer.out_features)),
              "trainable": True}
         )
 
-    def initialize_matrices(
-            self
-    ) -> None:
-        """
-        Initializes the matrices of the layer.
-        """
-
-        with torch.no_grad():
-            self.global_dependent_layer.global_matrices[self.global_dependent_layer.structure[0]["key"]].weight.data.copy_(
-                torch.randn(self.rank, self.global_dependent_layer.structure[0]["shape"][0])
-            )
-            self.global_dependent_layer.global_matrices[self.global_dependent_layer.structure[1]["key"]].weight.data.copy_(
-                torch.randn(self.global_dependent_layer.structure[1]["shape"][0], self.rank)
-            )
     def initialize_matrices(
             self,
             **kwargs
@@ -855,6 +902,193 @@ class GlobalFixedRandomBaseLinear(StructureSpecificGlobalDependentLinear):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+
+class DiagonalLinearLayer(nn.Module):
+    """
+    A PyTorch module that implements a layer with diagonal weights.
+
+    This layer behaves similar to `torch.nn.Linear` but with diagonal weights.
+    It multiplies the input by diagonal weights and optionally adds a bias term.
+
+    Args:
+        in_features (int):
+            Number of input features.
+        out_features (int):
+            Number of output features.
+        bias (bool, optional):
+            If True, adds a learnable bias to the output. Default is True.
+
+    Attributes:
+        weight (torch.Tensor):
+            The learnable weights of the module. The shape is `(out_features, in_features)`.
+        bias (torch.Tensor):
+            The learnable bias of the module. If `bias` is set to False, this attribute is set to `None`.
+    """
+
+    def __init__(
+            self,
+            in_features,
+            out_features,
+            bias=True
+    ) -> None:
+
+        super(DiagonalLinearLayer, self).__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+
+        self.weight = nn.Parameter(torch.Tensor(out_features))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter("bias", None)
+
+        self.reset_parameters()
+
+    def reset_parameters(
+            self
+    ) -> None:
+        """
+        Initializes the weights and biases with kaiming_uniform_ and uniform_ distributions, respectively.
+        """
+
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(
+            self,
+            x
+    ) -> torch.Tensor:
+        """
+        Forward pass through the layer.
+
+        Args:
+            x (torch.Tensor):
+                Input tensor of shape `(N, in_features)`.
+
+        Returns:
+            torch.Tensor:
+                Output tensor of shape `(N, out_features)`.
+        """
+
+        output = x * self.weight
+
+        if self.bias is not None:
+            output += self.bias
+
+        return output
+
+
+class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
+    """
+    Implementation of a Linear layer on which is performed matrix decomposition in two matrices:
+    - a global matrix of shape (in_features, in_features);
+    - a local diagonal matrix of shape (out_features, out_features).
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            *args,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the layer.
+
+        Args:
+            target_layer (nn.Module):
+                Target layer to be transformed in the factorized version.
+            global_layers (nn.ModuleDict):
+                Dictionary containing the global matrices.
+            *args:
+                Variable length argument list.
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        super().__init__(target_layer, global_layers, *args, **kwargs)
+
+    def define_structure(
+            self,
+            **kwargs
+    ) -> Any:
+        """
+        Method to define the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+
+        return (
+            {"scope": "global",
+             "shape": (target_layer.in_features, self.rank),
+             "key": str((target_layer.in_features, self.rank)),
+             "trainable": False},
+            {"scope": "local",
+             "shape": (self.rank, target_layer.out_features),
+             "key": str((self.rank, target_layer.out_features)),
+             "trainable": True}
+        )
+
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
+
+        target_layer = kwargs["target_layer"]
+        target_weight = target_layer.weight.data
+        global_key = self.global_dependent_layer.structure[0]["key"]
+        local_key = self.global_dependent_layer.structure[1]["key"]
+
+        with torch.no_grad():
+            global_matrix = self.global_dependent_layer.global_layers[global_key].weight.data
+
+            pinv_global_matrix = torch.pinverse(global_matrix)
+            local_matrix = target_weight @ pinv_global_matrix
+
+            self.global_dependent_layer.local_layers[local_key].weight.data = local_matrix
+
+            if "trainable" in self.global_dependent_layer.structure[1].keys():
+                for params in self.global_dependent_layer.local_layers[local_key].parameters():
+                    params.requires_grad = self.global_dependent_layer.structure[1]["trainable"]
+
+            self.global_dependent_layer.local_layers[local_key].bias = target_layer.bias
+
+        optimizer = torch.optim.AdamW([self.global_dependent_layer.local_layers[local_key].weight])
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=10,
+            verbose=False
+        )
+
+        num_epochs = 50
+
+        for epoch in range(num_epochs):
+            loss = torch.norm((target_weight - torch.matmul(
+                self.global_dependent_layer.local_layers[local_key].weight,
+                self.global_dependent_layer.global_layers[global_key].weight)) ** 2)
+
+            scheduler.step(loss)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
 
 if __name__ == "__main__":
     linear_layer = nn.Linear(100, 100, bias=True)

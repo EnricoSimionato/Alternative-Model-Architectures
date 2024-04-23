@@ -9,7 +9,7 @@ from gbm.utils.parameters_count import count_parameters
 
 from gbm.layers.global_dependent_layer import GlobalBaseLinear
 from gbm.layers.global_dependent_layer import LocalSVDLinear
-from gbm.layers.global_dependent_layer import GlobalFixedRandomBaseLinear
+from gbm.layers.global_dependent_layer import GlobalFixedBaseLinear
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -221,7 +221,7 @@ class LocalSVDModel(GlobalDependentModel):
         return conversions
 
 
-class GlobalFixedRandomBaseModel(GlobalDependentModel):
+class GlobalFixedBaseModel(GlobalDependentModel):
     """
     Model with global random fixed base layers replacing the linear layers.
     """
@@ -248,7 +248,7 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
         """
 
         kwargs["rank"] = rank
-        super(GlobalFixedRandomBaseModel, self).__init__(pretrained_model, target_layers, **kwargs)
+        super(GlobalFixedBaseModel, self).__init__(pretrained_model, target_layers, **kwargs)
 
         self.rank = rank
 
@@ -267,7 +267,7 @@ class GlobalFixedRandomBaseModel(GlobalDependentModel):
             Dictionary mapping layer types to corresponding global-base layer classes.
         """
 
-        conversions = {nn.Linear: GlobalFixedRandomBaseLinear}
+        conversions = {nn.Linear: GlobalFixedBaseLinear}
 
         return conversions
 

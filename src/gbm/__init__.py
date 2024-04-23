@@ -4,12 +4,12 @@ __all__ = [
     "StructureSpecificGlobalDependentLinear",
     "GlobalBaseLinear",
     "LocalSVDLinear",
-    "GlobalFixedRandomBaseLinear",
+    "GlobalFixedBaseLinear",
 
     "GlobalDependentModel",
     "GlobalBaseModel",
     "LocalSVDModel",
-    "GlobalFixedRandomBaseModel",
+    "GlobalFixedBaseModel",
 
     "IMDBDatasetDict",
     "IMDBDataset",
@@ -31,15 +31,15 @@ from gbm.layers.global_dependent_layer import (
     StructureSpecificGlobalDependentLinear,
     GlobalBaseLinear,
     LocalSVDLinear,
-    GlobalFixedRandomBaseLinear
+    GlobalFixedBaseLinear,
 )
 
 from gbm.models.global_dependent_model import (
     GlobalDependentModel,
     GlobalBaseModel,
     LocalSVDModel,
-    GlobalFixedRandomBaseModel,
-    count_parameters
+    GlobalFixedBaseModel,
+    count_parameters,
 )
 
 from gbm.utils.lightning_datasets import (
