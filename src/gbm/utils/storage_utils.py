@@ -173,7 +173,6 @@ def load_model_and_info(
             print(f"{key}: {value}")
         print()
 
-
     return model, tokenizer, hyperparameters, losses
 
 
@@ -210,8 +209,8 @@ def test_load() -> None:
 
     model_name = store_model_and_info("bert", model, tokenizer, hyperparameters, losses, verbose=False)
 
-    return load_model_and_info(model_name, print_info=True, verbose=True)
+    load_model_and_info(model_name, print_info=True, verbose=True)
 
 
 if __name__ == "__main__":
-    _, _, _, _ = test_load()
+    test_load()

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
 
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizer
 from transformers.optimization import AdamW
 
 from gbm.utils.lightning_datasets import ConversationDataset
@@ -20,7 +20,7 @@ class ClassifierModelWrapper(pl.LightningModule):
     def __init__(
             self,
             model,
-            tokenizer: AutoTokenizer,
+            tokenizer: PreTrainedTokenizer,
             train_data: ConversationDataset,
             val_data: ConversationDataset,
             test_data: ConversationDataset,
@@ -106,7 +106,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Training DataLoader.
         """
 
-        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)#, collate_fn=collate_fn)
+        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(
             self
@@ -119,7 +119,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Validation DataLoader.
         """
 
-        return DataLoader(self.val_data, batch_size=self.batch_size * 2)#, collate_fn=collate_fn)
+        return DataLoader(self.val_data, batch_size=self.batch_size * 2)
 
     def test_dataloader(
             self
@@ -132,7 +132,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Test DataLoader.
         """
 
-        return DataLoader(self.test_data, batch_size=self.batch_size * 2)#, collate_fn=collate_fn)
+        return DataLoader(self.test_data, batch_size=self.batch_size * 2)
 
     def forward(
             self,
