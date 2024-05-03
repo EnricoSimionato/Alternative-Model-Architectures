@@ -52,12 +52,14 @@ def store_model_and_info(
         raise Exception(f"Path '{path}' does not exist.")
 
     date = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    tokenizer_name = f"{model_name}_tokenizer_{date}"
-    model_name = f"{model_name}_model_{date}"
+    model_name = f"{model_name}_{date}"
 
     if not os.path.exists(os.path.join(path, "models")):
         os.makedirs(os.path.join(path, "models"))
-    path_to_tokenizer = os.path.join(path, "models", tokenizer_name)
+    if not os.path.exists(os.path.join(path, "tokenizers")):
+        os.makedirs(os.path.join(path, "tokenizers"))
+
+    path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
     path_to_model = os.path.join(path, "models", model_name)
 
     # Storing the tokenizer
@@ -132,15 +134,16 @@ def load_model_and_info(
     if not os.path.exists(os.path.join(path, "models")):
         raise Exception(f"Path '{os.path.join(path, 'models')}' does not exist.")
 
+    if not os.path.exists(os.path.join(path, "tokenizers")):
+        raise Exception(f"Path '{os.path.join(path, 'tokenizers')}' does not exist.")
+
     if not os.path.exists(os.path.join(path, "stats")):
         raise Exception(f"Path '{os.path.join(path, 'stats')}' does not exist.")
 
     if not os.path.exists(os.path.join(path, "hyperparameters")):
         raise Exception(f"Path '{os.path.join(path, 'hyperparameters')}' does not exist.")
 
-    tokenizer_name = model_name.replace("model", "tokenizer")
-
-    path_to_tokenizer = os.path.join(path, "models", tokenizer_name)
+    path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
     path_to_model = os.path.join(path, "models", model_name)
 
     # Loading the tokenizer
