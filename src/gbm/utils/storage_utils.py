@@ -51,16 +51,25 @@ def store_model_and_info(
     if not os.path.exists(path):
         raise Exception(f"Path '{path}' does not exist.")
 
+    # Defining the model name
     date = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     model_name = f"{model_name}_{date}"
 
-    if not os.path.exists(os.path.join(path, "models")):
-        os.makedirs(os.path.join(path, "models"))
+    # Check if the directories exist, if not create them
     if not os.path.exists(os.path.join(path, "tokenizers")):
         os.makedirs(os.path.join(path, "tokenizers"))
+    if not os.path.exists(os.path.join(path, "models")):
+        os.makedirs(os.path.join(path, "models"))
+    if not os.path.exists(os.path.join(path, "stats")):
+        os.makedirs(os.path.join(path, "stats"))
+    if not os.path.exists(os.path.join(path, "hyperparameters")):
+        os.makedirs(os.path.join(path, "hyperparameters"))
 
+    # Defining the paths
     path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
     path_to_model = os.path.join(path, "models", model_name)
+    path_to_stats = os.path.join(path, "stats", model_name)
+    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
 
     # Storing the tokenizer
     tokenizer.save_pretrained(path_to_tokenizer)
@@ -71,18 +80,12 @@ def store_model_and_info(
         print(f"Tokenizer saved in: '{path_to_tokenizer}'")
         print(f"Model saved in: '{path_to_model}'")
 
-    if not os.path.exists(os.path.join(path, "stats")):
-        os.makedirs(os.path.join(path, "stats"))
-    path_to_stats = os.path.join(path, "stats", model_name)
     with open(path_to_stats, 'wb') as f:
         pickle.dump(losses, f)
 
     if verbose:
         print(f"Stats saved in: '{path_to_stats}'")
 
-    if not os.path.exists(os.path.join(path, "hyperparameters")):
-        os.makedirs(os.path.join(path, "hyperparameters"))
-    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
     with open(path_to_hyperparameters, 'wb') as f:
         pickle.dump(hyperparameters, f)
 
@@ -131,20 +134,21 @@ def load_model_and_info(
     if not os.path.exists(path):
         raise Exception(f"Path '{path}' does not exist.")
 
+    # Check if the directories exist
     if not os.path.exists(os.path.join(path, "models")):
         raise Exception(f"Path '{os.path.join(path, 'models')}' does not exist.")
-
     if not os.path.exists(os.path.join(path, "tokenizers")):
         raise Exception(f"Path '{os.path.join(path, 'tokenizers')}' does not exist.")
-
     if not os.path.exists(os.path.join(path, "stats")):
         raise Exception(f"Path '{os.path.join(path, 'stats')}' does not exist.")
-
     if not os.path.exists(os.path.join(path, "hyperparameters")):
         raise Exception(f"Path '{os.path.join(path, 'hyperparameters')}' does not exist.")
 
+    # Defining the paths
     path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
     path_to_model = os.path.join(path, "models", model_name)
+    path_to_stats = os.path.join(path, "stats", model_name)
+    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
 
     # Loading the tokenizer
     tokenizer = transformers.AutoTokenizer.from_pretrained(path_to_tokenizer)
@@ -155,14 +159,12 @@ def load_model_and_info(
         print(f"Tokenizer loaded from: '{path_to_tokenizer}'")
         print(f"Model loaded from: '{path_to_model}'")
 
-    path_to_stats = os.path.join(path, "stats", model_name)
     with open(path_to_stats, 'rb') as f:
         losses = pickle.load(f)
 
     if verbose:
         print(f"Stats loaded from: '{path_to_stats}'")
 
-    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
     with open(path_to_hyperparameters, 'rb') as f:
         hyperparameters = pickle.load(f)
 
