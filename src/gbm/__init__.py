@@ -16,8 +16,6 @@ __all__ = [
 
     "OpenAssistantGuanacoDatasetDict",
     "OpenAssistantGuanacoDataset",
-
-    "ClassifierModelWrapper",
 ]
 
 from gbm.layers.global_dependent_layer import (
@@ -44,7 +42,4 @@ from gbm.utils.lightning_datasets import (
     OpenAssistantGuanacoDataset,
 )
 
-from gbm.utils.lightning_models import (
-    ClassifierModelWrapper,
-)
 
