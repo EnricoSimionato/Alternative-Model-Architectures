@@ -44,8 +44,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             Batch size.
         learning_rate (float):
             Learning rate.
-        previous_learning_rate (float):
-            Previous learning rate.
         max_epochs (int):
             Maximum number of training epochs to perform.
         accuracy (torchmetrics.classification.Accuracy):
@@ -92,7 +90,6 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.batch_size = batch_size
         self.learning_rate = learning_rate
-        self.previous_learning_rate = learning_rate
         self.max_epochs = max_epochs
 
         self.accuracy = torchmetrics.classification.Accuracy(
@@ -350,10 +347,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             labels.view(-1)
         )
 
-        if self.lr_schedulers() is not None and self.learning_rate != self.lr_schedulers().get_last_lr()[0]:
-            print(f"Learning_rate changed - Previous lr: {self.previous_learning_rate} - Current lr: {self.lr_schedulers().get_last_lr()[0]}")
-            self.previous_learning_rate = self.lr_schedulers().get_last_lr()[0]
-
         return loss, logits, labels
 
     def on_train_epoch_end(
@@ -381,14 +374,14 @@ class ClassifierModelWrapper(pl.LightningModule):
             print(f"Training F1 Score: {avg_from_last_val_training_f1_score:.4f}")
 
             self.log_dict(
-            {
-                "from_last_val_training_loss": avg_from_last_val_training_loss,
-                "from_last_val_training_accuracy": avg_from_last_val_training_accuracy,
-                "from_last_val_training_f1_score": avg_from_last_val_training_f1_score
-            },
-            on_step=False,
-            on_epoch=True
-        )
+                {
+                    "from_last_val_training_loss": avg_from_last_val_training_loss,
+                    "from_last_val_training_accuracy": avg_from_last_val_training_accuracy,
+                    "from_last_val_training_f1_score": avg_from_last_val_training_f1_score
+                },
+                on_step=False,
+                on_epoch=True
+            )
         else:
             print("No data about the training")
 
@@ -434,6 +427,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         Args:
             text (str):
                 Input text to classify.
+            verbose (bool):
+                Whether to print the logits and the predicted class.
 
         Returns:
             str:
