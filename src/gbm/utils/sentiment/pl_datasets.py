@@ -207,7 +207,7 @@ class IMDBDataModule(pl.LightningDataModule):
 
         load_dataset(
             "imdb",
-            data_dir=self.data_dir,
+            #data_dir=self.data_dir,
         )
 
     def setup(
@@ -220,7 +220,7 @@ class IMDBDataModule(pl.LightningDataModule):
 
         raw_dataset = load_dataset(
             "imdb",
-            data_dir=self.data_dir,
+            #data_dir=self.data_dir,
         )
 
         concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
