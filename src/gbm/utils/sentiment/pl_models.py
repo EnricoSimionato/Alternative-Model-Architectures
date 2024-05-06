@@ -1,31 +1,21 @@
-import numpy as np
-
 import torch
+import torch.optim.lr_scheduler as lr_scheduler
 import torchmetrics
 
 import pytorch_lightning as pl
 
 import transformers
-from transformers.optimization import AdamW
-
-from torch.utils.data import Dataset, DataLoader
 
 
 class ClassifierModelWrapper(pl.LightningModule):
     """
     Wrapper to train a classifier model in Pytorch Lightning.
 
-
     Args:
-        model (Any): The model to wrap.
+        model (Any):
+            The model to wrap.
         tokenizer (transformers.PreTrainedTokenizer):
             Tokenizer object.
-        train_data (Union[Dataset, DataLoader]):
-            Training data.
-        val_data (Union[Dataset, DataLoader]):
-            Validation data.
-        test_data (Union[Dataset, DataLoader]):
-            Test data.
         num_classes (int):
             Number of classes of the problem.
         id2label (dict):
@@ -36,32 +26,65 @@ class ClassifierModelWrapper(pl.LightningModule):
             Batch size. Defaults to 4.
         learning_rate (float):
             Learning rate. Defaults to 1e-5.
+        max_epochs (int):
+            Maximum number of training epochs to perform. Defaults to 3.
 
     Attributes:
-
+        model (Any):
+            The model to wrap.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer object.
+        num_classes (int):
+            Number of classes of the problem.
+        id2label (dict):
+            Mapping from class IDs to labels.
+        label2id (dict):
+            Mapping from labels to class IDs.
+        batch_size (int):
+            Batch size.
+        learning_rate (float):
+            Learning rate.
+        previous_learning_rate (float):
+            Previous learning rate.
+        max_epochs (int):
+            Maximum number of training epochs to perform.
+        accuracy (torchmetrics.classification.Accuracy):
+            Accuracy metric.
+        f1_score (torchmetrics.classification.F1Score):
+            F1 score metric.
+        training_samples_count (int):
+            Number of training samples.
+        from_last_val_training_loss (int):
+            Loss from the last validation.
+        from_last_val_training_accuracy (int):
+            Accuracy from the last validation.
+        from_last_val_training_f1_score (int):
+            F1 score from the last validation.
+        validation_samples_count (int):
+            Number of validation samples.
+        sum_epoch_validation_loss (int):
+            Sum of the validation loss.
+        sum_epoch_validation_accuracy (int):
+            Sum of the validation accuracy.
+        sum_epoch_validation_f1_score (int):
+            Sum of the validation F1 score.
     """
 
     def __init__(
             self,
             model,
             tokenizer: transformers.PreTrainedTokenizer,
-            train_data: Dataset,
-            val_data: Dataset,
-            test_data: Dataset,
             num_classes: int,
             id2label: dict,
             label2id: dict,
             batch_size: int = 16,
-            learning_rate: float = 1e-5
+            learning_rate: float = 1e-5,
+            max_epochs: int = 3,
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
 
         self.model = model
         self.tokenizer = tokenizer
-
-        self.train_data = train_data
-        self.val_data = val_data
-        self.test_data = test_data
 
         self.num_classes = num_classes
         self.id2label = id2label
@@ -69,6 +92,8 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.previous_learning_rate = learning_rate
+        self.max_epochs = max_epochs
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass",
@@ -91,7 +116,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
     def configure_optimizers(
             self
-    ) -> torch.optim.Optimizer:
+    ) -> dict:
         """
         Configures the optimizer.
 
@@ -100,64 +125,22 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Optimizer.
         """
 
-        optimizer = AdamW(
+        optimizer = torch.optim.AdamW(
             self.parameters(),
             lr=self.learning_rate
         )
 
-        return optimizer
-
-    def train_dataloader(
-            self
-    ) -> DataLoader:
-        """
-        Returns the training DataLoader.
-
-        Returns:
-            DataLoader:
-                Training DataLoader.
-        """
-
-        return DataLoader(
-            self.train_data,
-            batch_size=self.batch_size,
-            num_workers=2,
-            shuffle=True
+        learning_rate_scheduler = lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=self.max_epochs
         )
+        monitored_metrics = "loss"
 
-    def val_dataloader(
-            self
-    ) -> DataLoader:
-        """
-        Returns the validation DataLoader.
-
-        Returns:
-            DataLoader:
-                Validation DataLoader.
-        """
-
-        return DataLoader(
-            self.val_data,
-            batch_size=self.batch_size * 2,
-            num_workers=2
-        )
-
-    def test_dataloader(
-            self
-    ) -> DataLoader:
-        """
-        Returns the test DataLoader.
-
-        Returns:
-            DataLoader:
-                Test DataLoader.
-        """
-
-        return DataLoader(
-            self.test_data,
-            batch_size=self.batch_size * 2,
-            num_workers=2
-        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": learning_rate_scheduler,
+            "monitor": monitored_metrics
+        }
 
     def forward(
             self,
@@ -334,7 +317,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             self,
             batch: dict[str, torch.Tensor],
             batch_idx: int
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Performs the common operations that training, validation and test step
         have to do.
@@ -366,6 +349,10 @@ class ClassifierModelWrapper(pl.LightningModule):
             logits.view(-1, 2),
             labels.view(-1)
         )
+
+        if self.lr_schedulers() is not None and self.learning_rate != self.lr_schedulers().get_last_lr()[0]:
+            print(f"Learning_rate changed - Previous lr: {self.previous_learning_rate} - Current lr: {self.lr_schedulers().get_last_lr()[0]}")
+            self.previous_learning_rate = self.lr_schedulers().get_last_lr()[0]
 
         return loss, logits, labels
 
@@ -404,7 +391,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         )
         else:
             print("No data about the training")
-
 
         print("----------------------------------------------------------")
 
