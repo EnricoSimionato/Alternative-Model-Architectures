@@ -29,7 +29,8 @@ def count_parameters(
 def set_parameters_count_in_config(
         config: dict,
         original_model: torch.nn.Module,
-        gd_model: torch.nn.Module
+        gd_model: torch.nn.Module,
+        verbose: bool = True
 ) -> dict:
     """
     Sets the number of parameters of the model and related information in the configuration dictionary.
@@ -41,6 +42,8 @@ def set_parameters_count_in_config(
             The original model.
         gd_model (torch.nn.Module):
             The model with global dependent layers.
+        verbose (bool, optional):
+            Whether to print the information. Defaults to False.
 
     Returns:
         dict:
@@ -51,8 +54,13 @@ def set_parameters_count_in_config(
     model_parameters = count_parameters(gd_model)
 
     config["original_model_parameters"] = original_model_parameters
-    config["model_trainable_parameters"] = model_parameters
+    config["model_parameters"] = model_parameters
     config["percentage_parameters"] = model_parameters / original_model_parameters * 100
-    config["model_parameters"] = count_parameters(gd_model, only_trainable=True)
+    config["model_trainable_parameters"] = count_parameters(gd_model, only_trainable=True)
+
+    if verbose:
+        print(f"Number of parameters original model: {config['original_model_parameters']}")
+        print(f"Number of parameters global model: {config['model_parameters']}")
+        print(f"Percentage of parameters: {config['percentage_parameters']}%")
 
     return config
