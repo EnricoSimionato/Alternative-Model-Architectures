@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 
 import transformers
 
+from gbm.utils.sentiment.pl_metrics import ClassificationStats
 
 class ClassifierModelWrapper(pl.LightningModule):
     """
@@ -105,11 +106,21 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.from_last_val_training_loss = 0
         self.from_last_val_training_accuracy = 0
         self.from_last_val_training_f1_score = 0
+        #self.from_last_val_training_stat_scores = torchmetrics.classification.MulticlassStatScores(
+        #    self.num_classes,
+        #    average=None
+        #)
+        self.from_last_val_training_stat_scores = ClassificationStats(num_classes=self.num_classes)
 
         self.validation_samples_count = 0
         self.sum_epoch_validation_loss = 0
         self.sum_epoch_validation_accuracy = 0
         self.sum_epoch_validation_f1_score = 0
+        #self.validation_stat_scores = torchmetrics.classification.MulticlassStatScores(
+        #    self.num_classes,
+        #    average=None
+        #)
+        self.validation_stat_scores = ClassificationStats(num_classes=self.num_classes)
 
     def configure_optimizers(
             self
@@ -188,6 +199,8 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True)
 
+        self.from_last_val_training_stat_scores.update(logits, labels)
+
         self.log_dict(
             {
                 "training_loss": loss,
@@ -204,6 +217,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.from_last_val_training_loss += loss * len(logits)
         self.from_last_val_training_accuracy += accuracy * len(logits)
         self.from_last_val_training_f1_score += f1_score * len(logits)
+
+        self.from_last_val_training_stat_scores.update(logits.argmax().item(), labels)
 
         return loss
 
@@ -246,6 +261,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_epoch_validation_loss += loss * len(logits)
         self.sum_epoch_validation_accuracy += accuracy * len(logits)
         self.sum_epoch_validation_f1_score += f1_score * len(logits)
+
+        self.validation_stat_scores.update(logits.argmax().item(), labels)
 
         return loss
 
@@ -367,17 +384,26 @@ class ClassifierModelWrapper(pl.LightningModule):
         if self.training_samples_count > 0:
             avg_from_last_val_training_loss = self.from_last_val_training_loss / self.training_samples_count
             avg_from_last_val_training_accuracy = self.from_last_val_training_accuracy / self.training_samples_count
-            avg_from_last_val_training_f1_score = self.from_last_val_training_f1_score / self.training_samples_count
+            from_last_val_training_accuracy = self.from_last_val_training_stat_scores.accuracy()
+            from_last_val_training_precision = self.from_last_val_training_stat_scores.precision()
+            from_last_val_training_recall = self.from_last_val_training_stat_scores.recall()
+            from_last_val_training_f1_score = self.from_last_val_training_stat_scores.f1_score()
+
 
             print(f"Training Loss: {avg_from_last_val_training_loss:.4f}")
             print(f"Training Accuracy: {avg_from_last_val_training_accuracy:.4f}")
-            print(f"Training F1 Score: {avg_from_last_val_training_f1_score:.4f}")
+            #print(f"Training F1 Score: {avg_from_last_val_training_f1_score:.4f}")
+
+            print(f"MY CODE Training Accuracy: {from_last_val_training_accuracy:.4f}")
+            print(f"MY CODE Training Precision: {from_last_val_training_precision:.4f}")
+            print(f"MY CODE Training Recall: {from_last_val_training_recall:.4f}")
+            print(f"MY CODE Training F1-score: {from_last_val_training_f1_score:.4f}")
 
             self.log_dict(
                 {
                     "from_last_val_training_loss": avg_from_last_val_training_loss,
                     "from_last_val_training_accuracy": avg_from_last_val_training_accuracy,
-                    "from_last_val_training_f1_score": avg_from_last_val_training_f1_score
+                    "from_last_val_training_f1_score": from_last_val_training_f1_score
                 },
                 on_step=False,
                 on_epoch=True
@@ -389,12 +415,21 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.validation_samples_count > 0:
             validation_loss = self.sum_epoch_validation_loss / self.validation_samples_count
-            validation_accuracy = self.sum_epoch_validation_accuracy / self.validation_samples_count
-            validation_f1_score = self.sum_epoch_validation_f1_score / self.validation_samples_count
+
+            validation_accuracy_ex = self.sum_epoch_validation_accuracy / self.validation_samples_count
+            validation_accuracy = self.validation_stat_scores.accuracy()
+            validation_precision = self.validation_stat_scores.precision()
+            validation_recall = self.validation_stat_scores.recall()
+            validation_f1_score = self.validation_stat_scores.f1_score()
 
             print(f"Validation Loss: {validation_loss:.4f}")
-            print(f"Validation Accuracy: {validation_accuracy:.4f}")
+            print(f"Validation Accuracy: {validation_accuracy_ex:.4f}")
             print(f"Validation F1 Score: {validation_f1_score:.4f}")
+
+            print(f"MY CODE Training Accuracy: {validation_accuracy:.4f}")
+            print(f"MY CODE Training Precision: {validation_precision:.4f}")
+            print(f"MY CODE Training Recall: {validation_recall:.4f}")
+            print(f"MY CODE Training F1-score: {validation_f1_score:.4f}")
 
         print("##########################################################")
 
@@ -407,6 +442,9 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_epoch_validation_loss = 0
         self.sum_epoch_validation_accuracy = 0
         self.sum_epoch_validation_f1_score = 0
+
+        self.validation_stat_scores.reset()
+        self.from_last_val_training_stat_scores.reset()
 
     def on_test_epoch_end(
             self
