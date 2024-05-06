@@ -5,20 +5,21 @@ class ClassificationStats(torchmetrics.classification.MulticlassStatScores):
     def __init___(
             self,
             num_classes: int,
-            average: str = None,
+            #average: str = None,
             #mdmc_average: str = "global",
             #compute_on_step: bool = True,
             #dist_sync_on_step: bool = False,
             #process_group=None,
             #dist_sync_fn=None,
     ) -> None:
-        super().__init__(num_classes=num_classes, average=average)
+        super().__init__(num_classes=num_classes, average=None)
 
     def get_stats(
             self
     ):
         stats = self.compute()
         if self.num_classes == 2:
+            print(stats)
             stats = stats[1, :]
             return stats[0], stats[1], stats[2], stats[3], stats[4]
         else:

@@ -8,23 +8,22 @@ import transformers
 
 from gbm.utils.sentiment.pl_metrics import ClassificationStats
 
+
 class ClassifierModelWrapper(pl.LightningModule):
     """
     Wrapper to train a classifier model in Pytorch Lightning.
 
     Args:
-        model (Any):
+        model (nn.Module):
             The model to wrap.
         tokenizer (transformers.PreTrainedTokenizer):
-            Tokenizer object.
+            Tokenizer used to tokenize the inputs.
         num_classes (int):
             Number of classes of the problem.
         id2label (dict):
             Mapping from class IDs to labels.
         label2id (dict):
             Mapping from labels to class IDs.
-        batch_size (int):
-            Batch size. Defaults to 4.
         learning_rate (float):
             Learning rate. Defaults to 1e-5.
         max_epochs (int):
@@ -41,8 +40,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             Mapping from class IDs to labels.
         label2id (dict):
             Mapping from labels to class IDs.
-        batch_size (int):
-            Batch size.
         learning_rate (float):
             Learning rate.
         max_epochs (int):
@@ -76,7 +73,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             num_classes: int,
             id2label: dict,
             label2id: dict,
-            batch_size: int = 16,
             learning_rate: float = 1e-5,
             max_epochs: int = 3,
     ) -> None:
@@ -89,7 +85,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.id2label = id2label
         self.label2id = label2id
 
-        self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.max_epochs = max_epochs
 
@@ -103,30 +98,31 @@ class ClassifierModelWrapper(pl.LightningModule):
         )
 
         self.training_samples_count = 0
-        self.from_last_val_training_loss = 0
-        self.from_last_val_training_accuracy = 0
-        self.from_last_val_training_f1_score = 0
-        #self.from_last_val_training_stat_scores = torchmetrics.classification.MulticlassStatScores(
-        #    self.num_classes,
-        #    average=None
-        #)
-        self.from_last_val_training_stat_scores = ClassificationStats(num_classes=self.num_classes)
+        self.sum_training_epoch_loss = 0
+        self.training_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
+
+        self.from_last_val_training_samples_count = 0
+        self.sum_from_last_val_training_loss = 0
+        self.from_last_val_training_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
 
         self.validation_samples_count = 0
-        self.sum_epoch_validation_loss = 0
-        self.sum_epoch_validation_accuracy = 0
-        self.sum_epoch_validation_f1_score = 0
-        #self.validation_stat_scores = torchmetrics.classification.MulticlassStatScores(
-        #    self.num_classes,
-        #    average=None
-        #)
-        self.validation_stat_scores = ClassificationStats(num_classes=self.num_classes)
+        self.sum_validation_epoch_loss = 0
+        self.validation_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
+
+        self.test_samples_count = 0
+        self.sum_test_epoch_loss = 0
+        self.test_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
 
     def configure_optimizers(
-            self
+            self,
+            **kwargs
     ) -> dict:
         """
         Configures the optimizer.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
 
         Returns:
             torch.optim.Optimizer:
@@ -194,31 +190,22 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         loss, logits, labels = self._common_step(batch, batch_idx)
-        accuracy = self.accuracy(logits, labels)
-        f1_score = self.f1_score(logits, labels)
 
-        self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True)
-
-        self.from_last_val_training_stat_scores.update(logits, labels)
-
-        self.log_dict(
-            {
-                "training_loss": loss,
-                "trianing_accuracy": accuracy,
-                "training_f1_score": f1_score
-            },
-            on_step=False,
+        self.log(
+            "loss",
+            loss,
+            on_step=True,
             on_epoch=True,
             prog_bar=True
         )
 
-        self.training_samples_count += len(logits)
+        self.from_last_val_training_samples_count += logits.shape[0]
+        self.sum_from_last_val_training_loss += loss.item() * logits.shape[0]
+        self.from_last_val_training_stat_scores.update(logits.argmax(-1), labels)
 
-        self.from_last_val_training_loss += loss * len(logits)
-        self.from_last_val_training_accuracy += accuracy * len(logits)
-        self.from_last_val_training_f1_score += f1_score * len(logits)
-
-        self.from_last_val_training_stat_scores.update(logits.argmax().item(), labels)
+        self.training_samples_count += logits.shape[0]
+        self.sum_training_epoch_loss += loss.item() * logits.shape[0]
+        self.training_stat_scores.update(logits.argmax(-1), labels)
 
         return loss
 
@@ -242,27 +229,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         loss, logits, labels = self._common_step(batch, batch_idx)
-        accuracy = self.accuracy(logits, labels)
-        f1_score = self.f1_score(logits, labels)
 
-        self.log_dict(
-            {
-                "validation_loss": loss,
-                "validation_accuracy": accuracy,
-                "validation_f1_score": f1_score
-            },
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True
-        )
-
-        self.validation_samples_count += len(logits)
-
-        self.sum_epoch_validation_loss += loss * len(logits)
-        self.sum_epoch_validation_accuracy += accuracy * len(logits)
-        self.sum_epoch_validation_f1_score += f1_score * len(logits)
-
-        self.validation_stat_scores.update(logits.argmax().item(), labels)
+        self.validation_samples_count += logits.shape[0]
+        self.sum_validation_epoch_loss += loss.item() * logits.shape[0]
+        self.validation_stat_scores.update(logits.argmax(-1), labels)
 
         return loss
 
@@ -286,19 +256,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         loss, logits, labels = self._common_step(batch, batch_idx)
-        accuracy = self.accuracy(logits, labels)
-        f1_score = self.f1_score(logits, labels)
 
-        self.log_dict(
-            {
-                "test_loss": loss,
-                "test_accuracy": accuracy,
-                "test_f1_score": f1_score
-            },
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True
-        )
+        self.test_samples_count += logits.shape[0]
+        self.sum_test_epoch_loss += loss.item() * logits.shape[0]
+        self.test_stat_scores.update(logits.argmax(-1), labels)
 
         return loss
 
@@ -373,6 +334,23 @@ class ClassifierModelWrapper(pl.LightningModule):
         Performs operations at the end of a training epoch
         """
 
+        self.log_dict(
+            {
+                "training_loss_epoch": self.sum_training_loss / self.sum_training_loss,
+                "training_accuracy_epoch": self.training_stat_scores.accuracy(),
+                "training_precision_epoch": self.training_stat_scores.precision(),
+                "training_recall_epoch": self.training_stat_scores.recall(),
+                "training_f1_score_epoch": self.training_stat_scores.f1_score(),
+            },
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+
+        self.training_samples_count = 0
+        self.sum_training_epoch_loss = 0
+        self.training_stat_scores.reset()
+
     def on_validation_epoch_end(
             self
     ) -> None:
@@ -382,69 +360,71 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         print("##########################################################")
         if self.training_samples_count > 0:
-            avg_from_last_val_training_loss = self.from_last_val_training_loss / self.training_samples_count
-            avg_from_last_val_training_accuracy = self.from_last_val_training_accuracy / self.training_samples_count
+            from_last_val_training_loss = self.sum_from_last_val_training_loss / self.training_samples_count
             from_last_val_training_accuracy = self.from_last_val_training_stat_scores.accuracy()
             from_last_val_training_precision = self.from_last_val_training_stat_scores.precision()
             from_last_val_training_recall = self.from_last_val_training_stat_scores.recall()
             from_last_val_training_f1_score = self.from_last_val_training_stat_scores.f1_score()
 
 
-            print(f"Training Loss: {avg_from_last_val_training_loss:.4f}")
-            print(f"Training Accuracy: {avg_from_last_val_training_accuracy:.4f}")
-            #print(f"Training F1 Score: {avg_from_last_val_training_f1_score:.4f}")
-
-            print(f"MY CODE Training Accuracy: {from_last_val_training_accuracy:.4f}")
-            print(f"MY CODE Training Precision: {from_last_val_training_precision:.4f}")
-            print(f"MY CODE Training Recall: {from_last_val_training_recall:.4f}")
-            print(f"MY CODE Training F1-score: {from_last_val_training_f1_score:.4f}")
+            print(f"Training Loss: {from_last_val_training_loss:.4f}")
+            print(f"Training Accuracy: {from_last_val_training_accuracy:.4f}")
+            print(f"Training Precision: {from_last_val_training_precision:.4f}")
+            print(f"Training Recall: {from_last_val_training_recall:.4f}")
+            print(f"Training F1-score: {from_last_val_training_f1_score:.4f}")
 
             self.log_dict(
                 {
-                    "from_last_val_training_loss": avg_from_last_val_training_loss,
-                    "from_last_val_training_accuracy": avg_from_last_val_training_accuracy,
-                    "from_last_val_training_f1_score": from_last_val_training_f1_score
+                    "from_last_val_training_loss": from_last_val_training_loss,
+                    "from_last_val_training_accuracy": from_last_val_training_accuracy,
+                    "from_last_val_training_precision": from_last_val_training_precision,
+                    "from_last_val_training_recall": from_last_val_training_recall,
+                    "from_last_val_training_f1_score": from_last_val_training_f1_score,
                 },
                 on_step=False,
                 on_epoch=True
             )
+
         else:
             print("No data about the training")
 
         print("----------------------------------------------------------")
 
         if self.validation_samples_count > 0:
-            validation_loss = self.sum_epoch_validation_loss / self.validation_samples_count
-
-            validation_accuracy_ex = self.sum_epoch_validation_accuracy / self.validation_samples_count
+            validation_loss = self.sum_validation_epoch_loss / self.validation_samples_count
             validation_accuracy = self.validation_stat_scores.accuracy()
             validation_precision = self.validation_stat_scores.precision()
             validation_recall = self.validation_stat_scores.recall()
             validation_f1_score = self.validation_stat_scores.f1_score()
 
             print(f"Validation Loss: {validation_loss:.4f}")
-            print(f"Validation Accuracy: {validation_accuracy_ex:.4f}")
-            print(f"Validation F1 Score: {validation_f1_score:.4f}")
+            print(f"Validation Accuracy: {validation_accuracy:.4f}")
+            print(f"Validation Precision: {validation_precision:.4f}")
+            print(f"Validation Recall: {validation_recall:.4f}")
+            print(f"Validation F1-score: {validation_f1_score:.4f}")
 
-            print(f"MY CODE Training Accuracy: {validation_accuracy:.4f}")
-            print(f"MY CODE Training Precision: {validation_precision:.4f}")
-            print(f"MY CODE Training Recall: {validation_recall:.4f}")
-            print(f"MY CODE Training F1-score: {validation_f1_score:.4f}")
+            self.log_dict(
+                {
+                    "validation_loss": validation_loss,
+                    "validation_accuracy": validation_accuracy,
+                    "validation_precision": validation_precision,
+                    "validation_recall": validation_recall,
+                    "validation_f1_score": validation_f1_score,
+                },
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True
+            )
 
         print("##########################################################")
 
-        self.training_samples_count = 0
-        self.from_last_val_training_loss = 0
-        self.from_last_val_training_accuracy = 0
-        self.from_last_val_training_f1_score = 0
+        self.from_last_val_training_samples_count = 0
+        self.sum_from_last_val_training_loss = 0
+        self.from_last_val_training_stat_scores.reset()
 
         self.validation_samples_count = 0
-        self.sum_epoch_validation_loss = 0
-        self.sum_epoch_validation_accuracy = 0
-        self.sum_epoch_validation_f1_score = 0
-
+        self.sum_validation_epoch_loss = 0
         self.validation_stat_scores.reset()
-        self.from_last_val_training_stat_scores.reset()
 
     def on_test_epoch_end(
             self
