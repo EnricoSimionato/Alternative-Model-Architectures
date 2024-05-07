@@ -50,20 +50,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             F1 score metric.
         training_samples_count (int):
             Number of training samples.
-        from_last_val_training_loss (int):
-            Loss from the last validation.
-        from_last_val_training_accuracy (int):
-            Accuracy from the last validation.
-        from_last_val_training_f1_score (int):
-            F1 score from the last validation.
-        validation_samples_count (int):
-            Number of validation samples.
-        sum_epoch_validation_loss (int):
-            Sum of the validation loss.
-        sum_epoch_validation_accuracy (int):
-            Sum of the validation accuracy.
-        sum_epoch_validation_f1_score (int):
-            Sum of the validation F1 score.
     """
 
     def __init__(
@@ -336,7 +322,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.log_dict(
             {
-                "training_loss_epoch": self.sum_training_loss / self.sum_training_loss,
+                "training_loss_epoch": self.sum_training_epoch_loss / self.training_samples_count,
                 "training_accuracy_epoch": self.training_stat_scores.accuracy(),
                 "training_precision_epoch": self.training_stat_scores.precision(),
                 "training_recall_epoch": self.training_stat_scores.recall(),
