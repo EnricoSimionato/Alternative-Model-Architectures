@@ -1,11 +1,33 @@
 from typing import Literal
 
+import torch
 from torchmetrics.classification import MulticlassStatScores
 
 
 class ClassificationStats(MulticlassStatScores):
     """
+    Class for computing classification statistics.
 
+    Args:
+        num_classes (int):
+            The number of classes in the classification problem.
+        top_k (int):
+            Number of highest probability or logit score predictions considered to find the correct label. Only works
+            when the predictions contain probabilities/logits.
+        average (str):
+            The method to average the statistics. For now, it is not used, it is just stored.
+        multidim_average (str):
+            The method to handle additionally dimensions ... . Should be one of the following:
+                - global: Additional dimensions are flatted along the batch dimension
+                - samplewise: Statistic will be calculated independently for each sample on the N axis. The statistics
+                  in this case are calculated over the additional dimensions.
+        ignore_index (int):
+            Target value that is ignored and does not contribute to the metric calculation.
+        validate_args (bool):
+            Whether to validate the arguments and tensors should be validated for correctness. Set to False for faster
+            computations.
+        **kwargs:
+            Additional arguments for the parent class.
     """
 
     def __init__(
@@ -21,18 +43,23 @@ class ClassificationStats(MulticlassStatScores):
         super().__init__(
             num_classes=num_classes,
             top_k=top_k,
-            average=average,
+            average=None,
             multidim_average=multidim_average,
             ignore_index=ignore_index,
             validate_args=validate_args,
             **kwargs
         )
+        self.type_of_average = average
 
     def get_stats(
             self
-    ) -> tuple[float, float, float, float, float]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
+        Returns the statistics of the classification problem.
 
+        Returns:
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+                The true positives, false positives, true negatives, false negatives, and support statistics.
         """
 
         stats = self.compute()
@@ -44,9 +71,13 @@ class ClassificationStats(MulticlassStatScores):
 
     def accuracy(
             self
-    ) -> float:
+    ) -> torch.Tensor:
         """
+        Computes the accuracy given the current statistics of the model.
 
+        Returns:
+            torch.Tensor:
+                The accuracy of the model.
         """
 
         tp, fp, tn, fn, _ = self.get_stats()
@@ -58,9 +89,13 @@ class ClassificationStats(MulticlassStatScores):
 
     def precision(
             self
-    ) -> float:
+    ) -> torch.Tensor:
         """
+        Computes the precision given the current statistics of the model.
 
+        Returns:
+            torch.Tensor:
+                The precision of the model.
         """
 
         tp, fp, tn, fn, _ = self.get_stats()
@@ -72,9 +107,13 @@ class ClassificationStats(MulticlassStatScores):
 
     def recall(
             self
-    ) -> float:
+    ) -> torch.Tensor:
         """
+        Computes the recall given the current statistics of the model.
 
+        Returns:
+            torch.Tensor:
+                The recall of the model.
         """
 
         tp, fp, tn, fn, _ = self.get_stats()
@@ -86,12 +125,15 @@ class ClassificationStats(MulticlassStatScores):
 
     def f1_score(
             self
-    ) -> float:
+    ) -> torch.Tensor:
+        """
+        Computes the F1 score given the current statistics of the model.
+
+        Returns:
+            torch.Tensor:
+                The F1 score of the model.
         """
 
-        """
-
-        tp, fp, tn, fn, _ = self.get_stats()
         precision = self.precision()
         recall = self.recall()
         f1_score = 2 * (precision * recall) / (precision + recall)
@@ -101,17 +143,26 @@ class ClassificationStats(MulticlassStatScores):
         return f1_score
 
 
-if __name__ == "__main__":
-    import torch
+class TestClassificationStats:
+    """
+    Class for testing the ClassificationStats class.
+    """
 
-    test_stats = ClassificationStats(2)
+    def test_classification_stats(
+            self
+    ) -> None:
+        """
+        Tests the ClassificationStats class.
+        """
 
-    y_true = torch.tensor([0, 1, 1, 0])
-    y_pred = torch.tensor([0, 1, 1, 1])
+        test_stats = ClassificationStats(2)
 
-    test_stats.update(y_pred, y_true)
+        y_true = torch.tensor([0, 1, 1, 0])
+        y_pred = torch.tensor([0, 1, 1, 1])
 
-    print(test_stats.accuracy())
-    print(test_stats.precision())
-    print(test_stats.recall())
-    print(test_stats.f1_score())
+        test_stats.update(y_pred, y_true)
+
+        assert test_stats.accuracy() == 0.75
+        assert test_stats.precision() == 0.6666666666666666
+        assert test_stats.recall() == 1.0
+        assert test_stats.f1_score() == 0.8

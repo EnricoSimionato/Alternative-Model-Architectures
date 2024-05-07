@@ -352,7 +352,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             from_last_val_training_recall = self.from_last_val_training_stat_scores.recall()
             from_last_val_training_f1_score = self.from_last_val_training_stat_scores.f1_score()
 
-
             print(f"Training Loss: {from_last_val_training_loss:.4f}")
             print(f"Training Accuracy: {from_last_val_training_accuracy:.4f}")
             print(f"Training Precision: {from_last_val_training_precision:.4f}")
@@ -418,7 +417,32 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
         Performs operations at the end of a test epoch
         """
-        pass
+
+        if self.test_samples_count > 0:
+            test_loss = self.sum_test_epoch_loss / self.test_samples_count
+            test_accuracy = self.test_stat_scores.accuracy()
+            test_precision = self.test_stat_scores.precision()
+            test_recall = self.test_stat_scores.recall()
+            test_f1_score = self.test_stat_scores.f1_score()
+
+            print(f"Test Loss: {test_loss:.4f}")
+            print(f"Test Accuracy: {test_accuracy:.4f}")
+            print(f"Test Precision: {test_precision:.4f}")
+            print(f"Test Recall: {test_recall:.4f}")
+            print(f"Test F1-score: {test_f1_score:.4f}")
+
+            self.log_dict(
+                {
+                    "test_loss": test_loss,
+                    "test_accuracy": test_accuracy,
+                    "test_precision": test_precision,
+                    "test_recall": test_recall,
+                    "test_f1_score": test_f1_score,
+                },
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True
+            )
 
     def predict(
             self,

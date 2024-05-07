@@ -1,6 +1,9 @@
+import os
+import pickle
 from copy import deepcopy
 
 from abc import ABC, abstractmethod
+from typing import Optional, Callable, Union
 
 import torch
 import torch.nn as nn
@@ -14,6 +17,7 @@ from gbm.layers.global_dependent_layer import (
 )
 
 from transformers import BertModel
+from transformers import AutoModel
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -49,24 +53,29 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def __init__(
             self,
-            target_model: nn.Module,
-            target_layers: dict,
+            target_model: nn.Module = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            from_pretrained: bool = False,
             **kwargs
     ) -> None:
         super(GlobalDependentModel, self).__init__()
 
-        self.target_layers = target_layers
-        if mapping_layer_name_key is None and use_names_as_keys:
-            self.mapping_layer_name_key = {layer_name: layer_name for layer_name in target_layers.keys()}
-        else:
-            self.mapping_layer_name_key = mapping_layer_name_key
-        self.model = deepcopy(target_model)
+        if not from_pretrained:
+            if target_model is None or target_layers is None:
+                raise ValueError("Both target_model or target_layers must be provided.")
 
-        self.global_layers = nn.ModuleDict()
-        self.conversions = self.define_conversion(**kwargs)
-        self._convert_into_global_dependent_model(self.model, **kwargs)
+            self.target_layers = target_layers
+            if mapping_layer_name_key is None and use_names_as_keys:
+                self.mapping_layer_name_key = {layer_name: layer_name for layer_name in target_layers.keys()}
+            else:
+                self.mapping_layer_name_key = mapping_layer_name_key
+            self.model = deepcopy(target_model)
+
+            self.global_layers = nn.ModuleDict()
+            self.conversions = self.define_conversion(**kwargs)
+            self._convert_into_global_dependent_model(self.model, **kwargs)
 
     @abstractmethod
     def define_conversion(
@@ -144,6 +153,241 @@ class GlobalDependentModel(ABC, nn.Module):
         )
 
         return output
+
+    @classmethod
+    def from_pretrained(
+            cls,
+            pretrained_model_name_or_path: Union[str, os.PathLike],
+            **kwargs
+    ) -> 'GlobalDependentModel':
+        """
+        Instantiates a model from a pretrained model file.
+
+        Args:
+            pretrained_model_name_or_path (str or os.PathLike):
+                Path to the pretrained model file or its name.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            GlobalDependentModel:
+                The instantiated model.
+        """
+
+        global_dependent_model = cls(
+            from_pretrained=True,
+            **kwargs
+        )
+
+        global_dependent_model._load_model(pretrained_model_name_or_path)
+        global_dependent_model._load_additional_information(pretrained_model_name_or_path)
+
+        return global_dependent_model
+
+    def _load_model(
+            self,
+            pretrained_model_path: Union[str, os.PathLike],
+    ) -> None:
+        """
+        Loads the model from the given path.
+
+        Args:
+            pretrained_model_path (`str` or `os.PathLike`):
+                Directory from which to load.
+        """
+
+        self.model = AutoModel.from_pretrained(pretrained_model_path)
+
+    def _load_additional_information(
+            self,
+            pretrained_model_path: Union[str, os.PathLike],
+    ) -> None:
+        """
+        Loads the additional information of the class.
+
+        Args:
+            pretrained_model_path (`str` or `os.PathLike`):
+                Directory from which to load.
+        """
+
+        with open(os.path.join(pretrained_model_path, "attributes"), "rb") as f:
+            self.__dict__.update(pickle.load(f))
+
+    def save_pretrained(
+        self,
+        save_directory: Union[str, os.PathLike],
+        is_main_process: bool = True,
+        state_dict: Optional[dict] = None,
+        save_function: Callable = torch.save,
+        push_to_hub: bool = False,
+        max_shard_size: Union[int, str] = "5GB",
+        safe_serialization: bool = True,
+        variant: Optional[str] = None,
+        token: Optional[Union[str, bool]] = None,
+        save_peft_format: bool = True,
+        **kwargs,
+    ) -> None:
+        """
+        Saves the model. The class stores the model using the method from HuggingFace and the other information of the
+        class using `pickle`.
+
+        Args:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+            is_main_process (`bool`, *optional*, defaults to `True`):
+                Whether the process calling this is the main process or not. Useful when in distributed training like
+                TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
+                the main process to avoid race conditions.
+            state_dict (nested dictionary of `torch.Tensor`):
+                The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
+                save parts of the model or if special precautions need to be taken when recovering the state dictionary
+                of a model (like when using model parallelism).
+            save_function (`Callable`):
+                The function to use to save the state dictionary. Useful on distributed training like TPUs when one
+                need to replace `torch.save` by another method.
+            push_to_hub (`bool`, *optional*, defaults to `False`):
+                Whether to push your model to the Hugging Face model hub after saving it. You can specify the
+                repository you want to push to with `repo_id` (will default to the name of `save_directory` in your
+                namespace).
+            max_shard_size (`int` or `str`, *optional*, defaults to `"5GB"`):
+                The maximum size for a checkpoint before being sharded. Checkpoints shard will then be each of size
+                lower than this size. If expressed as a string, needs to be digits followed by a unit (like `"5MB"`).
+                We default it to 5GB in order for models to be able to run easily on free-tier google colab instances
+                without CPU OOM issues.
+
+                <Tip warning={true}>
+
+                If a single weight of the model is bigger than `max_shard_size`, it will be in its own checkpoint shard
+                which will be bigger than `max_shard_size`.
+
+                </Tip>
+
+            safe_serialization (`bool`, *optional*, defaults to `True`):
+                Whether to save the model using `safetensors` or the traditional PyTorch way (that uses `pickle`).
+            variant (`str`, *optional*):
+                If specified, weights are saved in the format pytorch_model.<variant>.bin.
+            token (`str` or `bool`, *optional*):
+                The token to use as HTTP bearer authorization for remote files. If `True`, or not specified, will use
+                the token generated when running `huggingface-cli login` (stored in `~/.huggingface`).
+            save_peft_format (`bool`, *optional*, defaults to `True`):
+                For backward compatibility with PEFT library, in case adapter weights are attached to the model, all
+                keys of the state dict of adapters needs to be pre-pended with `base_model.model`. Advanced users can
+                disable this behaviours by setting `save_peft_format` to `False`.
+            kwargs (`Dict[str, Any]`, *optional*):
+                Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
+        """
+
+        self._save_model(
+            save_directory,
+            is_main_process,
+            state_dict,
+            save_function,
+            push_to_hub,
+            max_shard_size,
+            safe_serialization,
+            variant,
+            token,
+            save_peft_format,
+            **kwargs
+        )
+
+        self._save_additional_information(
+            save_directory
+        )
+
+    def _save_additional_information(
+            self,
+            save_directory: Union[str, os.PathLike],
+    ) -> None:
+        """
+        Saves the additional information of the class.
+
+        Args:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+        """
+
+        filtered_dict = {key: value for key, value in self.__dict__.items() if key != "model"}
+
+        with open(os.path.join(save_directory, "attributes"), 'wb') as f:
+            pickle.dump(filtered_dict, f)
+
+    def _save_model(
+        self,
+        save_directory: Union[str, os.PathLike],
+        is_main_process: bool = True,
+        state_dict: Optional[dict] = None,
+        save_function: Callable = torch.save,
+        push_to_hub: bool = False,
+        max_shard_size: Union[int, str] = "5GB",
+        safe_serialization: bool = True,
+        variant: Optional[str] = None,
+        token: Optional[Union[str, bool]] = None,
+        save_peft_format: bool = True,
+        **kwargs,
+    ) -> None:
+        """
+        Saves the model.
+
+        Args:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+            is_main_process (`bool`, *optional*, defaults to `True`):
+                Whether the process calling this is the main process or not. Useful when in distributed training like
+                TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
+                the main process to avoid race conditions.
+            state_dict (nested dictionary of `torch.Tensor`):
+                The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
+                save parts of the model or if special precautions need to be taken when recovering the state dictionary
+                of a model (like when using model parallelism).
+            save_function (`Callable`):
+                The function to use to save the state dictionary. Useful on distributed training like TPUs when one
+                need to replace `torch.save` by another method.
+            push_to_hub (`bool`, *optional*, defaults to `False`):
+                Whether to push your model to the Hugging Face model hub after saving it. You can specify the
+                repository you want to push to with `repo_id` (will default to the name of `save_directory` in your
+                namespace).
+            max_shard_size (`int` or `str`, *optional*, defaults to `"5GB"`):
+                The maximum size for a checkpoint before being sharded. Checkpoints shard will then be each of size
+                lower than this size. If expressed as a string, needs to be digits followed by a unit (like `"5MB"`).
+                We default it to 5GB in order for models to be able to run easily on free-tier google colab instances
+                without CPU OOM issues.
+
+                <Tip warning={true}>
+
+                If a single weight of the model is bigger than `max_shard_size`, it will be in its own checkpoint shard
+                which will be bigger than `max_shard_size`.
+
+                </Tip>
+
+            safe_serialization (`bool`, *optional*, defaults to `True`):
+                Whether to save the model using `safetensors` or the traditional PyTorch way (that uses `pickle`).
+            variant (`str`, *optional*):
+                If specified, weights are saved in the format pytorch_model.<variant>.bin.
+            token (`str` or `bool`, *optional*):
+                The token to use as HTTP bearer authorization for remote files. If `True`, or not specified, will use
+                the token generated when running `huggingface-cli login` (stored in `~/.huggingface`).
+            save_peft_format (`bool`, *optional*, defaults to `True`):
+                For backward compatibility with PEFT library, in case adapter weights are attached to the model, all
+                keys of the state dict of adapters needs to be pre-pended with `base_model.model`. Advanced users can
+                disable this behaviours by setting `save_peft_format` to `False`.
+            kwargs (`Dict[str, Any]`, *optional*):
+                Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
+        """
+
+        self.model.save_pretrained(
+            save_directory,
+            is_main_process,
+            state_dict,
+            save_function,
+            push_to_hub,
+            max_shard_size,
+            safe_serialization,
+            variant,
+            token,
+            save_peft_format,
+            **kwargs
+        )
 
     def merge(
             self,
@@ -232,16 +476,19 @@ class LocalSVDModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
         **kwargs:
             Additional keyword arguments.
     """
 
     def __init__(
             self,
-            pretrained_model,
-            target_layers: dict,
+            pretrained_model = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            from_pretrained: bool = False,
             **kwargs
     ) -> None:
         super(LocalSVDModel, self).__init__(
@@ -249,6 +496,7 @@ class LocalSVDModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            from_pretrained=from_pretrained,
             **kwargs
         )
 
@@ -293,16 +541,19 @@ class GlobalBaseModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
         **kwargs:
             Additional keyword arguments.
     """
 
     def __init__(
             self,
-            pretrained_model,
-            target_layers: dict,
+            pretrained_model = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            from_pretrained: bool = False,
             **kwargs
     ) -> None:
         super(GlobalBaseModel, self).__init__(
@@ -310,6 +561,7 @@ class GlobalBaseModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            from_pretrained=from_pretrained,
             **kwargs
         )
 
@@ -354,16 +606,19 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
         **kwargs:
             Additional keyword arguments.
     """
 
     def __init__(
             self,
-            pretrained_model,
-            target_layers: dict,
+            pretrained_model = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            from_pretrained: bool = False,
             **kwargs
     ) -> None:
         super(GlobalFixedBaseModel, self).__init__(
@@ -371,6 +626,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            from_pretrained=from_pretrained,
             **kwargs
         )
 
@@ -393,10 +649,9 @@ class GlobalFixedBaseModel(GlobalDependentModel):
 
         return conversions
 
-
 if __name__ == "__main__":
     # Load the original BERT model
-    original_model = BertModel.from_pretrained("bert-base-uncased")
+    original_model = AutoModel.from_pretrained("bert-base-uncased")
 
     # Create the global model
     global_model = GlobalBaseModel(
