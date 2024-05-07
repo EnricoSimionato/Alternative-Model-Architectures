@@ -10,12 +10,6 @@ __all__ = [
     "GlobalBaseModel",
     "LocalSVDModel",
     "GlobalFixedBaseModel",
-
-    "IMDBDatasetDict",
-    "IMDBDataset",
-
-    "OpenAssistantGuanacoDatasetDict",
-    "OpenAssistantGuanacoDataset",
 ]
 
 from gbm.layers.global_dependent_layer import (
@@ -33,13 +27,3 @@ from gbm.models.global_dependent_model import (
     LocalSVDModel,
     GlobalFixedBaseModel,
 )
-
-from gbm.utils.lightning_datasets import (
-    IMDBDatasetDict,
-    IMDBDataset,
-
-    OpenAssistantGuanacoDatasetDict,
-    OpenAssistantGuanacoDataset,
-)
-
-
