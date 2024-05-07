@@ -37,7 +37,6 @@ class ClassificationStats(MulticlassStatScores):
 
         stats = self.compute()
         if self.num_classes == 2:
-            print(stats)
             stats = stats[1, :]
             return stats[0], stats[1], stats[2], stats[3], stats[4]
         else:
