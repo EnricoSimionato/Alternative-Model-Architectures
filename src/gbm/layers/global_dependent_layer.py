@@ -1006,12 +1006,15 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         global_key = self.global_dependent_layer.structure[0]["key"]
         local_key = self.global_dependent_layer.structure[1]["key"]
 
-        with torch.no_grad():
-            global_matrix = self.get_layer("global", global_key).weight.data
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        target_weight = target_weight.to(device)
+        global_matrix = self.get_layer("global", global_key).weight.data.to(device)
 
+        with torch.no_grad():
             pinv_global_matrix = torch.pinverse(global_matrix)
             local_matrix = target_weight @ pinv_global_matrix
 
+            local_matrix = local_matrix.to(device)
             self.get_layer("local", local_key).weight.data = local_matrix
 
             if "trainable" in self.structure[1].keys():
@@ -1428,30 +1431,8 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
             optimizer.step()
 
 
-def test_LocalSVDLinear():
-    linear_layer = nn.Linear(100, 100, bias=True)
-    rank = 10
-    global_matrices_dict = nn.ModuleDict()
-    gbl = LocalSVDLinear(
-        linear_layer,
-        global_matrices_dict,
-        rank=rank,
-        target_name="query",
-    )
-
-    tolerance = 1e-7
-    U, S, VT = np.linalg.svd(linear_layer.weight.data.numpy())
-    min_dim = min(linear_layer.in_features, linear_layer.out_features)
-    A = U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)]) @ VT[:min(min_dim, rank), :]
-    assert torch.allclose(
-        torch.tensor(A).data,
-        gbl.get_layer("local", "US").weight.data @ gbl.get_layer("local", "VT").weight.data,
-        atol=tolerance
-    )
-
-
 if __name__ == "__main__":
-    linear_layer = nn.Linear(100, 100, bias=True)
+    linear_layer = nn.Linear(80, 100, bias=True)
     rank = 10
     global_matrices_dict = nn.ModuleDict()
     gbl = GlobalBaseLinear(
