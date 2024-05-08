@@ -118,7 +118,7 @@ class GlobalDependentModel(ABC, nn.Module):
             **kwargs:
                 Additional keyword arguments.
         """
-        print("Conversion")
+
         for layer_name in model_tree._modules.keys():
             child = model_tree._modules[layer_name]
             if len(child._modules) == 0:
