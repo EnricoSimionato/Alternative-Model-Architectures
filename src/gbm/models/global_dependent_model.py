@@ -37,6 +37,8 @@ class GlobalDependentModel(ABC, nn.Module):
             names to have the same global layer.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
         verbose (bool):
             Whether to print information about the conversion.
         **kwargs:
@@ -62,6 +64,7 @@ class GlobalDependentModel(ABC, nn.Module):
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             from_pretrained: bool = False,
+            preserve_original_model: bool = False,
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -76,7 +79,11 @@ class GlobalDependentModel(ABC, nn.Module):
                 self.mapping_layer_name_key = {layer_name: layer_name for layer_name in target_layers.keys()}
             else:
                 self.mapping_layer_name_key = mapping_layer_name_key
-            self.model = deepcopy(target_model)
+
+            if preserve_original_model:
+                self.model = deepcopy(target_model)
+            else:
+                self.model = target_model
 
             self.global_layers = nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
@@ -122,11 +129,10 @@ class GlobalDependentModel(ABC, nn.Module):
         for layer_name in model_tree._modules.keys():
             child = model_tree._modules[layer_name]
             if len(child._modules) == 0:
-                if verbose:
-                    print(f"Conversion of {layer_name} in {path}")
                 if (type(child) in self.conversions.keys() and
                         layer_name in self.target_layers.keys()):
-
+                    if verbose:
+                        print(f"Conversion of {layer_name} in {path}")
                     kwargs_layer = kwargs.copy()
                     kwargs_layer.update(self.target_layers[layer_name])
 
@@ -496,6 +502,8 @@ class LocalSVDModel(GlobalDependentModel):
             names to have the same global layer.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
         verbose (bool):
             Whether to print information about the conversion.
         **kwargs:
@@ -509,6 +517,7 @@ class LocalSVDModel(GlobalDependentModel):
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             from_pretrained: bool = False,
+            preserve_original_model: bool = False,
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -518,6 +527,7 @@ class LocalSVDModel(GlobalDependentModel):
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
             verbose=verbose,
             **kwargs
         )
@@ -565,6 +575,8 @@ class GlobalBaseModel(GlobalDependentModel):
             names to have the same global layer.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
         verbose (bool):
             Whether to print information about the conversion.
         **kwargs:
@@ -578,6 +590,7 @@ class GlobalBaseModel(GlobalDependentModel):
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             from_pretrained: bool = False,
+            preserve_original_model: bool = False,
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -587,6 +600,7 @@ class GlobalBaseModel(GlobalDependentModel):
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
             verbose=verbose,
             **kwargs
         )
@@ -634,6 +648,8 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             names to have the same global layer.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
         verbose (bool):
             Whether to print information about the conversion.
         **kwargs:
@@ -647,6 +663,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             from_pretrained: bool = False,
+            preserve_original_model: bool = False,
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -656,6 +673,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
             verbose=verbose,
             **kwargs
         )
@@ -684,7 +702,7 @@ if __name__ == "__main__":
     login(token="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")
 
     # Load the original BERT model
-    original_model = AutoModelForSequenceClassification.from_pretrained("mistralai/Mistral-7B-v0.1")
+    original_model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
 
     # Create the global model
     global_model = GlobalBaseModel(
@@ -707,7 +725,7 @@ if __name__ == "__main__":
     print(original_model)
     print("##################################################")
     """
-
+    print(original_model)
     print("Global model:")
     print(global_model)
     """
