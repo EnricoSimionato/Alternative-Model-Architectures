@@ -1,6 +1,7 @@
 import os
 import pickle
 from copy import deepcopy
+from huggingface_hub import login
 
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
@@ -16,7 +17,7 @@ from gbm.layers.global_dependent_layer import (
     GlobalFixedBaseLinear,
 )
 
-from transformers import AutoModel
+from transformers import AutoModel, AutoModelForSequenceClassification
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -117,7 +118,7 @@ class GlobalDependentModel(ABC, nn.Module):
             **kwargs:
                 Additional keyword arguments.
         """
-
+        print("Conversion")
         for layer_name in model_tree._modules.keys():
             child = model_tree._modules[layer_name]
             if len(child._modules) == 0:
@@ -680,8 +681,10 @@ class GlobalFixedBaseModel(GlobalDependentModel):
 
 
 if __name__ == "__main__":
+    login(token="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")
+
     # Load the original BERT model
-    original_model = AutoModel.from_pretrained("bert-base-uncased")
+    original_model = AutoModelForSequenceClassification.from_pretrained("mistralai/Mistral-7B-v0.1")
 
     # Create the global model
     global_model = GlobalBaseModel(
