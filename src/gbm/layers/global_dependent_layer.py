@@ -722,6 +722,34 @@ class StructureSpecificGlobalDependentLinear(ABC, nn.Module, MergeableLayer):
         else:
             raise Exception("The scope of the layer has to be 'global' or 'local'.")
 
+    def set_layer(
+            self,
+            scope: str,
+            key: str,
+            new_layer: nn.Module,
+            **kwargs
+    ) -> None:
+        """
+        Sets the layer with the specified scope and key.
+
+        Args:
+            scope (str):
+                Scope of the layer.
+            key (str):
+                Key of the layer.
+            new_layer (nn.Module):
+                New layer to be set.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if scope == "global":
+            self.global_dependent_layer.global_layers[self.get_post_processed_key(key)] = new_layer
+        elif scope == "local":
+            self.global_dependent_layer.local_layers[self.get_post_processed_key(key)] = new_layer
+        else:
+            raise Exception("The scope of the layer has to be 'global' or 'local'.")
+
     @property
     def structure(
             self
@@ -1034,6 +1062,9 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         )
 
         num_epochs = 50
+
+        print(self.get_layer("local", local_key).weight.device)
+        print(self.get_layer("global", global_key).weight.device)
 
         for epoch in range(num_epochs):
             loss = torch.norm((target_weight - torch.matmul(
