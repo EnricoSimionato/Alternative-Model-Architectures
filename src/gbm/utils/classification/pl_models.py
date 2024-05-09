@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 
 import transformers
 
-from gbm.utils.sentiment.pl_metrics import ClassificationStats
+from gbm.utils.classification.pl_metrics import ClassificationStats
 
 
 class ClassifierModelWrapper(pl.LightningModule):
