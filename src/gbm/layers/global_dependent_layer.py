@@ -8,6 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from gbm.utils.device_utils import get_available_device
+
 
 class MergeableLayer:
     """
@@ -1034,15 +1036,12 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         global_key = self.global_dependent_layer.structure[0]["key"]
         local_key = self.global_dependent_layer.structure[1]["key"]
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        target_weight = target_weight.to(device)
-        global_matrix = self.get_layer("global", global_key).weight.data.to(device)
+        global_matrix = self.get_layer("global", global_key).weight.data
 
         with torch.no_grad():
             pinv_global_matrix = torch.pinverse(global_matrix)
             local_matrix = target_weight @ pinv_global_matrix
 
-            local_matrix = local_matrix.to(device)
             self.get_layer("local", local_key).weight.data = local_matrix
 
             if "trainable" in self.structure[1].keys():
@@ -1051,6 +1050,12 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
 
             self.get_layer("local", local_key).bias = target_layer.bias
 
+        device = get_available_device()
+
+        target_weight = target_weight.to(device)
+        self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
+        self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
+
         optimizer = torch.optim.AdamW([self.get_layer("local", local_key).weight])
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -1058,13 +1063,9 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             mode='min',
             factor=0.5,
             patience=10,
-            verbose=False
         )
 
         num_epochs = 50
-
-        print(self.get_layer("local", local_key).weight.device)
-        print(self.get_layer("global", global_key).weight.device)
 
         for epoch in range(num_epochs):
             loss = torch.norm((target_weight - torch.matmul(
@@ -1463,8 +1464,12 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
 
 
 if __name__ == "__main__":
-    linear_layer = nn.Linear(80, 100, bias=True)
-    rank = 10
+    import time
+    linear_layer = nn.Linear(10000, 10000, bias=True)
+    rank = 100
+
+    init_time = time.time()
+
     global_matrices_dict = nn.ModuleDict()
     gbl = GlobalBaseLinear(
         linear_layer,
@@ -1473,6 +1478,8 @@ if __name__ == "__main__":
         target_name="query",
     )
 
+    print(f"Time taken: {(time.time() - init_time)}")
+    
     print(gbl)
 
     #gbl_merged = gbl.merge()
