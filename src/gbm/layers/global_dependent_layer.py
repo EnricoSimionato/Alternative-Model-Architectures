@@ -1039,7 +1039,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         global_matrix = self.get_layer("global", global_key).weight.data
 
         with torch.no_grad():
-            pinv_global_matrix = torch.pinverse(global_matrix)
+            pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
             local_matrix = target_weight @ pinv_global_matrix
 
             self.get_layer("local", local_key).weight.data = local_matrix
