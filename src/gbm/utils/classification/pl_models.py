@@ -61,6 +61,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             label2id: dict,
             learning_rate: float = 1e-5,
             max_epochs: int = 3,
+            warmup_steps: int = 0
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
 
@@ -72,9 +73,18 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.label2id = label2id
 
         self.learning_rate = learning_rate
+        self.warmup_steps = warmup_steps
         self.max_epochs = max_epochs
 
         self.accuracy = torchmetrics.classification.Accuracy(
+            task="multiclass",
+            num_classes=num_classes
+        )
+        self.precision = torchmetrics.classification.Precision(
+            task="multiclass",
+            num_classes=num_classes
+        )
+        self.recall = torchmetrics.classification.Recall(
             task="multiclass",
             num_classes=num_classes
         )
@@ -120,10 +130,13 @@ class ClassifierModelWrapper(pl.LightningModule):
             lr=self.learning_rate
         )
 
-        learning_rate_scheduler = lr_scheduler.CosineAnnealingLR(
+        learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
             optimizer,
-            T_max=self.max_epochs
+            num_warmup_steps=self.warmup_steps,
+            num_training_steps=self.max_epochs,
+            num_cycles=0.5
         )
+
         monitored_metrics = "loss"
 
         return {

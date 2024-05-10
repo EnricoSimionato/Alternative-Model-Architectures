@@ -1,98 +1,63 @@
 import os
-from datetime import datetime
 
 import pickle
 
 import transformers
 
+from gbm.utils.pipeline.config import Config
+
 
 def store_model_and_info(
-        model_name: str,
         model: transformers.AutoModel,
-        tokenizer: transformers.AutoTokenizer,
-        hyperparameters: dict,
-        losses: dict,
-        path: str = None,
+        config: Config,
+        tokenizer: transformers.AutoTokenizer = None,
         verbose: bool = True
-):
+) -> None:
     """
     Stores the model, tokenizer, hyperparameters and stats in the specified path.
 
     Args:
-        model_name (str):
-            The base name to use to store the model and its information.
         model (transformers.AutoModel):
             The model to be stored.
-        tokenizer (transformers.AutoTokenizer):
+        config (dict):
+            The configuration parameters to be stored.
+        tokenizer (transformers.AutoTokenizer, optional):
             The tokenizer to be stored.
-        hyperparameters (dict):
-            The hyperparameters to be stored.
-        losses (dict):
-            The losses to be stored.
-        path (str, optional):
-            The path where the model, tokenizer, hyperparameters and stats are to be stored.
-            Defaults to None.
         verbose (bool, optional):
             Whether to print the paths where the model, tokenizer, hyperparameters and stats are stored.
             Defaults to True.
-
-    Returns:
-        str:
-            The name of the stored model.
 
     Raises:
         Exception:
             If the specified path does not exist.
     """
 
-    if path is None:
-        path = os.getcwd()
-
-    if not os.path.exists(path):
-        raise Exception(f"Path '{path}' does not exist.")
-
-    # Defining the model name
-    date = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    model_name = f"{model_name}_{date}"
-
     # Check if the directories exist, if not create them
-    if not os.path.exists(os.path.join(path, "tokenizers")):
-        os.makedirs(os.path.join(path, "tokenizers"))
-    if not os.path.exists(os.path.join(path, "models")):
-        os.makedirs(os.path.join(path, "models"))
-    if not os.path.exists(os.path.join(path, "stats")):
-        os.makedirs(os.path.join(path, "stats"))
-    if not os.path.exists(os.path.join(path, "hyperparameters")):
-        os.makedirs(os.path.join(path, "hyperparameters"))
-
-    # Defining the paths
-    path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
-    path_to_model = os.path.join(path, "models", model_name)
-    path_to_stats = os.path.join(path, "stats", model_name)
-    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
+    if tokenizer is not None and not os.path.exists(config.get("path_to_tokenizer")):
+        os.makedirs(config.get("path_to_tokenizer"))
+    if not os.path.exists(config.get("path_to_model")):
+        os.makedirs(config.get("path_to_model"))
+    if not os.path.exists(config.get("path_to_configuration")):
+        os.makedirs(config.get("path_to_configuration"))
 
     # Storing the tokenizer
-    tokenizer.save_pretrained(path_to_tokenizer)
+    if tokenizer is not None:
+        tokenizer.save_pretrained(config.get("path_to_tokenizer"))
     # Storing the model
-    model.save_pretrained(path_to_model)
+    model.save_pretrained(config.get("path_to_model"))
 
     if verbose:
-        print(f"Tokenizer saved in: '{path_to_tokenizer}'")
-        print(f"Model saved in: '{path_to_model}'")
+        if tokenizer is not None:
+            print(f"Tokenizer saved in: '{config.get('path_to_tokenizer')}'")
+        print(f"Model saved in: '{config.get('path_to_model')}'")
 
-    with open(path_to_stats, 'wb') as f:
-        pickle.dump(losses, f)
-
-    if verbose:
-        print(f"Stats saved in: '{path_to_stats}'")
-
-    with open(path_to_hyperparameters, 'wb') as f:
-        pickle.dump(hyperparameters, f)
+    with open(os.path.join(config.get("path_to_configuration"), "config"), 'wb') as f:
+        pickle.dump(config, f)
 
     if verbose:
-        print(f"Hyperparameters saved in: '{path_to_hyperparameters}'")
+        print(f"Experiment configuration parameters saved in: '{os.path.join(config.get('path_to_configuration'), 'config')}'")
 
-    return model_name
+    print("Stored model and info")
 
 
 def load_model_and_info(
@@ -124,8 +89,6 @@ def load_model_and_info(
             The loaded tokenizer.
         dict:
             The hyperparameters used in the training of the model.
-        dict:
-            The losses of the model when trained.
     """
 
     if path is None:
@@ -147,8 +110,7 @@ def load_model_and_info(
     # Defining the paths
     path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
     path_to_model = os.path.join(path, "models", model_name)
-    path_to_stats = os.path.join(path, "stats", model_name)
-    path_to_hyperparameters = os.path.join(path, "hyperparameters", model_name)
+    path_to_configuration = os.path.join(path, "hyperparameters", model_name)
 
     # Loading the tokenizer
     tokenizer = transformers.AutoTokenizer.from_pretrained(path_to_tokenizer)
@@ -159,26 +121,20 @@ def load_model_and_info(
         print(f"Tokenizer loaded from: '{path_to_tokenizer}'")
         print(f"Model loaded from: '{path_to_model}'")
 
-    with open(path_to_stats, 'rb') as f:
-        losses = pickle.load(f)
+    with open(path_to_configuration, 'rb') as f:
+        config = pickle.load(f)
 
     if verbose:
-        print(f"Stats loaded from: '{path_to_stats}'")
-
-    with open(path_to_hyperparameters, 'rb') as f:
-        hyperparameters = pickle.load(f)
-
-    if verbose:
-        print(f"Hyperparameters loaded from: '{path_to_hyperparameters}'")
+        print(f"Hyperparameters loaded from: '{path_to_configuration}'")
         print()
 
     if print_info:
         print("SETTING OF THE TRAINING - HYPERPARAMETERS:")
-        for key, value in hyperparameters.items():
+        for key, value in config.items():
             print(f"{key}: {value}")
         print()
 
-    return model, tokenizer, hyperparameters, losses
+    return model, tokenizer, config
 
 
 def test_store() -> None:

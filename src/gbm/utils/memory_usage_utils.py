@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+
 def convert_bytes_in_other_units(
         number_of_bytes: float,
         units_of_measure: list = ("GB", "MB")
@@ -41,7 +42,7 @@ def convert_bytes_in_other_units(
 
     for unit in units_of_measure:
         if unit not in valid_units_of_measure.keys():
-            raise Exception(f"Invalid units of measure, the valid ones are: {valid_units_of_measure}")
+            raise Exception(f"Invalid units of measure for the memory, the valid ones are: {valid_units_of_measure.keys()}")
 
     units_of_measure_to_use = {}
     for unit in valid_units_of_measure.keys():
