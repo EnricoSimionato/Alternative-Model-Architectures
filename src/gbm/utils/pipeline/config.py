@@ -127,7 +127,8 @@ class Config:
                 "path_to_model": os.path.join(path_to_experiment, "model"),
                 "path_to_tokenizer": os.path.join(path_to_experiment, "tokenizer"),
                 "path_to_configuration": os.path.join(path_to_experiment, "configuration"),
-                "path_to_logs": os.path.join(path_to_experiment, "logs")
+                "path_to_logs": os.path.join(path_to_experiment, "logs"),
+                "path_to_checkpoints": os.path.join(path_to_experiment, "checkpoints")
             }
             for _, path in paths.items():
                 os.makedirs(path, exist_ok=True)

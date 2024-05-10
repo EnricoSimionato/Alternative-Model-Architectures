@@ -37,6 +37,7 @@ def get_classification_trainer(
         ),
         # Defining checkpointing callback
         pl.callbacks.ModelCheckpoint(
+            dirpath=config.get("path_to_checkpoints"),
             filename="{epoch}-{training_loss:.2f}-{validation_loss:.2f}",
             monitor="validation_loss"
         ),
