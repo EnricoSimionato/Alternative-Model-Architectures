@@ -79,7 +79,7 @@ class Experiment:
         if self.task == "classification":
             return ClassifierModelWrapper(
                 model=self.model,
-                tokenizer=tokenizer,
+                tokenizer=self.tokenizer,
 
                 num_classes=self.config.get("num_classes"),
                 id2label=self.config.get("id2label"),
