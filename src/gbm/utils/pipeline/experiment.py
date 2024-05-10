@@ -60,11 +60,11 @@ class Experiment:
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
-        #self._validate(**kwargs)
+        self._validate(**kwargs)
 
-        #self._fit(**kwargs)
-        #self._validate(**kwargs)
-        #self._test(**kwargs)
+        self._fit(**kwargs)
+        self._validate(**kwargs)
+        self._test(**kwargs)
 
         self.config.end_experiment()
 
@@ -81,12 +81,12 @@ class Experiment:
                 model=self.model,
                 tokenizer=tokenizer,
 
-                num_classes=config.get("num_classes"),
-                id2label=config.get("id2label"),
-                label2id=config.get("label2id"),
+                num_classes=self.config.get("num_classes"),
+                id2label=self.config.get("id2label"),
+                label2id=self.config.get("label2id"),
 
-                learning_rate=config.get("learning_rate"),
-                max_epochs=config.get("num_epochs"),
+                learning_rate=self.config.get("learning_rate"),
+                max_epochs=self.config.get("num_epochs"),
             )
 
         elif self.task == "question-answering":
@@ -151,25 +151,21 @@ class Experiment:
         )
 
 
-
 if __name__ == "__main__":
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
+    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/gbm/utils/CONFIG_LOCAL.json")
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/gbm/utils/CONFIG_LOCAL.json")
-    dataset = IMDBDataModule(
-        "",
-        config.get("batch_size"),
-        config.get("num_workers"),
-        tokenizer,
-        config.get("max_len_tokenizer"),
-        config.get("split")
-    )
-
     experiment = Experiment(
         task="classification",
-        model=model,
-        dataset=dataset,
-        config=config,
+        model=AutoModelForSequenceClassification.from_pretrained("bert-base-uncased"),
+        dataset=IMDBDataModule(
+            "",
+            configuration.get("batch_size"),
+            configuration.get("num_workers"),
+            tokenizer,
+            configuration.get("max_len_tokenizer"),
+            configuration.get("split")
+        ),
+        config=configuration,
         tokenizer=tokenizer
     )
 
