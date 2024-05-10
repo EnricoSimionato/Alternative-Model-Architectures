@@ -1,6 +1,10 @@
 {
     "path_to_storage": "drive/MyDrive/Thesis",
-    "original_model_id": "bert-base-cased",
+    "keys_for_naming": [
+        "factorization_method",
+        "model_id"
+    ],
+    "model_id": "bert-base-cased",
     "quantization": null,
     "num_classes": 2,
     "id2label": {
@@ -28,6 +32,7 @@
     "warmup": 0.2,
     "num_checks_per_epoch": 2,
     "gradient_accumulation_steps": 4,
+    "factorization_method": "",
     "target_layers": {
         "query": {
             "rank": 64

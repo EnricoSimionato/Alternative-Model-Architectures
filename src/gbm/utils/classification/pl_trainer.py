@@ -3,6 +3,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
+from pytorch_lightning.loggers.comet import CometLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
 
 from gbm.utils.pipeline.config import Config
@@ -54,11 +55,15 @@ def get_classification_trainer(
         CSVLogger(
             save_dir=config.get("path_to_logs"),
             name="csv_logs"
-        )
-        # pl.loggers.WandbLogger(
+        ),
+        #CometLogger(
+        #    save_dir=config.get("path_to_logs"),
+        #    name="comet_logs"
+        #)
+        #pl.loggers.WandbLogger(
         #    save_dir=config.get("path_to_logs"),
         #    name="wandb_logs"
-        # )
+        #)
     ]
 
     # Defining trainer settings

@@ -47,14 +47,13 @@ class Experiment:
 
     def run_experiment(
             self,
-            keys_for_naming: list = (),
             **kwargs
     ) -> None:
         """
         Runs the experiment.
         """
 
-        self.config.start_experiment(keys_for_naming)
+        self.config.start_experiment()
 
         print("Experiment started")
 
@@ -152,7 +151,7 @@ class Experiment:
 
 
 if __name__ == "__main__":
-    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/gbm/utils/CONFIG_LOCAL.json")
+    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL.json")
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     experiment = Experiment(
         task="classification",

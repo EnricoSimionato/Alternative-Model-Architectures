@@ -37,6 +37,13 @@ class Config:
         if not os.path.exists(config["path_to_storage"]):
             raise Exception(f"Path '{config['path_to_storage']}' does not exist.")
 
+        self.keys_for_naming = []
+        if "keys_for_naming" in config.keys():
+            for key in config["keys_for_naming"]:
+                if key not in config.keys():
+                    raise Exception(f"The key '{key}', which is one the keys to be used for the naming of the"
+                                    f"experiment must be provided in the configuration.")
+
         self.__dict__.update(config)
 
         self.begin_time = None
@@ -97,14 +104,14 @@ class Config:
 
     def start_experiment(
             self,
-            keys_for_naming: list = ()
+            **kwargs
     ) -> None:
         """
         Initializes the experiments by setting the seed and device.
 
         Args:
-            keys_for_naming (list, optional):
-                The keys to be used for naming the experiments. Defaults to ().
+            kwargs:
+                Additional keyword arguments.
         """
 
         if self.begin_time is None:
@@ -112,7 +119,7 @@ class Config:
 
             path_to_experiment = os.path.join(
                 self.get("path_to_storage"),
-                "_".join([self.__dict__[key] for key in keys_for_naming]) + "_" + self.begin_time
+                "_".join([self.__dict__[key] for key in self.keys_for_naming]) + "_" + self.begin_time
             )
             os.makedirs(path_to_experiment, exist_ok=True)
 

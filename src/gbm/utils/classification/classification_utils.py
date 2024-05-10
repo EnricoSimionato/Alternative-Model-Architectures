@@ -1,9 +1,11 @@
 import transformers
 from transformers import AutoModelForSequenceClassification
 
+from gbm.utils.pipeline.config import Config
+
 
 def load_original_model_for_sequence_classification(
-        config: dict
+        config: Config
 ) -> transformers.AutoModel:
     """
     Loads the model that will be used to experiment alternative architectures.
@@ -18,8 +20,8 @@ def load_original_model_for_sequence_classification(
     """
 
     return AutoModelForSequenceClassification.from_pretrained(
-        config["original_model_id"],
-        num_labels=config["num_classes"],
-        id2label=config["id2label"],
-        label2id=config["label2id"],
+        config.get("original_model_id"),
+        num_labels=config.get("num_classes"),
+        id2label=config.get("id2label"),
+        label2id=config.get("label2id"),
     )
