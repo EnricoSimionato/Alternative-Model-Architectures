@@ -206,7 +206,7 @@ class IMDBDataModule(pl.LightningDataModule):
         """
 
         load_dataset(
-            "imdb",
+            "stanfordnlp/imdb",
             #data_dir=self.data_dir,
         )
 
@@ -219,9 +219,10 @@ class IMDBDataModule(pl.LightningDataModule):
         """
 
         raw_dataset = load_dataset(
-            "imdb",
+            "stanfordnlp/imdb",
             #data_dir=self.data_dir,
         )
+        print(raw_dataset)
 
         concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
 
@@ -304,6 +305,7 @@ if __name__ == "__main__":
         (0.8, 0.1, 0.1),
         seed=42
     )
+    dataset.setup()
 
     print(dataset.train)
     print()

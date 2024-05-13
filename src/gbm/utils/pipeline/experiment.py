@@ -59,11 +59,15 @@ class Experiment:
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
-        self._validate(**kwargs)
+        validate_results = self._validate(**kwargs)
+        print(f"Validate results before training: {validate_results}")
 
-        self._fit(**kwargs)
-        self._validate(**kwargs)
-        self._test(**kwargs)
+        fit_results = self._fit(**kwargs)
+        print(f"Fit results: {fit_results}")
+        validate_results = self._validate(**kwargs)
+        print(f"Validate results: {validate_results}")
+        test_results = self._test(**kwargs)
+        print(f"Test results: {test_results}")
 
         self.config.end_experiment()
 
@@ -114,8 +118,8 @@ class Experiment:
     def _fit(
             self,
             **kwargs
-    ) -> None:
-        self.lightning_trainer.fit(
+    ) -> dict:
+        return self.lightning_trainer.fit(
             self.lightning_model,
             self.dataset
         )
@@ -123,8 +127,8 @@ class Experiment:
     def _validate(
             self,
             **kwargs
-    ) -> None:
-        self.lightning_trainer.validate(
+    ) -> dict:
+        return self.lightning_trainer.validate(
             self.lightning_model,
             self.dataset
         )
@@ -132,8 +136,8 @@ class Experiment:
     def _test(
             self,
             **kwargs
-    ) -> None:
-        self.lightning_trainer.test(
+    ) -> dict:
+        return self.lightning_trainer.test(
             self.lightning_model,
             self.dataset
         )

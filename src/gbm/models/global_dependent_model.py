@@ -19,6 +19,8 @@ from gbm.layers.global_dependent_layer import (
 
 from transformers import AutoModel, AutoModelForSequenceClassification
 
+from gbm.utils import count_parameters
+
 
 class GlobalDependentModel(ABC, nn.Module):
     """
@@ -85,9 +87,27 @@ class GlobalDependentModel(ABC, nn.Module):
             else:
                 self.model = target_model
 
+            self.info = {
+                "original_model_parameters": count_parameters(self.model),
+                "original_model_trainable_parameters": count_parameters(self.model, only_trainable=True)
+            }
             self.global_layers = nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
             self._convert_into_global_dependent_model(self.model, path="", verbose=verbose, **kwargs)
+            model_parameters = count_parameters(self.model)
+            self.info.update(
+                {
+                    "model_parameters": model_parameters,
+                    "model_trainable_parameters": count_parameters(self.model, only_trainable=True),
+                    "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
+                }
+            )
+            if verbose:
+                print(f"Number of parameters original model: {self.info['original_model_parameters']}")
+                print(f"Number of parameters global model: {self.info['model_parameters']}")
+                print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
+                print()
+                print("Model converted")
 
     @abstractmethod
     def define_conversion(
