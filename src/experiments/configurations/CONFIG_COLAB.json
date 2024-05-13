@@ -2,7 +2,7 @@
     "path_to_storage": "drive/MyDrive/Thesis",
     "keys_for_naming": [
         "factorization_method",
-        "model_id"
+        "original_model_id"
     ],
     "model_id": "bert-base-cased",
     "quantization": null,

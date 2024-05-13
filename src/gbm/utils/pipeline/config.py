@@ -6,23 +6,31 @@ from typing import Any
 
 class Config:
     """
-    Config class to store all the configuration parameters.
+    Config class to store all the configuration parameters of an experiment about training a deep model using Pytorch
+    Lightning.
 
     Args:
         path_to_config (str):
             The path to the configuration file.
+        **kwargs:
+            Additional keyword arguments.
 
     Attributes:
         All the keys in the config file are added as attributes to the class.
+        keys_for_naming (list):
+            A list of keys to be used for the naming of the experiment. The values of these keys will be concatenated
+            to form the name of the experiment. If this is not provided in the configuration file, the name of the
+            experiment will be the date and time when the experiment started.
         begin_time (str):
-            The time when the experiment started.
+            The time when the experiment started. It is set to None initially and is updated when the experiment starts.
         end_time (str):
-            The time when the experiment ended.
+            The time when the experiment ended. It is set to None initially and is updated when the experiment ends.
     """
 
     def __init__(
             self,
             path_to_config: str = None,
+            **kwargs
     ) -> None:
         if path_to_config is None:
             raise Exception("The path to the configuration file cannot be None.")
@@ -41,7 +49,7 @@ class Config:
         if "keys_for_naming" in config.keys():
             for key in config["keys_for_naming"]:
                 if key not in config.keys():
-                    raise Exception(f"The key '{key}', which is one the keys to be used for the naming of the"
+                    raise Exception(f"The key '{key}', which is one the keys to be used for the naming of the "
                                     f"experiment must be provided in the configuration.")
 
         self.__dict__.update(config)
@@ -51,7 +59,8 @@ class Config:
 
     def get(
             self,
-            key: str
+            key: str,
+            **kwargs
     ) -> Any:
         """
         Returns the value of the specified key.
@@ -59,6 +68,8 @@ class Config:
         Args:
             key (str):
                 The key whose value is to be returned.
+            **kwargs:
+                Additional keyword arguments.
 
         Returns:
             Any:
@@ -70,8 +81,9 @@ class Config:
     def set(
             self,
             key: str,
-            value: Any
-    ) -> Any:
+            value: Any,
+            **kwargs
+    ):
         """
         Sets the value of the specified key.
 
@@ -80,24 +92,25 @@ class Config:
                 The key whose value is to be set.
             value (Any):
                 The value to be set for the specified key.
-
-        Returns:
-            Any:
-                The value of the specified key.
+            **kwargs:
+                Additional keyword arguments.
         """
 
         self.__dict__[key] = value
 
     def update(
             self,
-            config: dict
+            config: dict,
+            **kwargs
     ) -> None:
         """
-        Updates the configuration parameters with the specified dictionary.
+        Updates or inserts the configuration parameters according to the provided dictionary.
 
         Args:
             config (dict):
-                A dictionary containing the configuration parameters to be updated.
+                A dictionary containing the configuration parameters to be updated or inserted.
+            **kwargs:
+                Additional keyword arguments.
         """
 
         self.__dict__.update(config)
@@ -119,7 +132,9 @@ class Config:
 
             path_to_experiment = os.path.join(
                 self.get("path_to_storage"),
-                "_".join([self.__dict__[key] for key in self.keys_for_naming]) + "_" + self.begin_time
+                "_".join([self.__dict__[key] for key in self.keys_for_naming]) +
+                ("_" if len("_".join([self.__dict__[key] for key in self.keys_for_naming])) > 0 else "") +
+                self.begin_time
             )
             os.makedirs(path_to_experiment, exist_ok=True)
 
