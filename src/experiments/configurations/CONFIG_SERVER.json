@@ -27,13 +27,18 @@
     "num_epochs": 5,
     "learning_rate": 1e-05,
     "lr_schedule": "linear",
+    "warmup_steps": 50,
     "batch_size": 16,
     "num_workers": 2,
     "warmup": 0.2,
     "num_checks_per_epoch": 2,
     "gradient_accumulation_steps": 4,
+
     "factorization_method": "",
     "target_layers": {
+        "word_embedding": {
+            "rank": 256
+        },
         "query": {
             "rank": 64
         },

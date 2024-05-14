@@ -90,6 +90,8 @@ class Experiment:
 
                 learning_rate=self.config.get("learning_rate"),
                 max_epochs=self.config.get("num_epochs"),
+
+                warmup_steps=self.config.get("warmup_steps"),
             )
 
         elif self.task == "question-answering":
