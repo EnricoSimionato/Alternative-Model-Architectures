@@ -124,43 +124,6 @@ class IMDBDataset(SentimentAnalysisDataset):
         }
 
 
-class IMDBDatasetDict:
-
-    def __init__(
-            self,
-            tokenizer,
-            max_len: int,
-            split: tuple[float, float, float]
-    ) -> None:
-        """
-        Initializes the dataset loading it from HuggingFace.
-        """
-
-        if len(split) != 3:
-            raise ValueError(
-                "The split must have three elements (train, validation, test)."
-            )
-        if sum(split) != 1:
-            raise ValueError(
-                "The sum of the split elements must be equal to 1."
-            )
-
-        raw_dataset = load_dataset("imdb")
-
-        concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
-
-        first_split_raw_dataset = concatenated_raw_dataset.train_test_split(
-            test_size=split[2]
-        )
-        second_split_raw_dataset = first_split_raw_dataset["train"].train_test_split(
-            test_size=split[1]/((1-split[2]) if split[2] != 1 else 1)
-        )
-
-        self.train = IMDBDataset(second_split_raw_dataset["train"], tokenizer, max_len)
-        self.validation = IMDBDataset(second_split_raw_dataset["test"], tokenizer, max_len)
-        self.test = IMDBDataset(first_split_raw_dataset["test"], tokenizer, max_len)
-
-
 class IMDBDataModule(pl.LightningDataModule):
     """
 

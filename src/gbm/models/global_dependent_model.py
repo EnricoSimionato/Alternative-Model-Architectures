@@ -12,9 +12,17 @@ from torch import device
 
 from gbm.layers.global_dependent_layer import (
     MergeableLayer,
-    GlobalBaseLinear,
+)
+from gbm.layers.gdl_linear import (
     LocalSVDLinear,
+    GlobalBaseLinear,
     GlobalFixedBaseLinear,
+)
+
+from gbm.layers.gdl_embedding import (
+    LocalSVDEmbedding,
+    GlobalBaseEmbedding,
+    GlobalFixedBaseEmbedding,
 )
 
 from transformers import AutoModel, AutoModelForSequenceClassification
@@ -322,16 +330,16 @@ class GlobalDependentModel(ABC, nn.Module):
         """
 
         self._save_model(
-            save_directory,
-            is_main_process,
-            state_dict,
-            save_function,
-            push_to_hub,
-            max_shard_size,
-            safe_serialization,
-            variant,
-            token,
-            save_peft_format,
+            save_directory=save_directory,
+            is_main_process=is_main_process,
+            state_dict=state_dict,
+            save_function=save_function,
+            push_to_hub=push_to_hub,
+            max_shard_size=max_shard_size,
+            safe_serialization=False, # To change when the model will be changed before storage keeping only once the reference to the global layers
+            variant=variant,
+            token=token,
+            save_peft_format=save_peft_format,
             **kwargs
         )
 
@@ -567,7 +575,10 @@ class LocalSVDModel(GlobalDependentModel):
             Dictionary mapping layer types to corresponding global-base layer classes.
         """
 
-        conversions = {nn.Linear: LocalSVDLinear}
+        conversions = {
+            nn.Linear: LocalSVDLinear,
+            nn.Embedding: LocalSVDEmbedding
+        }
 
         return conversions
 
@@ -640,7 +651,10 @@ class GlobalBaseModel(GlobalDependentModel):
             Dictionary mapping layer types to corresponding global-base layer classes.
         """
 
-        conversions = {nn.Linear: GlobalBaseLinear}
+        conversions = {
+            nn.Linear: GlobalBaseLinear,
+            nn.Embedding: GlobalBaseEmbedding
+        }
 
         return conversions
 
@@ -713,7 +727,10 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             Dictionary mapping layer types to corresponding global-base layer classes.
         """
 
-        conversions = {nn.Linear: GlobalFixedBaseLinear}
+        conversions = {
+            nn.Linear: GlobalFixedBaseLinear,
+            nn.Embedding: GlobalFixedBaseEmbedding
+        }
 
         return conversions
 
@@ -728,32 +745,37 @@ if __name__ == "__main__":
     global_model = GlobalBaseModel(
         original_model,
         target_layers={
-            "query": {"rank": 78},
-            "value": {"rank": 78},
+            "word_embeddings": {"rank": 128},
+            "query": {"rank": 64},
+            "key": {"rank": 64},
+            "value": {"rank": 64},
+            "dense": {"rank": 64},
         },
-        use_names_as_keys=False,
+        use_names_as_keys=True,
         #mapping_layer_name_key={
         #    "query": "attention",
         #    "value": "attention",
         #},
         rank=78,
+        preserve_original_model=True,
         verbose=True
     )
 
-    """
+    #global_model.save_pretrained("global_model")
+
+
     print("Original model:")
     print(original_model)
     print("##################################################")
-    """
+    
     print(original_model)
     print("Global model:")
     print(global_model)
-    """
+    
     print("##################################################")
     print("Number of parameters original model:", count_parameters(original_model))
     print("Number of parameters global model:", count_parameters(global_model))
     print("Percentage of parameters:", count_parameters(global_model) / count_parameters(original_model))
-    """
     #print("Device of the model:", global_model.device)
 
     """
@@ -768,6 +790,6 @@ if __name__ == "__main__":
     # Output of global model
     print("Output of global model:")
     print(global_model.forward(input_ids))
-    print"
     """
+
     print()

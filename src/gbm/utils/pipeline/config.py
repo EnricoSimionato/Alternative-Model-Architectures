@@ -158,6 +158,10 @@ class Config:
     ) -> None:
         """
         Ends the experiments by setting the end time.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
         """
 
         if self.end_time is None:
