@@ -3,6 +3,13 @@ from datetime import datetime
 import json
 from typing import Any
 
+from enum import Enum
+
+
+class ExperimentStatus(Enum):
+    NOT_STARTED = "Not started"
+    RUNNING = "Running"
+    COMPLETED = "Completed"
 
 class Config:
     """
@@ -77,6 +84,32 @@ class Config:
         """
 
         return self.__dict__[key]
+
+    def get_paths(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Returns the paths of the experiment.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                A dictionary containing the paths of the experiment.
+        """
+
+        return {
+            "path_to_storage": self.get("path_to_storage"),
+            "path_to_model": self.get("path_to_model"),
+            "path_to_tokenizer": self.get("path_to_tokenizer"),
+            "path_to_configuration": self.get("path_to_configuration"),
+            "path_to_logs": self.get("path_to_logs"),
+            "path_to_checkpoints": self.get("path_to_checkpoints"),
+            "path_to_experiment": self.get("path_to_experiment")
+        }
 
     def set(
             self,
@@ -170,18 +203,18 @@ class Config:
     @property
     def status(
             self
-    ) -> str:
+    ) -> ExperimentStatus:
         """
         Returns the status of the experiments.
 
         Returns:
-            str:
+            ExperimentStatus:
                 The status of the experiments.
         """
 
         if self.begin_time is None:
-            return "Not started"
+            return ExperimentStatus.NOT_STARTED
         elif self.end_time is None:
-            return "Running"
+            return ExperimentStatus.RUNNING
         else:
-            return "Completed"
+            return ExperimentStatus.COMPLETED

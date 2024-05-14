@@ -8,7 +8,7 @@ from pytorch_lightning import LightningDataModule
 from transformers import AutoModelForSequenceClassification, PreTrainedTokenizer, AutoTokenizer
 
 from gbm.utils.storage_utils import store_model_and_info
-from gbm.utils.pipeline.config import Config
+from gbm.utils.pipeline.config import Config, ExperimentStatus
 from gbm.utils.classification import IMDBDataModule, ClassifierModelWrapper
 from gbm.utils.classification.pl_trainer import get_classification_trainer
 
@@ -45,17 +45,42 @@ class Experiment:
         self.lightning_model = None
         self.lightning_trainer = None
 
+    def start_experiment(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the experiment.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+        """
+
+        self.config.start_experiment()
+        print("Experiment started")
+
+        paths_dict = self.config.get_paths()
+
+        return paths_dict
+
     def run_experiment(
             self,
             **kwargs
     ) -> None:
         """
         Runs the experiment.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
         """
 
-        self.config.start_experiment()
-
-        print("Experiment started")
+        if self.config.status is ExperimentStatus.NOT_STARTED:
+            self.config.start_experiment()
+            print("Experiment started")
+        else:
+            print("Running the experiment, it is already started")
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
