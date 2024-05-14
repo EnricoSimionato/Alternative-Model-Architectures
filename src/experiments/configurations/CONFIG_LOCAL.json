@@ -36,7 +36,7 @@
 
     "factorization_method": "",
     "target_layers": {
-        "word_embedding": {
+        "word_embeddings": {
             "rank": 256
         },
         "query": {
