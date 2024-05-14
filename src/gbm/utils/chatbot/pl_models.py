@@ -1,61 +1,88 @@
+from __future__ import annotations
+
+from typing import Any
+
 import numpy as np
 
 import torch
 
-from torch.utils.data import DataLoader
-
 import pytorch_lightning as pl
 
-from transformers import PreTrainedTokenizer
-from transformers.optimization import AdamW
+import transformers
 
-from gbm.utils.lightning_datasets import ConversationDataset
+from gbm.utils.chatbot.conversation_utils import (
+    get_conversation_example_1,
+    get_conversation_example_2,
+    start_conversation_loop
+)
 
-from gbm.utils.chatbot.conversation_utils import get_conversation_example_1, get_conversation_example_2
 
-class LightningModelWrapper(pl.LightningModule):
+# TODO change the loss in a metric and update the description of the model
+class CausalLMModelWrapper(pl.LightningModule):
     """
-    Wrapper to train the model in Pytorch Lightning.
+    Wrapper to train a CausalLMModel with Pytorch Lightning.
+
+    Args:
+        model (transformers.AutoModelForCausalLM):
+            The model to wrap.
+        tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+            Tokenizer object.
+        learning_rate (float):
+            Learning rate. Defaults to 1e-5.
+        max_epochs (int):
+            Maximum number of epochs. Defaults to 3.
+        warmup_steps (int):
+            Number of warmup steps. Defaults to 0.
+        kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        model (transformers.AutoModelForCausalLM):
+            The model to wrap.
+        tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+            Tokenizer object.
+        learning_rate (float):
+            Learning rate.
+        max_epochs (int):
+            Maximum number of epochs.
+        warmup_steps (int):
+            Number of warmup steps.
+        training_step_index (int):
+            Index of the training step.
+        loss_history (dict[str, list[float]]):
+            History of the losses.
+        training_step_losses_sum (float):
+            Sum of the training step losses.
+        training_step_losses_count (int):
+            Number of training step losses.
+        validation_step_losses_sum (float):
+            Sum of the validation step losses.
+        validation_step_losses_count (int):
+            Number of validation step losses.
+        test_step_losses_sum (float):
+            Sum of the test step losses.
+        test_step_losses_count (int):
+            Number of test step losses.
     """
 
     def __init__(
         self,
-        model: AutoModelForCausalLM,
-        train_data: LightningDataset,
-        val_data: LightningDataset,
-        test_data: LightningDataset,
-        tokenizer: AutoTokenizer,
-        batch_size: int = 4,
+        model: transformers.AutoModelForCausalLM,
+        tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
         learning_rate: float = 1e-5,
+        max_epochs: int = 3,
+        warmup_steps: int = 0,
+        **kwargs
     ) -> None:
-        """
-        Initializes the LightningModelWrapper.
-
-        Args:
-            model (Any): The model to wrap.
-            train_data (Union[Dataset, DataLoader]):
-                Training data.
-            val_data (Union[Dataset, DataLoader]):
-                Validation data.
-            test_data (Union[Dataset, DataLoader]):
-                Test data.
-            tokenizer (transformers.AutoTokenizer):
-                Tokenizer object.
-            batch_size (int):
-                Batch size. Defaults to 4.
-            learning_rate (float):
-                Learning rate. Defaults to 1e-5.
-        """
-
-        super(LightningModelWrapper, self).__init__()
+        super().__init__()
 
         self.model = model
         self.tokenizer = tokenizer
-        self.train_data = train_data
-        self.val_data = val_data
-        self.test_data = test_data
-        self.batch_size = batch_size
+
         self.learning_rate = learning_rate
+        self.warmup_steps = warmup_steps
+        self.max_epochs = max_epochs
+
         self.training_step_index = 0
         self.loss_history = {
             "train": [],
@@ -69,7 +96,9 @@ class LightningModelWrapper(pl.LightningModule):
         self.test_step_losses_sum = 0
         self.test_step_losses_count = 0
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(
+            self
+    ) -> dict[str, torch.optim.Optimizer | str | Any]:
         """
         Configures the optimizer.
 
@@ -78,61 +107,39 @@ class LightningModelWrapper(pl.LightningModule):
                 Optimizer.
         """
 
-        # Defining the optimizer to use
-        optimizer = AdamW(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.AdamW(
+            self.parameters(),
+            lr=self.learning_rate
+        )
 
-        return optimizer
+        learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=self.warmup_steps,
+            num_training_steps=self.max_epochs,
+            num_cycles=0.5
+        )
 
-    def train_dataloader(
-        self
-    ) -> DataLoader:
-        """
-        Returns the training DataLoader.
+        monitored_metrics = "loss"
 
-        Returns:
-            DataLoader:
-                Training DataLoader.
-        """
-
-        return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
-
-    def val_dataloader(
-        self
-    ) -> DataLoader:
-        """
-        Returns the validation DataLoader.
-
-        Returns:
-            DataLoader:
-                Validation DataLoader.
-        """
-
-        return DataLoader(self.val_data, batch_size=self.batch_size*2)
-
-    def test_dataloader(
-        self
-    ) -> DataLoader:
-        """
-        Returns the test DataLoader.
-
-        Returns:
-            DataLoader:
-                Test DataLoader.
-        """
-
-        return DataLoader(self.test_data, batch_size=self.batch_size*2)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": learning_rate_scheduler,
+            "monitor": monitored_metrics
+        }
 
     def forward(
         self,
         input_ids: torch.Tensor,
         **kwargs
-    ) ->  torch.Tensor:
+    ) -> torch.Tensor:
         """
         Defines the forward pass of the model.
 
         Args:
             input_ids (torch.Tensor):
                 Input IDs.
+            kwargs
+                Additional keyword arguments.
 
         Returns:
             torch.Tensor:
@@ -236,6 +243,13 @@ class LightningModelWrapper(pl.LightningModule):
 
         return loss
 
+    def on_train_epoch_end(
+            self
+    ) -> None:
+        """
+        Performs operations at the end of a training epoch
+        """
+
     def on_validation_epoch_end(
         self
     ) -> None:
@@ -302,10 +316,84 @@ class LightningModelWrapper(pl.LightningModule):
         Starts a conversation trial.
         """
 
-        user_inputs = get_conversation_example_1()
+        # Starting conversation loop
+        dialogue_1 = start_conversation_loop(
+            self.model,
+            self.tokenizer,
+            user_inputs=get_conversation_example_1(),
+            make_model_trainable=True
+        )
 
         # Starting conversation loop
-        dialogue = start_conversation_loop(self.model,
-                                           self.tokenizer,
-                                           user_inputs=user_inputs,
-                                           make_model_trainable=True)
+        dialogue_2 = start_conversation_loop(
+            self.model,
+            self.tokenizer,
+            user_inputs=get_conversation_example_2(),
+            make_model_trainable=True
+        )
+
+
+class ChatbotModelWrapper(CausalLMModelWrapper):
+    """
+    Wrapper to train a model that is a chatbot with Pytorch Lightning.
+
+    Args:
+        model (transformers.AutoModelForCausalLM):
+            The model to wrap.
+        tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+            Tokenizer object.
+        learning_rate (float):
+            Learning rate. Defaults to 1e-5.
+        max_epochs (int):
+            Maximum number of epochs. Defaults to 3.
+        warmup_steps (int):
+            Number of warmup steps. Defaults to 0.
+        kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        model (transformers.AutoModelForCausalLM):
+            The model to wrap.
+        tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+            Tokenizer object.
+        learning_rate (float):
+            Learning rate.
+        max_epochs (int):
+            Maximum number of epochs.
+        warmup_steps (int):
+            Number of warmup steps.
+        training_step_index (int):
+            Index of the training step.
+        loss_history (dict[str, list[float]]):
+            History of the losses.
+        training_step_losses_sum (float):
+            Sum of the training step losses.
+        training_step_losses_count (int):
+            Number of training step losses.
+        validation_step_losses_sum (float):
+            Sum of the validation step losses.
+        validation_step_losses_count (int):
+            Number of validation step losses.
+        test_step_losses_sum (float):
+            Sum of the test step losses.
+        test_step_losses_count (int):
+            Number of test step losses.
+    """
+
+    def __init__(
+            self,
+            model: transformers.AutoModelForCausalLM,
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
+            learning_rate: float = 1e-5,
+            max_epochs: int = 3,
+            warmup_steps: int = 0,
+            **kwargs
+    ) -> None:
+        super().__init__(
+            model,
+            tokenizer,
+            learning_rate,
+            max_epochs,
+            warmup_steps,
+            **kwargs
+        )

@@ -7,12 +7,12 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from gbm.utils.pipeline.config import Config
 
 
-def get_classification_trainer(
+def get_causal_lm_trainer(
         config: Config,
         **kwargs
 ) -> pl.Trainer:
     """
-    Returns the PyTorch Lightning trainer for a classification problem.
+    Returns the PyTorch Lightning trainer for a causal lm problem.
 
     Args:
         config (Config):

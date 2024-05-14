@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+from typing import Any
+
 import torch
-import torch.optim.lr_scheduler as lr_scheduler
 import torchmetrics
 
 import pytorch_lightning as pl
@@ -28,12 +31,16 @@ class ClassifierModelWrapper(pl.LightningModule):
             Learning rate. Defaults to 1e-5.
         max_epochs (int):
             Maximum number of training epochs to perform. Defaults to 3.
+        warmup_steps (int):
+            Number of warmup steps. Defaults to 0.
+        **kwargs:
+            Additional keyword arguments.
 
     Attributes:
-        model (Any):
+        model (nn.Module):
             The model to wrap.
         tokenizer (transformers.PreTrainedTokenizer):
-            Tokenizer object.
+            Tokenizer used to tokenize the inputs.
         num_classes (int):
             Number of classes of the problem.
         id2label (dict):
@@ -44,12 +51,40 @@ class ClassifierModelWrapper(pl.LightningModule):
             Learning rate.
         max_epochs (int):
             Maximum number of training epochs to perform.
+        warmup_steps (int):
+            Number of warmup steps.
         accuracy (torchmetrics.classification.Accuracy):
             Accuracy metric.
+        precision (torchmetrics.classification.Precision):
+            Precision metric.
+        recall (torchmetrics.classification.Recall):
+            Recall metric.
         f1_score (torchmetrics.classification.F1Score):
-            F1 score metric.
+            F1-score metric.
         training_samples_count (int):
             Number of training samples.
+        sum_training_epoch_loss (float):
+            Sum of the training loss in the current epoch.
+        training_stat_scores (ClassificationStats):
+            Statistics of the training data.
+        from_last_val_training_samples_count (int):
+            Number of training samples from the last validation epoch.
+        sum_from_last_val_training_loss (float):
+            Sum of the training loss from the last validation epoch.
+        from_last_val_training_stat_scores (ClassificationStats):
+            Statistics of the training data from the last validation epoch.
+        validation_samples_count (int):
+            Number of validation samples.
+        sum_validation_epoch_loss (float):
+            Sum of the validation loss in the current epoch.
+        validation_stat_scores (ClassificationStats):
+            Statistics of the validation data.
+        test_samples_count (int):
+            Number of test samples.
+        sum_test_epoch_loss (float):
+            Sum of the test loss in the current epoch.
+        test_stat_scores (ClassificationStats):
+            Statistics of the test data.
     """
 
     def __init__(
@@ -61,7 +96,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             label2id: dict,
             learning_rate: float = 1e-5,
             max_epochs: int = 3,
-            warmup_steps: int = 0
+            warmup_steps: int = 0,
+            **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
 
@@ -112,7 +148,7 @@ class ClassifierModelWrapper(pl.LightningModule):
     def configure_optimizers(
             self,
             **kwargs
-    ) -> dict:
+    ) -> dict[str, torch.optim.Optimizer | str | Any]:
         """
         Configures the optimizer.
 
@@ -121,8 +157,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Additional keyword arguments.
 
         Returns:
-            torch.optim.Optimizer:
-                Optimizer.
+
         """
 
         optimizer = torch.optim.AdamW(

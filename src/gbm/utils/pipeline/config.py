@@ -153,7 +153,8 @@ class Config:
             **kwargs
     ) -> None:
         """
-        Initializes the experiments by setting the seed and device.
+        Initializes the experiments by defining the paths to the directories of the experiment and the start timestamp
+        of the experiment.
 
         Args:
             kwargs:

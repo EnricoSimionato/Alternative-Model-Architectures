@@ -5,14 +5,19 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from pytorch_lightning import LightningDataModule
 
-from transformers import AutoModelForSequenceClassification, PreTrainedTokenizer, AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from gbm.utils.storage_utils import store_model_and_info
 from gbm.utils.pipeline.config import Config, ExperimentStatus
-from gbm.utils.classification import IMDBDataModule, ClassifierModelWrapper
+
+from gbm.utils.classification import ClassifierModelWrapper
 from gbm.utils.classification.pl_trainer import get_classification_trainer
 
+from gbm.utils.chatbot import ChatbotModelWrapper
+from gbm.utils.chatbot.pl_trainer import get_causal_lm_trainer
 
+
+# TODO documentation of experiment
 class Experiment:
     """
     Experiment class to run an experiment.
@@ -122,7 +127,14 @@ class Experiment:
         elif self.task == "question-answering":
             pass
         elif self.task == "chatbot":
-            pass
+            return ChatbotModelWrapper(
+                model=self.model,
+                tokenizer=self.tokenizer,
+
+                learning_rate=self.config.get("learning_rate"),
+                max_epochs=self.config.get("num_epochs"),
+                warmup_steps=self.config.get("warmup_steps"),
+            )
         else:
             raise ValueError(f"Task {self.task} not recognized")
 
@@ -138,7 +150,10 @@ class Experiment:
         elif self.task == "question-answering":
             pass
         elif self.task == "chatbot":
-            pass
+            return get_causal_lm_trainer(
+                self.config,
+                **kwargs
+            )
         else:
             raise ValueError(f"Task {self.task} not recognized")
 
@@ -182,16 +197,46 @@ class Experiment:
 
 
 if __name__ == "__main__":
+    """
     configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL.json")
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    from gbm.utils.classification import IMDBDataModule
+    from transformers import AutoModelForSequenceClassification
     experiment = Experiment(
         task="classification",
         model=AutoModelForSequenceClassification.from_pretrained("bert-base-uncased"),
         dataset=IMDBDataModule(
-            "",
             configuration.get("batch_size"),
             configuration.get("num_workers"),
             tokenizer,
+            configuration.get("max_len_tokenizer"),
+            configuration.get("split")
+        ),
+        config=configuration,
+        tokenizer=tokenizer
+    )
+
+    experiment.run_experiment()
+    """
+
+    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL.json")
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tokenizer_mistral = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
+    tokenizer_mistral.pad_token = tokenizer_mistral.eos_token
+    tokenizer_mistral.padding_side = "right"
+    tokenizer.pad_token = tokenizer_mistral.pad_token
+    tokenizer.padding_side = tokenizer_mistral.padding_side
+
+    from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
+    from transformers import AutoModelForCausalLM
+
+    experiment = Experiment(
+        task="chatbot",
+        model=AutoModelForCausalLM.from_pretrained("bert-base-uncased"),
+        dataset=OpenAssistantGuanacoDataModule(
+            configuration.get("batch_size"),
+            configuration.get("num_workers"),
+            tokenizer_mistral,
             configuration.get("max_len_tokenizer"),
             configuration.get("split")
         ),
