@@ -34,6 +34,9 @@
     "gradient_accumulation_steps": 4,
     "factorization_method": "",
     "target_layers": {
+        "word_embedding": {
+            "rank": 256
+        },
         "query": {
             "rank": 64
         },
