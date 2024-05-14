@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -23,7 +24,7 @@ class ConversationDataset(ABC, Dataset):
     def __init__(
             self,
             dataset_id: str,
-            tokenizer
+            tokenizer: transformers.PreTrainedTokenizer
     ) -> None:
         """
         Initializes the SentimentAnalysisDataset.
@@ -90,13 +91,41 @@ class OpenAssistantGuanacoDatasetDict:
 
 
 class OpenAssistantGuanacoDataset(ConversationDataset):
+    """
+    Dataset class to use OpenAssistant-Guanaco dataset with Pytorch and Pytorch Lightning.
+
+    Args:
+        raw_dataset (datasets.Dataset):
+            Raw dataset.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_length (int):
+            Maximum length of the input sequences.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_length (int):
+            Maximum length of the input sequences.
+        dataset (list):
+            Tokenized dataset.
+        sep_regex (re.Pattern):
+            Regular expression to separate the different turns of the dialogues.
+    """
+
     def __init__(
             self,
-            raw_dataset,
-            tokenizer,
-            max_length: int = 512
+            raw_dataset: datasets.Dataset,
+            tokenizer: transformers.PreTrainedTokenizer,
+            max_length: int = 512,
+            **kwargs
     ):
-        super().__init__("openassistant-guanaco", tokenizer)
+        super().__init__(
+            "timdettmers/openassistant-guanaco",
+            tokenizer
+        )
 
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -108,8 +137,23 @@ class OpenAssistantGuanacoDataset(ConversationDataset):
 
     def preprocess(
             self,
-            raw_dataset
+            raw_dataset,
+            **kwargs
     ) -> None:
+        """
+        Preprocesses the dataset.
+        It splits the text in sequential turns and inserts the utterances and the role of the speaker in a list of
+        dictionaries. Then the chat template of the tokenizer is applied to the list of dictionaries in order to obtain
+        a text formatted in the proper way.
+        Finally, the text is tokenized and padded to the maximum length.
+
+        Args:
+            raw_dataset (datasets.Dataset):
+                Raw dataset.
+            kwargs:
+                Additional keyword arguments.
+        """
+
         texts = [
             self.tokenizer.decode(
                 self.tokenizer.apply_chat_template([
@@ -176,20 +220,56 @@ class OpenAssistantGuanacoDataset(ConversationDataset):
         return self.dataset[idx]
 
 
-# TODO Datamodule
 class OpenAssistantGuanacoDataModule(pl.LightningDataModule):
     """
+    DataModule for the OpenAssistant-Guanaco dataset.
 
+    Args:
+        batch_size (int):
+            Size of the batch.
+        num_workers (int):
+            Number of workers to use for loading the data.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_len (int):
+            Maximum length of the input sequences.
+        split (tuple[float, float, float]):
+            Split of the dataset into training, validation, and test sets.
+        seed (int):
+            Seed for the random number generator.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        batch_size (int):
+            Size of the batch.
+        num_workers (int):
+            Number of workers to use for loading the data.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_len (int):
+            Maximum length of the input sequences.
+        split (tuple[float, float, float]):
+            Split of the dataset into training, validation, and test sets.
+        seed (int):
+            Seed for the random number generator.
+        train (OpenAssistantGuanacoDataset):
+            Training dataset.
+        validation (OpenAssistantGuanacoDataset):
+            Validation dataset.
+        test (OpenAssistantGuanacoDataset):
+            Test dataset.
     """
 
     def __init__(
             self,
-            data_dir,
             batch_size,
             num_workers,
             tokenizer,
             max_len: int,
-            split: tuple[float, float, float]
+            split: tuple[float, float, float],
+            seed: int = 42,
+            **kwargs
     ):
         super().__init__()
         if len(split) != 3:
@@ -201,42 +281,50 @@ class OpenAssistantGuanacoDataModule(pl.LightningDataModule):
                 "The sum of the split elements must be equal to 1."
             )
 
-        self.data_dir = data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.split = split
+        self.seed = seed
 
         self.train = None
         self.validation = None
         self.test = None
 
     def prepare_data(
-            self
+            self,
+            **kwargs
     ):
         """
-        Downloads the data.
-        Run when preprocessing on a single GPU
+        Downloads the data. Runs on a single GPU.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
         """
 
         load_dataset(
-            "imdb",
-            data_dir=self.data_dir,
-            download=True
+            "timdettmers/openassistant-guanaco",
         )
 
     def setup(
             self,
-            stage=None
-    ):
+            stage: Optional[str] = None,
+            **kwargs
+    ) -> None:
         """
-        Run when preprocessing on multiple GPUs.
+        Preprocesses data. Can run on multiple GPUs.
+
+
+        Args:
+            stage (Optional[str]):
+                Stage of the experiment.
+            kwargs:
+                Additional keyword arguments.
         """
         raw_dataset = load_dataset(
-            "imdb",
-            data_dir=self.data_dir,
-            download=False
+            "timdettmers/openassistant-guanaco",
         )
 
         concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
@@ -248,9 +336,21 @@ class OpenAssistantGuanacoDataModule(pl.LightningDataModule):
             test_size=self.split[1]/((1-self.split[2]) if self.split[2] != 1 else 1)
         )
 
-        self.train = OpenAssistantGuanacoDataset(second_split_raw_dataset["train"], self.tokenizer, self.max_len)
-        self.validation = OpenAssistantGuanacoDataset(second_split_raw_dataset["test"], self.tokenizer, self.max_len)
-        self.test = OpenAssistantGuanacoDataset(first_split_raw_dataset["test"], self.tokenizer, self.max_len)
+        self.train = OpenAssistantGuanacoDataset(
+            second_split_raw_dataset["train"],
+            self.tokenizer,
+            self.max_len
+        )
+        self.validation = OpenAssistantGuanacoDataset(
+            second_split_raw_dataset["test"],
+            self.tokenizer,
+            self.max_len
+        )
+        self.test = OpenAssistantGuanacoDataset(
+            first_split_raw_dataset["test"],
+            self.tokenizer,
+            self.max_len
+        )
 
     def train_dataloader(
             self
@@ -303,3 +403,23 @@ class OpenAssistantGuanacoDataModule(pl.LightningDataModule):
             batch_size=self.batch_size * 2,
             num_workers=self.num_workers
         )
+
+
+if __name__ == "__main__":
+
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
+    tokenizer.padding_side = "right"
+    tokenizer.pad_token = tokenizer.eos_token
+    dataset = OpenAssistantGuanacoDataModule(
+        32,
+        2,
+        tokenizer,
+        512,
+        (0.8, 0.1, 0.1),
+        seed=42
+    )
+    dataset.setup()
+
+    print(dataset.train)
+    print()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -57,16 +56,38 @@ class SentimentAnalysisDataset(ABC, Dataset):
 
 class IMDBDataset(SentimentAnalysisDataset):
     """
-    IMDB dataset.
+    Dataset class to use IMDB dataset with Pytorch and Pytorch Lightning.
+
+    Args:
+        raw_dataset (datasets.Dataset):
+            Raw dataset.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_length (int):
+            Maximum length of the input sequences.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_length (int):
+            Maximum length of the input sequences.
+        dataset (datasets.Dataset):
+            Tokenized dataset.
     """
 
     def __init__(
             self,
             raw_dataset: datasets.Dataset,
             tokenizer: transformers.PreTrainedTokenizer,
-            max_length: int = 512
+            max_length: int = 512,
+            **kwargs
     ) -> None:
-        super().__init__("imdb", tokenizer)
+        super().__init__(
+            "stanfordnlp/imdb",
+            tokenizer
+        )
 
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -77,8 +98,20 @@ class IMDBDataset(SentimentAnalysisDataset):
 
     def preprocess_function(
             self,
-            examples
+            examples,
+            **kwargs
     ) -> dict[str, torch.Tensor]:
+        """
+        Preprocess function to use on the dataset.
+        It tokenizes the text and pads it to the maximum length.
+
+        Args:
+            examples:
+                Examples to preprocess.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
         tokenized_example = self.tokenizer(
             examples["text"],
             truncation=True,
@@ -126,18 +159,54 @@ class IMDBDataset(SentimentAnalysisDataset):
 
 class IMDBDataModule(pl.LightningDataModule):
     """
+    DataModule for the IMDB dataset.
 
+    Args:
+        batch_size (int):
+            Size of the batch.
+        num_workers (int):
+            Number of workers to use for data loading.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_len (int):
+            Maximum length of the input sequences.
+        split (tuple[float, float, float]):
+            Split of the dataset into training, validation, and test sets.
+        seed (int):
+            Seed for the random number generator.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        batch_size (int):
+            Size of the batch.
+        num_workers (int):
+            Number of workers to use for loading the data.
+        tokenizer (transformers.PreTrainedTokenizer):
+            Tokenizer to use to preprocess the data.
+        max_len (int):
+            Maximum length of the input sequences.
+        split (tuple[float, float, float]):
+            Split of the dataset into training, validation, and test sets.
+        seed (int):
+            Seed for the random number generator.
+        train (IMDBDataset):
+            Training dataset.
+        validation (IMDBDataset):
+            Validation dataset.
+        test (IMDBDataset):
+            Test dataset.
     """
 
     def __init__(
             self,
-            data_dir,
             batch_size,
             num_workers,
             tokenizer,
             max_len: int,
             split: tuple[float, float, float],
-            seed: int = 42
+            seed: int = 42,
+            **kwargs
     ):
         super().__init__()
         if len(split) != 3:
@@ -149,7 +218,6 @@ class IMDBDataModule(pl.LightningDataModule):
                 "The sum of the split elements must be equal to 1."
             )
 
-        self.data_dir = data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.tokenizer = tokenizer
@@ -162,10 +230,15 @@ class IMDBDataModule(pl.LightningDataModule):
         self.test = None
 
     def prepare_data(
-            self
+            self,
+            **kwargs
     ):
         """
-        Downloads the data. Run on a single GPU.
+        Downloads the data. Runs on a single GPU.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
         """
 
         load_dataset(
@@ -175,15 +248,22 @@ class IMDBDataModule(pl.LightningDataModule):
 
     def setup(
             self,
-            stage: Optional[str] = None
-    ):
+            stage: Optional[str] = None,
+            **kwargs
+    ) -> None:
         """
-        Preprocesses data. Run on multiple GPUs.
+        Preprocesses data. Can run on multiple GPUs.
+
+
+        Args:
+            stage (Optional[str]):
+                Stage of the experiment.
+            kwargs:
+                Additional keyword arguments.
         """
 
         raw_dataset = load_dataset(
             "stanfordnlp/imdb",
-            #data_dir=self.data_dir,
         )
 
         concatenated_raw_dataset = concatenate_datasets([raw_dataset["train"], raw_dataset["test"]])
@@ -197,9 +277,21 @@ class IMDBDataModule(pl.LightningDataModule):
             seed=self.seed
         )
 
-        self.train = IMDBDataset(second_split_raw_dataset["train"], self.tokenizer, self.max_len)
-        self.validation = IMDBDataset(second_split_raw_dataset["test"], self.tokenizer, self.max_len)
-        self.test = IMDBDataset(first_split_raw_dataset["test"], self.tokenizer, self.max_len)
+        self.train = IMDBDataset(
+            second_split_raw_dataset["train"],
+            self.tokenizer,
+            self.max_len
+        )
+        self.validation = IMDBDataset(
+            second_split_raw_dataset["test"],
+            self.tokenizer,
+            self.max_len
+        )
+        self.test = IMDBDataset(
+            first_split_raw_dataset["test"],
+            self.tokenizer,
+            self.max_len
+        )
 
     def train_dataloader(
             self
@@ -259,7 +351,6 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
     bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     dataset = IMDBDataModule(
-        os.getcwd(),
         32,
         2,
         bert_tokenizer,

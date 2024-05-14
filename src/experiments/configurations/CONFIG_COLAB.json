@@ -37,19 +37,19 @@
     "factorization_method": "",
     "target_layers": {
         "word_embeddings": {
-            "rank": 256
+            "rank": 384
         },
         "query": {
-            "rank": 64
+            "rank": 128
         },
         "key": {
-            "rank": 64
+            "rank": 128
         },
         "value": {
-            "rank": 64
+            "rank": 128
         },
         "dense": {
-            "rank": 64
+            "rank": 128
         }
     },
     "original_model_parameters": 0,

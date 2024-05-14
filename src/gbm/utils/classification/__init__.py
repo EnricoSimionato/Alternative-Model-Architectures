@@ -9,7 +9,6 @@ __all__ = [
 
 from gbm.utils.classification.classification_utils import (
     load_original_model_for_sequence_classification,
-
 )
 
 from gbm.utils.classification.pl_datasets import (
@@ -17,4 +16,6 @@ from gbm.utils.classification.pl_datasets import (
     IMDBDataModule,
 )
 
-from gbm.utils.classification.pl_models import ClassifierModelWrapper
+from gbm.utils.classification.pl_models import (
+    ClassifierModelWrapper
+)

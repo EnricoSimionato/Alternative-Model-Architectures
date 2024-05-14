@@ -5,6 +5,9 @@ __all__ = [
 
     "OpenAssistantGuanacoDataset",
     "OpenAssistantGuanacoDataModule",
+
+    "CausalLMModelWrapper",
+    "ChatbotModelWrapper",
 ]
 
 from gbm.utils.chatbot.conversation_utils import (
@@ -13,7 +16,12 @@ from gbm.utils.chatbot.conversation_utils import (
     start_conversation_loop,
 )
 
-from gbm.utils.chatbot.datasets import (
+from gbm.utils.chatbot.pl_datasets import (
     OpenAssistantGuanacoDataset,
     OpenAssistantGuanacoDataModule,
+)
+
+from gbm.utils.chatbot.pl_models import (
+    CausalLMModelWrapper,
+    ChatbotModelWrapper
 )
