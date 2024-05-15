@@ -367,7 +367,7 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
         *args:
             Variable length argument list.
         **kwargs:
-            Arbitrary keyword arguments.
+            Additional keyword arguments.
 
     Attributes:
         target_name (str):
@@ -467,7 +467,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         *args:
             Variable length argument list.
         **kwargs:
-            Arbitrary keyword arguments.
+            Additional keyword arguments.
 
     Attributes:
         target_name (str):
@@ -600,7 +600,7 @@ class GlobalFixedBaseLinear(GlobalBaseLinear):
         *args:
             Variable length argument list.
         **kwargs:
-            Arbitrary keyword arguments.
+            Additional keyword arguments.
 
     Attributes:
         target_name (str):

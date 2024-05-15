@@ -280,6 +280,7 @@ class GlobalDependentEmbedding(GlobalDependent):
             raise Exception("The last layer has to be global ('global') or local ('local').")
 
         for layer in self.structure[1:]:
+
             if layer["scope"] == "global":
                 print(self.global_layers[layer["key"]].weight.T.shape)
                 weight = torch.matmul(weight, self.global_layers[layer["key"]].weight.T)
@@ -430,9 +431,11 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
     Implementation of an Embedding layer on which is performed SVD decomposition.
 
     The layer is decomposed in two matrices:
-    - a local matrix of shape (in_features, rank), that is the product between the matrix of the left singular vectors U
-        and the matrix of the singular values S matrices of the truncated SVD;
-    - a local matrix of shape (rank, out_features), that is the matrix of the right singular vectors V^T.
+    - a local matrix of shape (num_embeddings, rank), that is the product between the matrix of the left singular
+        vectors U and the matrix of the singular values S matrices of the truncated SVD, this will be the matrix of an
+        Embedding layer;
+    - a local matrix of shape (rank, embedding_dim), that is the matrix of the right singular vectors V^T, this will be
+        the matrix of a Linear layer.
 
     Args:
         target_layer (nn.Module):
@@ -440,111 +443,13 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
         global_layers (nn.ModuleDict):
             Dictionary containing the global matrices.
         rank (int):
-            Rank of the global matrix.
-        target_name (str):
-            Name of the target layer.
+            Rank of the factorization to use.
+        target_name (str, optional):
+            Name of the target layer. Defaults to None.
         *args:
             Variable length argument list.
         **kwargs:
-            Arbitrary keyword arguments.
-
-    Attributes:
-        target_name (str):
-            Name of the target layer.
-        global_dependent_layer (GlobalDependentLinear):
-            Embedding layer with dependencies on global matrices.
-    """
-
-    def __init__(
-            self,
-            target_layer: nn.Module,
-            global_layers: nn.ModuleDict,
-            rank: int,
-            target_name: str = None,
-            *args,
-            **kwargs
-    ) -> None:
-        kwargs["rank"] = rank
-        super().__init__(target_layer, global_layers, target_name, *args, **kwargs)
-
-    def define_structure(
-            self,
-            **kwargs
-    ) -> Any:
-        """
-        Defines the structure of the layer.
-
-        Args:
-            **kwargs:
-                Arbitrary keyword arguments.
-        """
-
-        target_layer = kwargs["target_layer"]
-        rank = kwargs["rank"]
-        min_dim = min(target_layer.num_embeddings, target_layer.embedding_dim)
-
-        return (
-            {"scope": "local",
-             "shape": (target_layer.num_embeddings, min(min_dim, rank)),
-             "key": "US",
-             "trainable": True},
-            {"scope": "local",
-             "shape": (min(min_dim, rank), target_layer.embedding_dim),
-             "key": "VT",
-             "trainable": True}
-        )
-
-    def initialize_matrices(
-            self,
-            **kwargs
-    ) -> None:
-        """
-        Initializes the matrices of the layer.
-
-        Args:
-            **kwargs:
-                Arbitrary keyword arguments.
-        """
-
-        target_layer = kwargs["target_layer"]
-        rank = kwargs["rank"]
-
-        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
-        min_dim = min(target_layer.in_features, target_layer.out_features)
-
-        with torch.no_grad():
-            self.get_layer("local", "US").weight.data = torch.tensor(
-                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
-            )
-            self.get_layer("local", "VT").weight.data = torch.tensor(
-                VT[:min(min_dim, rank), :]
-            )
-
-            for layer in self.structure:
-                if "trainable" in layer.keys() and layer["scope"] == "local":
-                    for params in self.get_layer("local", layer["key"]).parameters():
-                        params.requires_grad = layer["trainable"]
-
-
-class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
-    """
-    Implementation of an Embedding layer on which is performed matrix decomposition in two matrices:
-    - a global matrix of shape (in_features, rank);
-    - a local matrix of shape (rank, out_features).
-
-    Args:
-        target_layer (nn.Module):
-            Target layer to be transformed in the factorized version.
-        global_layers (nn.ModuleDict):
-            Dictionary containing the global matrices.
-        rank (int):
-            Rank of the global matrix.
-        target_name (str):
-            Name of the target layer.
-        *args:
-            Variable length argument list.
-        **kwargs:
-            Arbitrary keyword arguments.
+            Additional keyword arguments.
 
     Attributes:
         target_name (str):
@@ -580,21 +485,26 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
 
         Args:
             **kwargs:
-                Arbitrary keyword arguments.
+                Additional keyword arguments.
         """
 
         target_layer = kwargs["target_layer"]
         rank = kwargs["rank"]
+        min_dim = min(target_layer.num_embeddings, target_layer.embedding_dim)
 
         return (
-            {"scope": "local",
-             "shape": (target_layer.num_embeddings, rank),
-             "key": str((target_layer.num_embeddings, rank)),
-             "trainable": True},
-            {"scope": "global",
-             "shape": (rank, target_layer.embedding_dim),
-             "key": str((rank, target_layer.embedding_dim)),
-             "trainable": True}
+            {
+                "scope": "local",
+                "shape": (target_layer.num_embeddings, min(min_dim, rank)),
+                "key": "US",
+                "trainable": True
+            },
+            {
+                "scope": "local",
+                "shape": (min(min_dim, rank), target_layer.embedding_dim),
+                "key": "VT",
+                "trainable": True
+            }
         )
 
     def initialize_matrices(
@@ -606,7 +516,114 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
 
         Args:
             **kwargs:
-                Arbitrary keyword arguments.
+                Additional keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+
+        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
+        min_dim = min(target_layer.num_embeddings, target_layer.embedding_dim)
+
+        with torch.no_grad():
+            self.get_layer("local", "US").weight.data = torch.tensor(
+                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
+            )
+            self.get_layer("local", "VT").weight.data = torch.tensor(
+                VT[:min(min_dim, rank), :]
+            ).T
+
+            for layer in self.structure:
+                if "trainable" in layer.keys() and layer["scope"] == "local":
+                    for params in self.get_layer("local", layer["key"]).parameters():
+                        params.requires_grad = layer["trainable"]
+
+
+class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
+    """
+    Implementation of an Embedding layer on which is performed matrix decomposition in two matrices:
+    - a local matrix of shape (num_embeddings, rank), this will be the matrix of an Embedding layer;
+    - a global trainable matrix of shape (rank, embedding_dim), this will be the matrix of a Linear layer.
+
+    Args:
+        target_layer (nn.Module):
+            Target layer to be transformed in the factorized version.
+        global_layers (nn.ModuleDict):
+            Dictionary containing the global matrices.
+        rank (int):
+            Rank of the factorization to use.
+        target_name (str, optional):
+            Name of the target layer. Defaults to None.
+        *args:
+            Variable length argument list.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        global_dependent_layer (GlobalDependentLinear):
+            Embedding layer with dependencies on global matrices.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            rank: int,
+            target_name: str = None,
+            *args,
+            **kwargs
+    ) -> None:
+        kwargs["rank"] = rank
+        super().__init__(
+            target_layer,
+            global_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
+
+    def define_structure(
+            self,
+            **kwargs
+    ) -> Any:
+        """
+        Defines the structure of the layer.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+
+        return (
+            {
+                "scope": "local",
+                "shape": (target_layer.num_embeddings, rank),
+                "key": str((target_layer.num_embeddings, rank)),
+                "trainable": True
+            },
+            {
+                "scope": "global",
+                "shape": (rank, target_layer.embedding_dim),
+                "key": str((rank, target_layer.embedding_dim)),
+                "trainable": True
+            }
+        )
+
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
         """
 
         target_layer = kwargs["target_layer"]
@@ -622,9 +639,9 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
 
             self.get_layer("local", local_key).weight.data = local_matrix
 
-            if "trainable" in self.structure[1].keys():
+            if "trainable" in self.structure[0].keys():
                 for params in self.get_layer("local", local_key).parameters():
-                    params.requires_grad = self.structure[1]["trainable"]
+                    params.requires_grad = self.structure[0]["trainable"]
 
         device = get_available_device()
 
@@ -657,9 +674,9 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
 
 class GlobalFixedBaseEmbedding(GlobalBaseEmbedding):
     """
-    Implementation of a Embedding layer on which is performed matrix decomposition in two matrices:
-    - a global non-trainable matrix of shape (in_features, rank);
-    - a local matrix of shape (rank, out_features).
+    Implementation of an Embedding layer on which is performed matrix decomposition in two matrices:
+    - a local matrix of shape (num_embeddings, rank), this will be the matrix of an Embedding layer;
+    - a global non-trainable matrix of shape (rank, embedding_dim), this will be the matrix of a Linear layer.
 
     The global matrix is fixed and not trainable.
 
@@ -669,13 +686,13 @@ class GlobalFixedBaseEmbedding(GlobalBaseEmbedding):
         global_layers (nn.ModuleDict):
             Dictionary containing the global matrices.
         rank (int):
-            Rank of the global matrix.
-        target_name (str):
-            Name of the target layer.
+            Rank of the factorization to use.
+        target_name (str, optional):
+            Name of the target layer. Defaults to None.
         *args:
             Variable length argument list.
         **kwargs:
-            Arbitrary keyword arguments.
+            Additional keyword arguments.
 
     Attributes:
         target_name (str):
@@ -693,7 +710,14 @@ class GlobalFixedBaseEmbedding(GlobalBaseEmbedding):
             *args,
             **kwargs
     ) -> None:
-        super().__init__(target_layer, global_layers, rank, target_name, *args, **kwargs)
+        super().__init__(
+            target_layer,
+            global_layers,
+            rank,
+            target_name,
+            *args,
+            **kwargs
+        )
 
     def define_structure(
             self,
@@ -704,21 +728,25 @@ class GlobalFixedBaseEmbedding(GlobalBaseEmbedding):
 
         Args:
             **kwargs:
-                Arbitrary keyword arguments.
+                Additional keyword arguments.
         """
 
         target_layer = kwargs["target_layer"]
         rank = kwargs["rank"]
 
         return (
-            {"scope": "global",
-             "shape": (target_layer.in_features, rank),
-             "key": str((target_layer.in_features, rank)),
-             "trainable": False},
-            {"scope": "local",
-             "shape": (rank, target_layer.out_features),
-             "key": str((rank, target_layer.out_features)),
-             "trainable": True}
+            {
+                "scope": "local",
+                "shape": (target_layer.num_embeddings, rank),
+                "key": str((target_layer.num_embeddings, rank)),
+                "trainable": True
+            },
+            {
+                "scope": "global",
+                "shape": (rank, target_layer.embedding_dim),
+                "key": str((rank, target_layer.embedding_dim)),
+                "trainable": False
+            }
         )
 
 
@@ -731,10 +759,10 @@ if __name__ == "__main__":
 
     #print(embedding.weight.shape)
 
-    global_embedding = GlobalBaseEmbedding(
+    global_embedding = LocalSVDEmbedding(
         target_layer=embedding,
         global_layers=nn.ModuleDict(),
-        rank=64
+        rank=100,
     )
 
     print(embedding.weight)
