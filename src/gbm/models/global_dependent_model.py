@@ -736,11 +736,26 @@ class GlobalFixedBaseModel(GlobalDependentModel):
 
 
 if __name__ == "__main__":
-    login(token="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")
-
     # Load the original BERT model
     original_model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
 
+    # Create the global model
+    global_model = LocalSVDModel(
+        original_model,
+        target_layers={
+            "word_embeddings": {"rank": 128},
+            "query": {"rank": 64},
+            "key": {"rank": 64},
+            "value": {"rank": 64},
+            "dense": {"rank": 64},
+        },
+        use_names_as_keys=True,
+        rank=128,
+        preserve_original_model=True,
+        verbose=True
+    )
+
+    """
     # Create the global model
     global_model = GlobalBaseModel(
         original_model,
@@ -760,6 +775,7 @@ if __name__ == "__main__":
         preserve_original_model=True,
         verbose=True
     )
+    """
 
     #global_model.save_pretrained("global_model")
 
