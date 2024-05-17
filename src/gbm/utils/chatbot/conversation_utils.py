@@ -259,9 +259,15 @@ def load_original_model_for_causal_lm(
         if verbose:
             print("Using 8bit quantization\n")
 
+    torch_dtype = torch.float32
+    if config.get("dtype") == "float16":
+        torch_dtype = torch.float16
+        if verbose:
+            print("Using float16 dtype\n")
+
     model = AutoModelForCausalLM.from_pretrained(
         config.get("original_model_id"),
-        torch_dtype=config.get("dtype") if config.get("dtype") is not None else torch.float32,
+        torch_dtype=torch_dtype,
         quantization_config=bnb_config
     )
 
