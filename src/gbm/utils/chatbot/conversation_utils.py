@@ -2,11 +2,15 @@ from typing import Optional
 
 import torch
 
+import transformers
 from transformers import (
     AutoModelForCausalLM,
     PreTrainedTokenizer,
-    StoppingCriteria
+    StoppingCriteria,
+    BitsAndBytesConfig
 )
+
+from gbm.utils.pipeline.config import Config
 
 
 def get_conversation_example_1(
@@ -226,3 +230,42 @@ def start_conversation_loop(
         model.train()
 
     return dialogue
+
+
+def load_original_model_for_causal_lm(
+        config: Config
+) -> transformers.AutoModel:
+    """
+    Loads the model that will be used to experiment alternative architectures.
+
+    Args:
+        config (dict):
+            The configuration parameters to use in the loading.
+
+    Returns:
+        transformers.AutoModel:
+            The loaded model.
+    """
+
+    bnb_config = None
+    if config.get("quantization") == "4bit":
+        # Defining the quantization configuration (4 bits)
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+        print("Using 4bit quantization\n")
+    elif config.get("quantization") == "8bit":
+        # Defining the quantization configuration (8 bits)
+        bnb_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+        )
+        print("Using 8bit quantization\n")
+
+    return AutoModelForCausalLM.from_pretrained(
+        config.get("original_model_id"),
+        quantization_config=bnb_config
+    )
+
