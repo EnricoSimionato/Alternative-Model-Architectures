@@ -93,16 +93,16 @@ class GlobalDependentEmbedding(GlobalDependent):
                 "_weight": _weight,
                 "_freeze": _freeze,
                 "device": device,
-                "dtype": dtype
             }
         )
 
-        super(GlobalDependentEmbedding, self).__init__(
+        super().__init__(
             in_features=num_embeddings,
             out_features=embeddings_dim,
             global_layers=global_layers,
             structure=structure,
             bias=False,
+            dtype=dtype,
             *args,
             **kwargs
         )
@@ -153,12 +153,18 @@ class GlobalDependentEmbedding(GlobalDependent):
                             max_norm=kwargs["max_norm"],
                             norm_type=kwargs["norm_type"],
                             scale_grad_by_freq=kwargs["scale_grad_by_freq"],
-                            sparse=kwargs["sparse"]
+                            sparse=kwargs["sparse"],
+                            _weight=kwargs["_weight"],
+                            _freeze=kwargs["_freeze"],
+                            device=kwargs["device"],
+                            dtype=self.dtype
                         )
                     else:
                         self.global_layers[layer["key"]] = nn.Linear(
                             *layer["shape"],
-                            bias=False
+                            bias=False,
+                            device=kwargs["device"],
+                            dtype=self.dtype
                         )
 
                     if "trainable" in layer.keys():
@@ -195,12 +201,18 @@ class GlobalDependentEmbedding(GlobalDependent):
                             max_norm=kwargs["max_norm"],
                             norm_type=kwargs["norm_type"],
                             scale_grad_by_freq=kwargs["scale_grad_by_freq"],
-                            sparse=kwargs["sparse"]
+                            sparse=kwargs["sparse"],
+                            _weight=kwargs["_weight"],
+                            _freeze=kwargs["_freeze"],
+                            device=kwargs["device"],
+                            dtype=self.dtype
                         )
                     else:
                         self.local_layers[layer["key"]] = nn.Linear(
                             *layer["shape"],
-                            bias=False
+                            bias=False,
+                            device=kwargs["device"],
+                            dtype=self.dtype
                         )
 
                     if "trainable" in layer.keys():
@@ -229,7 +241,7 @@ class GlobalDependentEmbedding(GlobalDependent):
                 If the layer's scope is neither 'global' nor 'local'.
         """
 
-        equivalent_linear = nn.Embedding(
+        equivalent_embedding = nn.Embedding(
             self.in_features,
             self.out_features,
         )
@@ -252,9 +264,9 @@ class GlobalDependentEmbedding(GlobalDependent):
                 else:
                     raise Exception("The last layer has to be global ('global') or local ('local').")
 
-            equivalent_linear.weight.data = weight
+            equivalent_embedding.weight.data = weight
 
-        return equivalent_linear
+        return equivalent_embedding
 
     @property
     def weight(
@@ -282,7 +294,6 @@ class GlobalDependentEmbedding(GlobalDependent):
         for layer in self.structure[1:]:
 
             if layer["scope"] == "global":
-                print(self.global_layers[layer["key"]].weight.T.shape)
                 weight = torch.matmul(weight, self.global_layers[layer["key"]].weight.T)
             elif layer["scope"] == "local":
                 weight = torch.matmul(weight, self.local_layers[layer["key"]].weight.T)
@@ -297,7 +308,7 @@ class GlobalDependentEmbedding(GlobalDependent):
             value: torch.Tensor
     ) -> None:
         """
-        Sets the weight parameter of the linear layer.
+        Sets the weight parameter of the Embedding layer.
 
         For now, and probably forever, it is not implemented.
 
@@ -764,7 +775,7 @@ if __name__ == "__main__":
 
     #print(embedding.weight.shape)
 
-    global_embedding = LocalSVDEmbedding(
+    global_embedding = GlobalBaseEmbedding(
         target_layer=embedding,
         global_layers=nn.ModuleDict(),
         rank=100,
