@@ -20,16 +20,50 @@ from gbm.utils.chatbot.pl_trainer import get_causal_lm_trainer
 # TODO documentation of experiment
 class Experiment:
     """
-    Experiment class to run an experiment.
-    It performs the following steps:
-    1. Initializes the experiment.
-    2. Runs the experiment.
-    3. Ends the experiment.
+    Class to run an experiment in a standardized way.
+
+    The experiment comprises the following steps:
+    1. Experiment initialization:
+        - Starts the experiment defining the paths where to store the configuration, the model, the logs, and the
+          checkpoints.
+    2. Experiment execution:
+        - Initializes the PyTorch Lightning model and trainer.
+        - Validates the model before training.
+        - Trains the model.
+        - Validates the model after training.
+        - Tests the model.
+    3. Experiment storage:
+        - Stores the model and the configuration.
 
     Args:
+        task (str):
+            The task to perform.
+        model (nn.Module):
+            The model to use.
+        dataset (LightningDataModule):
+            The dataset to use.
+        config (Config):
+            The configuration containing the information about the experiment.
+        tokenizer (AutoTokenizer | PreTrainedTokenizer):
+            The tokenizer to use.
+        **kwargs:
+            Additional keyword arguments.
 
     Attributes:
-
+        task (str):
+            The task to perform.
+        model (nn.Module):
+            The model to use.
+        dataset (LightningDataModule):
+            The dataset to use.
+        config (Config):
+            The configuration containing the information about the experiment.
+        tokenizer (AutoTokenizer | PreTrainedTokenizer):
+            The tokenizer to use.
+        lightning_model (pl.LightningModule):
+            The PyTorch Lightning model.
+        lightning_trainer (pl.Trainer):
+            The PyTorch Lightning trainer.
     """
 
     def __init__(
@@ -37,7 +71,7 @@ class Experiment:
             task: str,
             model: nn.Module,
             dataset: LightningDataModule,
-            config: Config | str,
+            config: Config,
             tokenizer: AutoTokenizer | PreTrainedTokenizer = None,
             **kwargs
     ) -> None:
@@ -53,17 +87,25 @@ class Experiment:
     def start_experiment(
             self,
             **kwargs
-    ) -> None:
+    ) -> dict:
         """
         Initializes the experiment.
 
         Args:
             kwargs:
                 Additional keyword arguments.
+
+        Returns:
+            dict:
+                A dictionary containing the paths where to store the configuration, the model, the logs, and the
+                checkpoints.
         """
 
-        self.config.start_experiment()
-        print("Experiment started")
+        if self.config.status is ExperimentStatus.NOT_STARTED:
+            self.config.start_experiment()
+            print("Experiment started")
+        else:
+            print("Running the experiment, it is already started")
 
         paths_dict = self.config.get_paths()
 
@@ -81,11 +123,7 @@ class Experiment:
                 Additional keyword arguments.
         """
 
-        if self.config.status is ExperimentStatus.NOT_STARTED:
-            self.config.start_experiment()
-            print("Experiment started")
-        else:
-            print("Running the experiment, it is already started")
+        self.start_experiment(**kwargs)
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
@@ -109,6 +147,19 @@ class Experiment:
             self,
             **kwargs
     ) -> pl.LightningModule:
+        """
+        Returns the PyTorch Lightning model to train the model using the PyTorch Lightning framework.
+        The model is defined based on the task to perform.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            pl.LightningModule:
+                The PyTorch Lightning model.
+        """
+
         if self.task == "classification":
             return ClassifierModelWrapper(
                 model=self.model,
@@ -142,6 +193,19 @@ class Experiment:
             self,
             **kwargs
     ) -> pl.Trainer:
+        """
+        Returns the PyTorch Lightning trainer to train the model using the PyTorch Lightning framework.
+        The trainer is defined based on the task to perform.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            pl.Trainer:
+                The PyTorch Lightning trainer.
+        """
+
         if self.task == "classification":
             return get_classification_trainer(
                 self.config,
@@ -161,6 +225,18 @@ class Experiment:
             self,
             **kwargs
     ) -> dict:
+        """
+        Trains the model using the PyTorch Lightning framework.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                A dictionary containing the results of the training.
+        """
+
         return self.lightning_trainer.fit(
             self.lightning_model,
             self.dataset
@@ -170,6 +246,18 @@ class Experiment:
             self,
             **kwargs
     ) -> dict:
+        """
+        Validates the model using the PyTorch Lightning framework.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                A dictionary containing the results of the validation.
+        """
+
         return self.lightning_trainer.validate(
             self.lightning_model,
             self.dataset
@@ -179,6 +267,18 @@ class Experiment:
             self,
             **kwargs
     ) -> dict:
+        """
+        Tests the model using the PyTorch Lightning framework.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                A dictionary containing the results of the testing.
+        """
+
         return self.lightning_trainer.test(
             self.lightning_model,
             self.dataset
@@ -188,6 +288,13 @@ class Experiment:
             self,
             **kwargs
     ) -> None:
+        """
+        Stores the model and the configuration.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+        """
 
         store_model_and_info(
             self.lightning_model.model,
