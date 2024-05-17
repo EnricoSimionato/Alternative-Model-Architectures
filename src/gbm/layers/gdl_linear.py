@@ -57,16 +57,20 @@ class GlobalDependentLinear(GlobalDependent):
             global_layers: nn.ModuleDict,
             structure,
             bias: bool = True,
+            dtype: torch.dtype = None,
             *args,
             **kwargs
     ) -> None:
-        super(GlobalDependentLinear, self).__init__(in_features,
-                                                    out_features,
-                                                    global_layers,
-                                                    structure,
-                                                    bias,
-                                                    *args,
-                                                    **kwargs)
+        super().__init__(
+            in_features,
+            out_features,
+            global_layers,
+            structure,
+            bias,
+            dtype,
+            *args,
+            **kwargs
+        )
 
     def _create_layer(
             self,
@@ -104,7 +108,12 @@ class GlobalDependentLinear(GlobalDependent):
         for layer in self.structure[:-1]:
             if layer["scope"] == "global":
                 if layer["key"] not in self.global_layers.keys():
-                    self.global_layers[layer["key"]] = nn.Linear(*layer["shape"], bias=False)
+                    print(self.dtype)
+                    self.global_layers[layer["key"]] = nn.Linear(
+                        *layer["shape"],
+                        bias=False,
+                        dtype=self.dtype
+                    )
 
                     if "trainable" in layer.keys():
                         for param in self.global_layers[layer["key"]].parameters():
@@ -113,7 +122,8 @@ class GlobalDependentLinear(GlobalDependent):
         if self.structure[-1]["scope"] == "global":
             self.global_layers[self.structure[-1]["key"]] = nn.Linear(
                 *self.structure[-1]["shape"],
-                bias=True if bias else False
+                bias=True if bias else False,
+                dtype=self.dtype
             )
 
             if "trainable" in self.structure[-1].keys():
@@ -140,7 +150,11 @@ class GlobalDependentLinear(GlobalDependent):
         for layer in self.structure[:-1]:
             if layer["scope"] == "local":
                 if layer["key"] not in self.local_layers.keys():
-                    self.local_layers[layer["key"]] = nn.Linear(*layer["shape"], bias=False)
+                    self.local_layers[layer["key"]] = nn.Linear(
+                        *layer["shape"],
+                        bias=False,
+                        dtype=self.dtype
+                    )
 
                     if "trainable" in layer.keys():
                         for param in self.local_layers[layer["key"]].parameters():
@@ -149,7 +163,8 @@ class GlobalDependentLinear(GlobalDependent):
         if self.structure[-1]["scope"] == "local":
             self.local_layers[self.structure[-1]["key"]] = nn.Linear(
                 *self.structure[-1]["shape"],
-                bias=True if bias else False
+                bias=True if bias else False,
+                dtype=self.dtype
             )
 
             if "trainable" in self.structure[-1].keys():
@@ -278,7 +293,8 @@ class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, A
                 target_layer.out_features,
                 global_layers,
                 structure,
-                target_layer.bias is not None
+                target_layer.bias is not None,
+                dtype=target_layer.weight.dtype
             )
 
         @property
@@ -386,7 +402,13 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
             **kwargs
     ) -> None:
         kwargs["rank"] = rank
-        super().__init__(target_layer, global_layers, target_name, *args, **kwargs)
+        super().__init__(
+            target_layer,
+            global_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
 
     def define_structure(
             self,
@@ -540,7 +562,10 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         global_matrix = self.get_layer("global", global_key).weight.data
 
         with torch.no_grad():
+            global_matrix = global_matrix.to(torch.float)
             pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
+            pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
+
             local_matrix = target_weight @ pinv_global_matrix
 
             self.get_layer("local", local_key).weight.data = local_matrix
@@ -967,7 +992,7 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
 if __name__ == "__main__":
     import time
 
-    linear_layer = nn.Linear(10000, 10000, bias=True)
+    linear_layer = nn.Linear(10000, 10000, bias=True, dtype=torch.float16)
     rank = 100
 
     init_time = time.time()

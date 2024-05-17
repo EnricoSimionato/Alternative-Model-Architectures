@@ -387,6 +387,8 @@ class StructureSpecificGlobalDependentEmbedding(StructureSpecificGlobalDependent
             norm_type=target_layer.norm_type,
             scale_grad_by_freq=target_layer.scale_grad_by_freq,
             sparse=target_layer.sparse,
+            device=target_layer.weight.device,
+            dtype=target_layer.weight.dtype,
             **kwargs
         )
 
@@ -634,7 +636,10 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         global_matrix = self.get_layer("global", global_key).weight.data.T
 
         with torch.no_grad():
+            global_matrix = global_matrix.to(torch.float)
             pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
+            pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
+
             local_matrix = target_weight @ pinv_global_matrix
 
             self.get_layer("local", local_key).weight.data = local_matrix

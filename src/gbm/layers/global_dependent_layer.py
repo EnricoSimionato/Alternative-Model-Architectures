@@ -74,16 +74,17 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
             global_layers: nn.ModuleDict,
             structure: dict,
             bias: bool = True,
+            dtype: torch.dtype = None,
             *args,
             **kwargs
     ) -> None:
-
-        super(GlobalDependent, self).__init__()
+        super().__init__()
 
         self.in_features = in_features
         self.out_features = out_features
         self.global_layers = global_layers
         self.local_layers = nn.ModuleDict()
+        self.dtype = dtype
 
         # Initial sanity check on the structure of the layer
         if len(structure) < 1:
