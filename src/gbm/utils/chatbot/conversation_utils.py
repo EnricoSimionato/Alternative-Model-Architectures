@@ -233,18 +233,11 @@ def start_conversation_loop(
 
 
 def load_original_model_for_causal_lm(
-        config: Config
-) -> transformers.AutoModel:
+        config: Config,
+        verbose: bool = False
+) -> transformers.AutoModelForCausalLM:
     """
-    Loads the model that will be used to experiment alternative architectures.
 
-    Args:
-        config (dict):
-            The configuration parameters to use in the loading.
-
-    Returns:
-        transformers.AutoModel:
-            The loaded model.
     """
 
     bnb_config = None
@@ -256,16 +249,23 @@ def load_original_model_for_causal_lm(
             bnb_4bit_use_double_quant=True,
             bnb_4bit_compute_dtype=torch.bfloat16
         )
-        print("Using 4bit quantization\n")
+        if verbose:
+            print("Using 4bit quantization\n")
     elif config.get("quantization") == "8bit":
         # Defining the quantization configuration (8 bits)
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
         )
-        print("Using 8bit quantization\n")
+        if verbose:
+            print("Using 8bit quantization\n")
 
-    return AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         config.get("original_model_id"),
         quantization_config=bnb_config
     )
+
+    if verbose:
+        print(model)
+
+    return model
 
