@@ -261,6 +261,7 @@ def load_original_model_for_causal_lm(
 
     model = AutoModelForCausalLM.from_pretrained(
         config.get("original_model_id"),
+        torch_dtype=config.get("dtype") if config.get("dtype") is not None else torch.float32,
         quantization_config=bnb_config
     )
 
