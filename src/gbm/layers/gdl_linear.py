@@ -108,7 +108,6 @@ class GlobalDependentLinear(GlobalDependent):
         for layer in self.structure[:-1]:
             if layer["scope"] == "global":
                 if layer["key"] not in self.global_layers.keys():
-                    print(self.dtype)
                     self.global_layers[layer["key"]] = nn.Linear(
                         *layer["shape"],
                         bias=False,

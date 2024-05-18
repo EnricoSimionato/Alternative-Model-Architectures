@@ -206,6 +206,66 @@ class GlobalDependentModel(ABC, nn.Module):
 
         return output
 
+    def generate(
+            self,
+            inputs: Optional = None,
+            generation_config: Optional = None,
+            logits_processor: Optional = None,
+            stopping_criteria: Optional = None,
+            prefix_allowed_tokens_fn: Optional = None,
+            synced_gpus: Optional = None,
+            assistant_model: Optional = None,
+            streamer: Optional = None,
+            negative_prompt_ids: Optional = None,
+            negative_prompt_attention_mask: Optional = None,
+            ** kwargs
+    ):
+        """
+        Generates text.
+
+        Args:
+            inputs:
+                Inputs.
+            generation_config:
+                Generation configuration.
+            logits_processor:
+                Logits processor.
+            stopping_criteria:
+                Stopping criteria.
+            prefix_allowed_tokens_fn:
+                Prefix allowed tokens function.
+            synced_gpus:
+                Synced GPUs.
+            assistant_model:
+                Assistant model.
+            streamer:
+                Streamer.
+            negative_prompt_ids:
+                Negative prompt IDs.
+            negative_prompt_attention_mask:
+                Negative prompt attention mask.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Generated text.
+        """
+
+        return self.model.generate(
+            inputs=inputs,
+            generation_config=generation_config,
+            logits_processor=logits_processor,
+            stopping_criteria=stopping_criteria,
+            prefix_allowed_tokens_fn=prefix_allowed_tokens_fn,
+            synced_gpus=synced_gpus,
+            assistant_model=assistant_model,
+            streamer=streamer,
+            negative_prompt_ids=negative_prompt_ids,
+            negative_prompt_attention_mask=negative_prompt_attention_mask,
+            **kwargs
+        )
+
+
     @classmethod
     def from_pretrained(
             cls,
