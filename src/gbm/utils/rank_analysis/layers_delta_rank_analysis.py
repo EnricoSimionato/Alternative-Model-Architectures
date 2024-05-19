@@ -1,13 +1,50 @@
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 import numpy as np
 
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM
 
-from gbm.utils.rank_analysis.utils import compute_rank, extract, compute_max_possible_rank
+from gbm.utils.rank_analysis.utils import (
+    compute_rank,
+    extract,
+    compute_max_possible_rank,
+
+    plot_heatmap
+)
+
+
+def compute_delta_matrices(
+        minuend_matrices: list,
+        subtrahend_matrices: list
+) -> list:
+    """
+    Computes the delta between two lists of matrices.
+
+    Args:
+        minuend_matrices (list):
+            List of minuend matrices.
+        subtrahend_matrices (list):
+            List of subtrahend matrices.
+
+    Returns:
+        list:
+            List of delta matrices.
+    """
+
+    delta_matrices = []
+    for i in range(len(minuend_matrices)):
+        minuend_matrix = minuend_matrices[i]["weight"]
+        subtrahend_matrix = subtrahend_matrices[i]["weight"]
+
+        delta_matrix = minuend_matrix - subtrahend_matrix
+        delta_matrices.append(
+            {
+                "delta_matrix": delta_matrix,
+                "delta_label": str(minuend_matrices[i]["label"]) + " - " + str(subtrahend_matrices[i]["label"])
+            }
+        )
+
+    return delta_matrices
 
 
 def compute_delta_consecutive_matrices(
@@ -25,88 +62,172 @@ def compute_delta_consecutive_matrices(
             List of delta matrices.
     """
 
-    delta_matrices = []
-    for i in range(len(matrices) - 1):
-        matrix_1 = matrices[i]["weight"]
-        matrix_2 = matrices[i + 1]["weight"]
+    minuend_matrices = matrices[1:].copy()
+    subtrahend_matrices = matrices[:-1].copy()
 
-        delta_matrix = matrix_2 - matrix_1
-        delta_matrices.append(
-            {
-                "delta_matrix": delta_matrix,
-                "layers": str(i + 1) + " - " + str(i)
-            }
+    return compute_delta_matrices(
+        minuend_matrices,
+        subtrahend_matrices
+    )
+
+
+def compute_delta_average_matrices(
+        matrices: list
+) -> list:
+    """
+    Compute the delta between the average matrix and the rest of the matrices.
+
+    Args:
+        matrices (list):
+            List of matrices.
+
+    Returns:
+        list:
+            List of delta matrices.
+    """
+
+    minuend_matrices = matrices.copy()
+    average_matrix = np.mean([el["weight"] for el in matrices], axis=0)
+    layer_name = f"{matrices[0]['layer_name']}"
+    for i in range(len(matrices)):
+        layer_name += "_"
+        layer_name += matrices[i]["layer_name"]
+
+    average_matrix = {
+        "weight": average_matrix,
+        "layer_name": layer_name,
+        "label": "avg",
+        "path": []
+    }
+
+    subtrahend_matrices = [average_matrix] * len(minuend_matrices)
+
+    return compute_delta_matrices(
+        minuend_matrices,
+        subtrahend_matrices
+    )
+
+
+def start_layers_rank_analysis(
+        model: nn.Module,
+        layers_to_analyze=(
+            "query",
+            "key",
+            "value"
+        ),
+        threshold: float = 0.9,
+        s_threshold: float = 0,
+        figure_size: tuple = (10, 8),
+        verbose: bool = False
+):
+    """
+    Does the rank analysis of the layers and plots the heatmap.
+
+    Args:
+        model (nn.Module):
+            The model.
+        layers_to_analyze (tuple):
+            The layers to analyze.
+        threshold (float):
+            The threshold.
+        s_threshold (float):
+            The threshold for the singular values.
+        figure_size (tuple):
+            The figure size.
+        verbose (bool):
+            Whether to print the rank.
+    """
+
+    ranks = []
+    for layer_name in layers_to_analyze:
+        extracted_matrices = []
+        extract(
+            model,
+            [layer_name],
+            extracted_matrices,
         )
 
-    return delta_matrices
+        for extracted_matrix in extracted_matrices:
+            rank = compute_rank(
+                extracted_matrix["weight"],
+                threshold,
+                s_threshold
+            )
+            ranks.append(rank)
+            if verbose:
+                print(f"Rank for {layer_name} {extracted_matrix['label']}: {rank}")
+
+    plot_heatmap(
+        np.array(ranks).reshape(len(layers_to_analyze), -1),
+        interval={"min": 0, "max": compute_max_possible_rank(extracted_matrices)},
+        figure_title="Ranks of matrices of the layers",
+        rows_labels=layers_to_analyze,
+        columns_labels=[el["label"] for el in extracted_matrices],
+        figure_size=figure_size
+    )
 
 
-def plot_heatmap(
-        data: np.ndarray,
-        interval: dict,
-        titles: list = (
-                "Map with colour bar between maximum and maximum rank value",
-                "Map with colore bar between 0 and the maximum rank value"
+def start_layers_delta_average_rank_analysis(
+        model: nn.Module,
+        layers_to_analyze=(
+                "query",
+                "key",
+                "value"
         ),
-        x_title: str = "Layers numbers of delta",
-        y_title: str = "Type of matrix",
-        columns_labels: list = None,
-        rows_labels: list = None,
-        figure_size: tuple = (10, 8)
+        threshold: float = 0.9,
+        s_threshold: float = 0,
+        figure_size: tuple = (10, 8),
+        verbose: bool = False
 ):
-    fig, axs = plt.subplots(2, 1, figsize=figure_size)
+        """
+        Does the rank analysis of the layers and plots the heatmap.
 
-    im0 = axs[0].imshow(data, cmap="hot", interpolation="nearest")
-    axs[0].set_title(titles[0])
-    axs[0].set_xlabel(x_title)
-    axs[0].set_ylabel(y_title)
-    if rows_labels:
-        axs[0].set_yticks(np.arange(len(rows_labels)))
-        axs[0].set_yticklabels(rows_labels)
-    if columns_labels:
-        axs[0].set_xticks(np.arange(len(columns_labels)))
-        axs[0].set_xticklabels(columns_labels)
-    axs[0].set_xticks(np.arange(0, data.shape[1]))
-    axs[0].tick_params(axis="x", which='both', length=0)
-    axs[0].tick_params(axis="y", which="both", length=0)
-    axs[0].axis("on")
-    divider0 = make_axes_locatable(axs[0])
-    cax0 = divider0.append_axes("right", size="5%", pad=0.05)
-    fig.colorbar(im0, cax=cax0)
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if data[i, j] > np.min(data) + (np.max(data) - np.min(data)) / 2:
-                text_color = "black"
-            else:
-                text_color = "white"
-            axs[0].text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
+        Args:
+            model (nn.Module):
+                The model.
+            layers_to_analyze (tuple):
+                The layers to analyze.
+            threshold (float):
+                The threshold.
+            s_threshold (float):
+                The threshold for the singular values.
+            figure_size (tuple):
+                The figure size.
+            verbose (bool):
+                Whether to print the rank.
+        """
 
-    im1 = axs[1].imshow(data, cmap="hot", interpolation="nearest", vmin=interval["min"], vmax=interval["max"])
-    axs[1].set_title(titles[1])
-    axs[1].set_xlabel(x_title)
-    axs[1].set_ylabel(y_title)
-    if rows_labels:
-        axs[1].set_yticks(np.arange(len(rows_labels)))
-        axs[1].set_yticklabels(rows_labels)
-    if columns_labels:
-        axs[1].set_xticks(np.arange(len(columns_labels)))
-        axs[1].set_xticklabels(columns_labels)
-    axs[1].tick_params(axis="x", which="both", length=0)
-    axs[1].tick_params(axis="y", which="both", length=0)
-    axs[1].axis("on")
-    divider1 = make_axes_locatable(axs[1])
-    cax1 = divider1.append_axes("right", size="5%", pad=0.05)
-    fig.colorbar(im1, cax=cax1)
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if data[i, j] > interval["min"] + (interval["max"] - interval["min"]) / 2:
-                text_color = "black"
-            else:
-                text_color = "white"
-            axs[1].text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
+        ranks = []
+        for layer_name in layers_to_analyze:
+            extracted_matrices = []
+            extract(
+                model,
+                [layer_name],
+                extracted_matrices,
+            )
 
-    plt.tight_layout()
-    plt.show()
+            delta_matrices = compute_delta_average_matrices(
+                extracted_matrices
+            )
+
+            for delta_matrix in delta_matrices:
+                rank = compute_rank(
+                    delta_matrix["delta_matrix"],
+                    threshold,
+                    s_threshold
+                )
+                ranks.append(rank)
+                if verbose:
+                    print(f"Rank for {layer_name} {delta_matrix['delta_label']}: {rank}")
+
+        plot_heatmap(
+            np.array(ranks).reshape(len(layers_to_analyze), -1),
+            interval={"min": 0, "max": compute_max_possible_rank(extracted_matrices)},
+            figure_title="Ranks of delta matrices with respect to the average matrix",
+            rows_labels=layers_to_analyze,
+            columns_labels=[el["delta_label"] for el in delta_matrices],
+            figure_size=figure_size
+        )
 
 
 def start_layers_delta_rank_analysis(
@@ -121,6 +242,23 @@ def start_layers_delta_rank_analysis(
         figure_size: tuple = (10, 8),
         verbose: bool = False
 ):
+    """
+    Does the rank analysis of the layers and plots the heatmap.
+
+    Args:
+        model (nn.Module):
+            The model.
+        layers_to_analyze (tuple):
+            The layers to analyze.
+        threshold (float):
+            The threshold.
+        s_threshold (float):
+            The threshold for the singular values.
+        figure_size (tuple):
+            The figure size.
+        verbose (bool):
+            Whether to print the rank.
+    """
 
     ranks = []
     for layer_name in layers_to_analyze:
@@ -137,30 +275,49 @@ def start_layers_delta_rank_analysis(
 
         for delta_matrix in delta_matrices:
             rank = compute_rank(
-                delta_matrix["delta_matrix"].detach().numpy(),
+                delta_matrix["delta_matrix"],
                 threshold,
                 s_threshold
             )
             ranks.append(rank)
             if verbose:
-                print(f"Rank for {layer_name} {delta_matrix['layers']}: {rank}")
+                print(f"Rank for {layer_name} {delta_matrix['delta_label']}: {rank}")
 
     plot_heatmap(
         np.array(ranks).reshape(len(layers_to_analyze), -1),
         interval={"min": 0, "max": compute_max_possible_rank(extracted_matrices)},
+        figure_title="Ranks of delta matrices with respect to the matrix in the previous layer",
         rows_labels=layers_to_analyze,
-        columns_labels=[el["layers"] for el in delta_matrices],
+        columns_labels=[el["delta_label"] for el in delta_matrices],
         figure_size=figure_size
     )
 
 
 if __name__ == "__main__":
-    #import huggingface_hub
-    #huggingface_hub.login("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")
-    """
-    model_to_analyse = AutoModelForCausalLM.from_pretrained("gpt2")
+    model_to_analyse = AutoModelForCausalLM.from_pretrained("bert-base-uncased")
     print(model_to_analyse)
+    start_layers_rank_analysis(
+        model_to_analyse,
+        layers_to_analyze=(
+            "query",
+            "key",
+            "value"
+        ),
+        threshold=0.9,
+        #s_threshold=0.1
+    )
     start_layers_delta_rank_analysis(
+        model_to_analyse,
+        layers_to_analyze=(
+            "query",
+            "key",
+            "value"
+        ),
+        threshold=0.9,
+        #s_threshold=0.1
+    )
+
+    start_layers_delta_average_rank_analysis(
         model_to_analyse,
         layers_to_analyze=(
             "query",
@@ -182,6 +339,5 @@ if __name__ == "__main__":
         rows_labels=["a", "b"],
         figure_size=(16, 8)
     )
-
-
+    """
 
