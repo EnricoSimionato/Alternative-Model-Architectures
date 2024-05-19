@@ -51,9 +51,10 @@ def plot_heatmap(
         x_title: str = "Layers numbers of delta",
         y_title: str = "Type of matrix",
         columns_labels: list = None,
-        rows_labels: list = None
+        rows_labels: list = None,
+        figure_size: tuple = (10, 8)
 ):
-    fig, axs = plt.subplots(2, 1, figsize=(10, 12))
+    fig, axs = plt.subplots(2, 1, figsize=figure_size)
 
     im0 = axs[0].imshow(data, cmap="hot", interpolation="nearest")
     axs[0].set_title(titles[0])
@@ -117,6 +118,7 @@ def start_layers_delta_rank_analysis(
         ),
         threshold: float = 0.9,
         s_threshold: float = 0,
+        figure_size: tuple = (10, 8),
         verbose: bool = False
 ):
 
@@ -147,14 +149,15 @@ def start_layers_delta_rank_analysis(
         np.array(ranks).reshape(len(layers_to_analyze), -1),
         interval={"min": 0, "max": compute_max_possible_rank(extracted_matrices)},
         rows_labels=layers_to_analyze,
-        columns_labels=[el["layers"] for el in delta_matrices]
+        columns_labels=[el["layers"] for el in delta_matrices],
+        figure_size=figure_size
     )
 
 
 if __name__ == "__main__":
     #import huggingface_hub
     #huggingface_hub.login("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")
-
+    """
     model_to_analyse = AutoModelForCausalLM.from_pretrained("gpt2")
     print(model_to_analyse)
     start_layers_delta_rank_analysis(
@@ -169,20 +172,16 @@ if __name__ == "__main__":
     )
     """
     a = np.array(
-        [[100,200,300,400,500,600],
-         [200,240,333,111,231,342]]
-    )
-    extracted_matrices = []
-    extract(
-        model_to_analyse,
-        ["query"],
-        extracted_matrices,
+        [[100,200,300,400,500,600,200,240,333,111,231,342,200,240,333,111,231,342,200,240,333,111,231,342,111,231,342,200,240,333,111,231,342],
+         [200,240,333,111,231,342,200,240,333,111,231,342,200,240,333,111,231,342,200,240,333,111,231,342,111,231,342,200,240,333,111,231,342],
+         [200,240,333,111,231,342,200,240,333,111,231,342,200,240,333,111,231,342,200,240,333,111,231,342,111,231,342,200,240,333,111,231,342]]
     )
     plot_heatmap(
         a,
-        interval={"min": 0, "max": compute_max_possible_rank(extracted_matrices)},
-        rows_labels=["a", "b"]
+        interval={"min": 0, "max": 800},
+        rows_labels=["a", "b"],
+        figure_size=(16, 8)
     )
-    """
+
 
 
