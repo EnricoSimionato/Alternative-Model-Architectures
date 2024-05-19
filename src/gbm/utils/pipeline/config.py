@@ -11,6 +11,7 @@ class ExperimentStatus(Enum):
     RUNNING = "Running"
     COMPLETED = "Completed"
 
+
 class Config:
     """
     Config class to store all the configuration parameters of an experiment about training a deep model using Pytorch
@@ -63,6 +64,27 @@ class Config:
 
         self.begin_time = None
         self.end_time = None
+
+    def contains(
+            self,
+            key: str,
+            **kwargs
+    ) -> bool:
+        """
+        Checks if the specified key is present in the configuration.
+
+        Args:
+            key (str):
+                The key to be checked.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            bool:
+                True if the key is present, False otherwise.
+        """
+
+        return key in self.__dict__.keys()
 
     def get(
             self,

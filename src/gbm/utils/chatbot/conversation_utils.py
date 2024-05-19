@@ -237,11 +237,21 @@ def load_original_model_for_causal_lm(
         verbose: bool = False
 ) -> transformers.AutoModelForCausalLM:
     """
+    Loads the original model for causal language modeling.
 
+    Args:
+        config (Config):
+            The configuration object.
+        verbose (bool):
+            Whether to print the model. Defaults to False.
+
+    Returns:
+        transformers.AutoModelForCausalLM:
+            The model for causal language modeling.
     """
 
     bnb_config = None
-    if config.get("quantization") == "4bit":
+    if config.contains("quantization") and config.get("quantization") == "4bit":
         # Defining the quantization configuration (4 bits)
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -251,7 +261,7 @@ def load_original_model_for_causal_lm(
         )
         if verbose:
             print("Using 4bit quantization\n")
-    elif config.get("quantization") == "8bit":
+    elif config.contains("quantization") and config.get("quantization") == "8bit":
         # Defining the quantization configuration (8 bits)
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
@@ -260,7 +270,7 @@ def load_original_model_for_causal_lm(
             print("Using 8bit quantization\n")
 
     torch_dtype = torch.float32
-    if config.get("dtype") == "float16":
+    if config.contains("dtype") and config.get("dtype") == "float16":
         torch_dtype = torch.float16
         if verbose:
             print("Using float16 dtype\n")
