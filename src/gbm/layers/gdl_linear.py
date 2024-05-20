@@ -61,12 +61,12 @@ class GlobalDependentLinear(GlobalDependent):
             *args,
             **kwargs
     ) -> None:
+        kwargs["bias"] = bias
         super().__init__(
             in_features,
             out_features,
             global_layers,
             structure,
-            bias,
             dtype,
             *args,
             **kwargs
@@ -74,7 +74,6 @@ class GlobalDependentLinear(GlobalDependent):
 
     def _create_layer(
             self,
-            bias: bool,
             **kwargs
     ) -> None:
         """
@@ -82,28 +81,25 @@ class GlobalDependentLinear(GlobalDependent):
         The layer is created as product of global and local matrices, and it is at the end a Linear layer.
 
         Args:
-            bias (bool):
-                Flag to include bias in the layer.
             **kwargs:
                 Arbitrary keyword arguments.
         """
 
-        super()._create_layer(bias, **kwargs)
+        super()._create_layer(**kwargs)
 
     def _initialize_global_layers(
             self,
-            bias: bool = False,
             **kwargs
     ) -> None:
         """
         Initializes, if needed, the global layers as Linear layers.
 
         Args:
-            bias (bool):
-                Flag to include bias in the layer.
             kwargs:
                 Additional keyword arguments.
         """
+
+        bias = kwargs["bias"]
 
         for layer in self.structure[:-1]:
             if layer["scope"] == "global":
@@ -131,19 +127,17 @@ class GlobalDependentLinear(GlobalDependent):
 
     def _initialize_local_layers(
             self,
-            bias: bool = False,
             **kwargs
     ) -> None:
         """
         Initializes, if needed, the local layers as Linear layers.
 
         Args:
-            bias (bool):
-                Flag to include bias in the layer.
             kwargs:
                 Additional keyword arguments.
         """
 
+        bias = kwargs["bias"]
         self.local_layers = nn.ModuleDict()
 
         for layer in self.structure[:-1]:

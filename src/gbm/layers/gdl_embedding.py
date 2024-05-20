@@ -109,7 +109,6 @@ class GlobalDependentEmbedding(GlobalDependent):
 
     def _create_layer(
             self,
-            bias: bool, # Probably to remove
             **kwargs
     ) -> None:
         """
@@ -123,11 +122,10 @@ class GlobalDependentEmbedding(GlobalDependent):
                 Arbitrary keyword arguments.
         """
 
-        super()._create_layer(bias, **kwargs)
+        super()._create_layer(**kwargs)
 
     def _initialize_global_layers(
             self,
-            bias: bool = False, # Probably to remove
             **kwargs
     ) -> None:
         """
@@ -173,7 +171,6 @@ class GlobalDependentEmbedding(GlobalDependent):
 
     def _initialize_local_layers(
             self,
-            bias: bool = False, # Probably to remove
             **kwargs
     ) -> None:
         """

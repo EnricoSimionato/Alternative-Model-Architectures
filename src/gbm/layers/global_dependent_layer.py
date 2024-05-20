@@ -73,7 +73,6 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
             out_features: int,
             global_layers: nn.ModuleDict,
             structure: dict,
-            bias: bool = True,
             dtype: torch.dtype = None,
             *args,
             **kwargs
@@ -94,11 +93,10 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
                 raise Exception("The structure of each layer has to contain 'global' or 'local' as 'scope'")
         self.structure = structure
 
-        self._create_layer(bias, **kwargs)
+        self._create_layer(**kwargs)
 
     def _create_layer(
             self,
-            bias: bool,
             **kwargs
     ) -> None:
         """
@@ -109,21 +107,18 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
                 Arbitrary keyword arguments.
         """
 
-        self._initialize_global_layers(bias, **kwargs)
-        self._initialize_local_layers(bias, **kwargs)
+        self._initialize_global_layers(**kwargs)
+        self._initialize_local_layers(**kwargs)
 
     @abstractmethod
     def _initialize_global_layers(
             self,
-            bias: bool,
             **kwargs
     ) -> None:
         """
         Initializes, if needed, the global layers.
 
         Args:
-            bias (bool):
-                Flag to include bias in the layer.
             kwargs:
                 Additional keyword arguments.
         """
@@ -131,15 +126,12 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
     @abstractmethod
     def _initialize_local_layers(
             self,
-            bias: bool,
             **kwargs
     ) -> None:
         """
         Initializes the global matrices.
 
         Args:
-            bias (bool):
-                Flag to include bias in the layer.
             kwargs:
                 Additional keyword arguments.
         """

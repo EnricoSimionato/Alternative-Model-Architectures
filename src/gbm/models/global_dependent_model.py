@@ -800,7 +800,7 @@ if __name__ == "__main__":
     original_model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
 
     # Create the global model
-    global_model = LocalSVDModel(
+    global_model = GlobalFixedBaseModel(
         original_model,
         target_layers={
             "word_embeddings": {"rank": 128},
