@@ -191,7 +191,12 @@ def start_conversation_loop(
         })
 
         # Encoding input and move it where the model is
-        encoded_dialogue = tokenizer.apply_chat_template(dialogue, return_tensors="pt")
+        encoded_dialogue = tokenizer.apply_chat_template(
+            dialogue,
+            truncation=True,
+            max_length=512,
+            return_tensors="pt"
+        )
 
         # Generating model response
         encoded_dialogue = encoded_dialogue.to(model.device)
