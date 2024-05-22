@@ -288,7 +288,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         print(f'Validation loss: {avg_val_loss}')
         print("----------------------------------------------------------")
 
-        self.start_conversation_trial()
+        #self.start_conversation_trial()
 
     def on_test_epoch_end(
         self
