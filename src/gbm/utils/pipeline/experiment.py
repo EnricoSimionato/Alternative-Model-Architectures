@@ -326,13 +326,13 @@ if __name__ == "__main__":
     experiment.run_experiment()
     """
 
-    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL.json")
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tokenizer_mistral = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
-    tokenizer_mistral.pad_token = tokenizer_mistral.eos_token
-    tokenizer_mistral.padding_side = "right"
-    tokenizer.pad_token = tokenizer_mistral.pad_token
-    tokenizer.padding_side = tokenizer_mistral.padding_side
+    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL_BERT.json")
+    tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
+    tokenizer.bos_token = "[CLS]"
+    tokenizer.eos_token = "[SEP]"
+    tokenizer.padding_side = "right"
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.chat_template = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id_for_chat_template")).chat_template
 
     from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
     from transformers import AutoModelForCausalLM
@@ -343,7 +343,7 @@ if __name__ == "__main__":
         dataset=OpenAssistantGuanacoDataModule(
             configuration.get("batch_size"),
             configuration.get("num_workers"),
-            tokenizer_mistral,
+            tokenizer,
             configuration.get("max_len_tokenizer"),
             configuration.get("split")
         ),

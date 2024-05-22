@@ -586,11 +586,14 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
 
         num_epochs = 50
 
+        print("ciao")
+
         for epoch in range(num_epochs):
             loss = torch.norm((target_weight - torch.matmul(
                 self.get_layer("local", local_key).weight,
                 self.get_layer("global", global_key).weight)) ** 2)
 
+            print(self.get_layer("local", local_key).weight)
             scheduler.step(loss)
 
             optimizer.zero_grad()
