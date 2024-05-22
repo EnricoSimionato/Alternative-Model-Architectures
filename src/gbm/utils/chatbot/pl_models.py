@@ -72,6 +72,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         learning_rate: float = 1e-5,
         max_epochs: int = 3,
         warmup_steps: int = 0,
+        stop_tokens: list[str] = ["[INST]", "</s>"],
         **kwargs
     ) -> None:
         super().__init__()
@@ -82,6 +83,8 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.learning_rate = learning_rate
         self.warmup_steps = warmup_steps
         self.max_epochs = max_epochs
+
+        self.stop_tokens = stop_tokens
 
         self.training_step_index = 0
         self.loss_history = {
@@ -320,6 +323,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         dialogue_1 = start_conversation_loop(
             self.model,
             self.tokenizer,
+            stop_tokens=self.stop_tokens,
             user_inputs=get_conversation_example_1(),
             make_model_trainable=True
         )
@@ -328,6 +332,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         dialogue_2 = start_conversation_loop(
             self.model,
             self.tokenizer,
+            stop_tokens=self.stop_tokens,
             user_inputs=get_conversation_example_2(),
             make_model_trainable=True
         )

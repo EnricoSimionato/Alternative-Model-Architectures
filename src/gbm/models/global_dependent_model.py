@@ -1,7 +1,6 @@
 import os
 import pickle
 from copy import deepcopy
-from huggingface_hub import login
 
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
@@ -11,21 +10,27 @@ import torch.nn as nn
 from torch import device
 
 from gbm.layers.global_dependent_layer import (
-    MergeableLayer,
+    MergeableLayer
 )
 from gbm.layers.gdl_linear import (
     LocalSVDLinear,
     GlobalBaseLinear,
-    GlobalFixedBaseLinear,
+    GlobalFixedBaseLinear
 )
 
 from gbm.layers.gdl_embedding import (
     LocalSVDEmbedding,
     GlobalBaseEmbedding,
-    GlobalFixedBaseEmbedding,
+    GlobalFixedBaseEmbedding
 )
 
-from transformers import AutoModel, AutoModelForSequenceClassification
+from gbm.layers.gdl_global_average import (
+    GlobalDependentAverageMatrix,
+    GlobalAverageLinear,
+    GlobalAverageEmbedding
+)
+
+from transformers import AutoModel, AutoModelForSequenceClassification, AutoModelForCausalLM
 
 from gbm.utils import count_parameters
 
@@ -65,6 +70,8 @@ class GlobalDependentModel(ABC, nn.Module):
             Global layers.
         conversions (dict):
             Mapping of layer types to global-dependent layer classes.
+        info (dict):
+            Information about the model.
     """
 
     def __init__(
@@ -110,12 +117,28 @@ class GlobalDependentModel(ABC, nn.Module):
                     "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
                 }
             )
+            self.__post_init__(kwargs)
+
             if verbose:
                 print(f"Number of parameters original model: {self.info['original_model_parameters']}")
                 print(f"Number of parameters global model: {self.info['model_parameters']}")
                 print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
                 print()
                 print("Model converted")
+
+    def __post_init__(
+            self,
+            kwargs: dict
+    ) -> None:
+        """
+        Post-initialization method.
+
+        Args:
+            kwargs (dict):
+                Additional keyword arguments.
+        """
+
+        pass
 
     @abstractmethod
     def define_conversion(
@@ -795,12 +818,173 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         return conversions
 
 
+class GlobalAverageModel(GlobalDependentModel):
+    """
+    Model with GlobalBaseLinear layers replacing linear layers.
+
+    Args:
+        pretrained_model (PreTrainedModel):
+            Pretrained model.
+        target_layers (dict):
+            Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
+            rank of the decomposition for the layer.
+            >> Example:
+            >> {
+            >>     "layer_name_1": {"rank": 10},
+            >>     "layer_name_2": {"rank": 20},
+            >> }
+        use_names_as_keys (bool):
+            Whether to use the names of the layers in the keys of the global layers, having different global layers
+            for layers having different roles in the original model.
+        mapping_layer_name_key (dict):
+            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
+            names to have the same global layer.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
+        verbose (bool):
+            Whether to print information about the conversion.
+        **kwargs:
+            Additional keyword arguments.
+    """
+
+    def __init__(
+            self,
+            pretrained_model=None,
+            target_layers: dict = None,
+            use_names_as_keys: bool = False,
+            mapping_layer_name_key: dict = None,
+            from_pretrained: bool = False,
+            preserve_original_model: bool = False,
+            verbose: bool = False,
+            **kwargs
+    ) -> None:
+        super(GlobalBaseModel, self).__init__(
+            pretrained_model,
+            target_layers,
+            use_names_as_keys=use_names_as_keys,
+            mapping_layer_name_key=mapping_layer_name_key,
+            from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
+            verbose=verbose,
+            **kwargs
+        )
+
+    def __post_init__(
+            self,
+            kwargs: dict
+    ) -> None:
+        """
+        Post-initialization method.
+
+        Args:
+            kwargs (dict):
+                Additional keyword arguments.
+        """
+
+        self._initialize_average_layers(
+            self.model,
+            verbose=True,
+            **kwargs
+        )
+
+    def _initialize_average_layers(
+            self,
+            model_tree: nn.Module,
+            path: str = "",
+            verbose: bool = False,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the global average layers.
+
+        Args:
+            model_tree (nn.Module):
+                Model or module containing layers.
+            path (str):
+                Path to the current layer.
+            verbose (bool):
+                Whether to print information about the initialization.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        for layer_name in model_tree._modules.keys():
+            child = model_tree._modules[layer_name]
+            if len(child._modules) == 0:
+                if type(child) is GlobalDependentAverageMatrix:
+                    if verbose:
+                        print(f"Initialization of {layer_name} in {path}")
+                    child.initialize(**kwargs)
+
+            else:
+                self._initialize_average_layers(
+                    child,
+                    path + (f"{layer_name}" if path == "" else f".{layer_name}"),
+                    verbose=verbose,
+                    **kwargs
+                )
+
+    def define_conversion(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Defines the conversion of layers into global-base layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Dictionary mapping layer types to corresponding global-base layer classes.
+        """
+
+        conversions = {
+            nn.Linear: GlobalAverageLinear,
+            nn.Embedding: GlobalAverageEmbedding
+        }
+
+        return conversions
+
+
+def check_model_for_nan(model):
+    nan_in_params = False
+    nan_in_grads = False
+
+    for name, param in model.named_parameters():
+        if torch.isnan(param).any():
+            print(f'NaN found in parameter: {name}')
+            nan_in_params = True
+        if param.grad is not None and torch.isnan(param.grad).any():
+            print(f'NaN found in gradient: {name}')
+            nan_in_grads = True
+
+    if not nan_in_params:
+        print('No NaNs found in model parameters.')
+    if not nan_in_grads:
+        print('No NaNs found in model gradients.')
+
+    return nan_in_params or nan_in_grads
+
+
 if __name__ == "__main__":
     # Load the original BERT model
-    original_model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
+    #model_id = "google/gemma-2b"
+    model_id = "bert-base-uncased"
+    original_model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16)
+
+    a = original_model.bert.encoder.layer[0].attention.self.query.weight
+    print(a)
+    print(a.dtype)
+    #print(torch.pinverse(a))
+
+    for name, param in original_model.named_parameters():
+        print(name)
 
     # Create the global model
-    global_model = GlobalFixedBaseModel(
+    global_model = GlobalBaseModel(
         original_model,
         target_layers={
             "word_embeddings": {"rank": 128},
@@ -810,10 +994,11 @@ if __name__ == "__main__":
             "dense": {"rank": 64},
         },
         use_names_as_keys=True,
-        rank=128,
         preserve_original_model=True,
         verbose=True
     )
+
+    check_model_for_nan(global_model)
 
     """
     # Create the global model
