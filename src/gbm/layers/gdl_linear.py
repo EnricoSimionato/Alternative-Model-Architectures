@@ -579,7 +579,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
         self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.SGD(
             [
                 self.get_layer("local", local_key).weight
             ]
@@ -594,8 +594,6 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             )
 
             loss = torch.norm((target_weight - approximated_matrix) ** 2)
-
-            print(loss)
 
             optimizer.zero_grad()
             loss.backward()

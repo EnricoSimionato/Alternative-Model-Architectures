@@ -662,23 +662,21 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
         self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.AdamW([self.get_layer("local", local_key).weight], lr=0.001)
-
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.5,
-            patience=10,
+        optimizer = torch.optim.SGD(
+            [
+                self.get_layer("local", local_key).weight
+            ]
         )
 
-        num_epochs = 1000
+        num_epochs = 100
 
         for epoch in range(num_epochs):
-            loss = torch.norm((target_weight - torch.matmul(
+            approximated_matrix = torch.matmul(
                 self.get_layer("local", local_key).weight,
-                self.get_layer("global", global_key).weight.T)) ** 2)
+                self.get_layer("global", global_key).weight.T
+            )
 
-            scheduler.step(loss)
+            loss = torch.norm((target_weight - approximated_matrix) ** 2)
 
             optimizer.zero_grad()
             loss.backward()
