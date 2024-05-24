@@ -5,7 +5,7 @@ from pytorch_lightning.loggers.comet import CometLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
 
 from gbm.utils.pipeline.config import Config
-
+from gbm.utils.device_utils import get_available_device
 
 def get_causal_lm_trainer(
         config: Config,
@@ -70,8 +70,11 @@ def get_causal_lm_trainer(
         max_epochs=config.get("num_epochs"),
         val_check_interval=1/config.get("num_checks_per_epoch"),
         accumulate_grad_batches=config.get("gradient_accumulation_steps"),
-        #callbacks=callbacks,
-        accelerator=config.get("device"),
+        callbacks=callbacks,
+        accelerator=get_available_device(
+            config.get("device"),
+            just_string=True
+        ),
         logger=loggers
     )
 

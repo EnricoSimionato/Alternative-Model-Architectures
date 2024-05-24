@@ -172,7 +172,7 @@ class Experiment:
                 learning_rate=self.config.get("learning_rate"),
                 max_epochs=self.config.get("num_epochs"),
 
-                warmup_steps=self.config.get("warmup_steps"),
+                warmup_steps=self.config.get("warmup_steps")
             )
 
         elif self.task == "question-answering":
@@ -185,7 +185,10 @@ class Experiment:
                 learning_rate=self.config.get("learning_rate"),
                 max_epochs=self.config.get("num_epochs"),
                 warmup_steps=self.config.get("warmup_steps"),
+
+                stop_tokens=self.config.get("stop_tokens")
             )
+
         else:
             raise ValueError(f"Task {self.task} not recognized")
 
@@ -301,54 +304,3 @@ class Experiment:
             self.config,
             tokenizer=self.tokenizer
         )
-
-
-if __name__ == "__main__":
-    """
-    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL.json")
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    from gbm.utils.classification import IMDBDataModule
-    from transformers import AutoModelForSequenceClassification
-    experiment = Experiment(
-        task="classification",
-        model=AutoModelForSequenceClassification.from_pretrained("bert-base-uncased"),
-        dataset=IMDBDataModule(
-            configuration.get("batch_size"),
-            configuration.get("num_workers"),
-            tokenizer,
-            configuration.get("max_len_tokenizer"),
-            configuration.get("split")
-        ),
-        config=configuration,
-        tokenizer=tokenizer
-    )
-
-    experiment.run_experiment()
-    """
-
-    configuration = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL_BERT.json")
-    tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
-    tokenizer.bos_token = "[CLS]"
-    tokenizer.eos_token = "[SEP]"
-    tokenizer.padding_side = "right"
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.chat_template = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id_for_chat_template")).chat_template
-
-    from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
-    from transformers import AutoModelForCausalLM
-
-    experiment = Experiment(
-        task="chatbot",
-        model=AutoModelForCausalLM.from_pretrained("bert-base-uncased"),
-        dataset=OpenAssistantGuanacoDataModule(
-            configuration.get("batch_size"),
-            configuration.get("num_workers"),
-            tokenizer,
-            configuration.get("max_len_tokenizer"),
-            configuration.get("split")
-        ),
-        config=configuration,
-        tokenizer=tokenizer
-    )
-
-    experiment.run_experiment()

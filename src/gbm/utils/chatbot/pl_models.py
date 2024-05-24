@@ -72,7 +72,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         learning_rate: float = 1e-5,
         max_epochs: int = 3,
         warmup_steps: int = 0,
-        stop_tokens: list[str] = ["[INST]", "</s>"],
+        stop_tokens: list[str] = ("[INST]", "</s>"),
         **kwargs
     ) -> None:
         super().__init__()
@@ -87,17 +87,33 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.stop_tokens = stop_tokens
 
         self.training_step_index = 0
-        self.loss_history = {
-            "train": [],
-            "validation": [],
-            "test": []
-        }
+
         self.training_step_losses_sum = 0
         self.training_step_losses_count = 0
         self.validation_step_losses_sum = 0
         self.validation_step_losses_count = 0
         self.test_step_losses_sum = 0
         self.test_step_losses_count = 0
+
+        self.log(
+            "validation_loss",
+            torch.inf,
+            on_step=True,
+            prog_bar=True
+        )
+
+        self.log(
+            "training_loss",
+            torch.inf,
+            on_step=True,
+            prog_bar=True
+        )
+
+        self.loss_history = {
+            "train": [],
+            "validation": [],
+            "test": []
+        }
 
     def configure_optimizers(
             self
@@ -177,6 +193,14 @@ class CausalLMModelWrapper(pl.LightningModule):
         outputs = self(input_ids, labels=labels)
         loss = outputs.loss
 
+        self.log(
+            "training_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True
+        )
+
         self.training_step_losses_sum += loss.detach().cpu().numpy()
         self.training_step_losses_count += 1
 
@@ -210,6 +234,14 @@ class CausalLMModelWrapper(pl.LightningModule):
         outputs = self(input_ids, labels=labels)
         loss = outputs.loss
 
+        self.log(
+            "validation_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True
+        )
+
         self.validation_step_losses_sum += loss.detach().cpu().numpy()
         self.validation_step_losses_count += 1
 
@@ -240,6 +272,13 @@ class CausalLMModelWrapper(pl.LightningModule):
         # Computing the loss of the model for the considered test batch
         outputs = self(input_ids, labels=labels)
         loss = outputs.loss
+
+        self.log(
+            "test_loss",
+            loss,
+            on_step=False,
+            on_epoch=True
+        )
 
         self.test_step_losses_sum += loss.detach().cpu().numpy()
         self.test_step_losses_count += 1

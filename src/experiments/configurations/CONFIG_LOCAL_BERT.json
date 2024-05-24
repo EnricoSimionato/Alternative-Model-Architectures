@@ -1,0 +1,69 @@
+{
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed experiments",
+    "keys_for_naming": [
+        "factorization_method",
+        "original_model_id"
+    ],
+
+    "original_model_id": "bert-base-uncased",
+    "quantization": null,
+    "dtype": "float32",
+
+    "dataset_id": "timdettmers/openassistant-guanaco",
+    "max_len_samples": 16384,
+    "split": [
+        0.8,
+        0.1,
+        0.1
+    ],
+    "tokenizer_id": "bert-base-uncased",
+    "tokenizer_id_for_chat_template": "mistralai/Mistral-7B-Instruct-v0.2",
+    "stop_tokens": [
+        "[INST]",
+        "[SEP]"
+    ],
+    "max_len_tokenizer": 512,
+    "num_epochs": 1,
+    "learning_rate": 1e-05,
+    "warmup_steps": 0,
+    "batch_size": 1,
+    "num_workers": 2,
+    "num_checks_per_epoch": 5,
+    "gradient_accumulation_steps": 4,
+
+    "factorization_method": "",
+    "target_layers": {
+        "embed_tokens": {
+            "rank": 512
+        },
+        "q_proj": {
+            "rank": 512
+        },
+        "k_proj": {
+            "rank": 128
+        },
+        "v_proj": {
+            "rank": 128
+        },
+        "o_proj": {
+            "rank": 512
+        },
+        "gate_proj": {
+            "rank": 512
+        },
+        "up_proj": {
+            "rank": 512
+        },
+        "down_proj": {
+            "rank": 512
+        }
+    },
+    
+    "original_model_parameters": 0,
+    "model_parameters": 0,
+    "percentage_parameters": 0,
+    "model_trainable_parameters": 0,
+
+    "device": "cuda",
+    "seed": "seed"
+}

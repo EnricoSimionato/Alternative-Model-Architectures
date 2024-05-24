@@ -109,6 +109,8 @@ class GlobalDependentModel(ABC, nn.Module):
             self.global_layers = nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
             self._convert_into_global_dependent_model(self.model, path="", verbose=verbose, **kwargs)
+            self.__post_init__(kwargs)
+
             model_parameters = count_parameters(self.model)
             self.info.update(
                 {
@@ -117,7 +119,6 @@ class GlobalDependentModel(ABC, nn.Module):
                     "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
                 }
             )
-            self.__post_init__(kwargs)
 
             if verbose:
                 print(f"Number of parameters original model: {self.info['original_model_parameters']}")
@@ -916,7 +917,7 @@ class GlobalAverageModel(GlobalDependentModel):
                 if type(child) is GlobalDependentAverageMatrix:
                     if verbose:
                         print(f"Initialization of {layer_name} in {path}")
-                    child.initialize(**kwargs)
+                    child.post_initialize(**kwargs)
 
             else:
                 self._initialize_average_layers(

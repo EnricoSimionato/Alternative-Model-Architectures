@@ -443,17 +443,21 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
         """
 
         target_layer = kwargs["target_layer"]
+        dtype = target_layer.weight.data.numpy().dtype
         rank = kwargs["rank"]
 
-        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
+        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy().astype(np.float32))
         min_dim = min(target_layer.in_features, target_layer.out_features)
 
         with torch.no_grad():
             self.get_layer("local", "US").weight.data = torch.tensor(
-                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
+                U[:, :min(min_dim, rank)].astype(dtype)
+            ) @ np.diag(
+                S[:min(min_dim, rank)].astype(dtype)
             )
+
             self.get_layer("local", "VT").weight.data = torch.tensor(
-                VT[:min(min_dim, rank), :]
+                VT[:min(min_dim, rank), :].astype(dtype)
             )
 
             for layer in self.structure:
@@ -575,26 +579,23 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
         self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.AdamW([self.get_layer("local", local_key).weight])
-
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.5,
-            patience=10,
+        optimizer = torch.optim.Adam(
+            [
+                self.get_layer("local", local_key).weight
+            ]
         )
 
-        num_epochs = 50
-
-        print("ciao")
+        num_epochs = 100
 
         for epoch in range(num_epochs):
-            loss = torch.norm((target_weight - torch.matmul(
+            approximated_matrix = torch.matmul(
                 self.get_layer("local", local_key).weight,
-                self.get_layer("global", global_key).weight)) ** 2)
+                self.get_layer("global", global_key).weight
+            )
 
-            print(self.get_layer("local", local_key).weight)
-            scheduler.step(loss)
+            loss = torch.norm((target_weight - approximated_matrix) ** 2)
+
+            print(loss)
 
             optimizer.zero_grad()
             loss.backward()
@@ -988,24 +989,25 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
 if __name__ == "__main__":
     import time
 
-    linear_layer = nn.Linear(10000, 10000, bias=True, dtype=torch.float16)
-    rank = 100
+    linear_layer = nn.Linear(1000, 1000, bias=True, dtype=torch.float16)
+    rank = 10
+
+    linear_layer.weight.data = torch.ones(1000, 1000, dtype=torch.float16)
 
     init_time = time.time()
 
     global_matrices_dict = nn.ModuleDict()
-    gbl = GlobalBaseLinear(
+    gbl = LocalSVDLinear(
         linear_layer,
         global_matrices_dict,
         rank=rank,
-        target_name="query",
+        target_name="query"
     )
 
     print(f"Time taken: {(time.time() - init_time)}")
 
-    print(gbl)
-
-    # gbl_merged = gbl.merge()
+    print(gbl.weight.dtype)
+    print(gbl.weight)
 
     """
     print("Weights")
@@ -1032,4 +1034,3 @@ if __name__ == "__main__":
     print("Output of the global dependent layer")
     print(gbl(x))
     """
-

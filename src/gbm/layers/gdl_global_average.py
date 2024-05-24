@@ -4,7 +4,6 @@ from gbm import GlobalDependentLinear, GlobalDependentEmbedding
 from gbm.layers.global_dependent_layer import GlobalDependent
 
 
-
 class GlobalDependentAverageMatrix(GlobalDependent, ABC):
     def __init__(self, num_classes, num_features, num_groups, num_layers):
         self.num_classes = num_classes
@@ -20,6 +19,7 @@ class GlobalDependentAverageMatrix(GlobalDependent, ABC):
 
         """
 
+
 class GlobalAverageLinear(GlobalDependentLinear, GlobalDependentAverageMatrix):
     def __init__(
             self
@@ -28,6 +28,19 @@ class GlobalAverageLinear(GlobalDependentLinear, GlobalDependentAverageMatrix):
 
 
 class GlobalAverageEmbedding(GlobalDependentEmbedding, GlobalDependentAverageMatrix):
+    def __init__(
+            self
+    ) -> None:
+        super().__init__()
+
+
+class GlobalAverageLocalSVDLinear(GlobalDependentLinear, GlobalDependentAverageMatrix):
+    def __init__(
+            self
+    ) -> None:
+        super().__init__()
+
+class GlobalAverageGlobalBaseLinear(GlobalDependentLinear, GlobalDependentAverageMatrix):
     def __init__(
             self
     ) -> None:

@@ -28,7 +28,7 @@ def get_available_device(
         },
         "mps": {
             "available": torch.backends.mps.is_available(),
-            "device": torch.device("cuda")
+            "device": torch.device("mps")
         },
         "cpu": {
             "available": True,
