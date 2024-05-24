@@ -126,7 +126,7 @@ class CausalLMModelWrapper(pl.LightningModule):
                 Optimizer.
         """
 
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.SGD(
             self.parameters(),
             lr=self.learning_rate
         )
