@@ -24,12 +24,6 @@ from gbm.layers.gdl_embedding import (
     GlobalFixedBaseEmbedding
 )
 
-from gbm.layers.gdl_global_average import (
-    GlobalDependentAverageMatrix,
-    GlobalAverageLinear,
-    GlobalAverageEmbedding
-)
-
 from transformers import AutoModel, AutoModelForSequenceClassification, AutoModelForCausalLM
 
 from gbm.utils import count_parameters
@@ -50,6 +44,9 @@ class GlobalDependentModel(ABC, nn.Module):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -80,6 +77,7 @@ class GlobalDependentModel(ABC, nn.Module):
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             verbose: bool = False,
@@ -107,8 +105,33 @@ class GlobalDependentModel(ABC, nn.Module):
                 "original_model_trainable_parameters": count_parameters(self.model, only_trainable=True)
             }
             self.global_layers = nn.ModuleDict()
+            self.global_layers = nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
-            self._convert_into_global_dependent_model(self.model, path="", verbose=verbose, **kwargs)
+
+            average_matrices = {}
+            if remove_average:
+                extracted_matrices = {}
+                self._collect_matrices_per_name(
+                    self.model,
+                    extracted_matrices,
+                    path="",
+                    verbose=verbose,
+                    **kwargs
+                )
+
+                average_matrices = self._compute_average_matrices(
+                    extracted_matrices,
+                    verbose=verbose,
+                    **kwargs
+                )
+
+            self._convert_into_global_dependent_model(
+                self.model,
+                path="",
+                average_matrices=average_matrices,
+                verbose=verbose,
+                **kwargs
+            )
             self.__post_init__(kwargs)
 
             model_parameters = count_parameters(self.model)
@@ -157,10 +180,103 @@ class GlobalDependentModel(ABC, nn.Module):
             Dictionary mapping layer types to corresponding global-dependent layer classes.
         """
 
+    def _collect_matrices_per_name(
+            self,
+            model_tree: nn.Module,
+            average_matrices: dict,
+            path: str = "",
+            verbose: bool = False,
+            **kwargs
+    ) -> None:
+        """
+        Collects the matrices to average per layer name.
+
+        Args:
+            model_tree (nn.Module):
+                Model or module containing layers.
+            average_matrices (dict):
+                Dictionary containing the matrices to average per layer name.
+            path (str):
+                Path to the current layer.
+            verbose (bool):
+                Whether to print information about the conversion.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        for layer_name in model_tree._modules.keys():
+            child = model_tree._modules[layer_name]
+            if len(child._modules) == 0:
+                if (type(child) in self.conversions.keys() and
+                        layer_name in self.target_layers.keys()):
+                    target_name = layer_name if self.mapping_layer_name_key is None else self.mapping_layer_name_key[layer_name]
+                    if target_name not in average_matrices.keys():
+                        average_matrices[target_name] = [child]
+                    else:
+                        average_matrices[target_name].append(child)
+
+            else:
+                self._collect_matrices_per_name(
+                    child,
+                    average_matrices,
+                    path + (f"{layer_name}" if path == "" else f".{layer_name}"),
+                    verbose=verbose,
+                    **kwargs
+                )
+
+    def _compute_average_matrices(
+            self,
+            grouped_layers: dict,
+            verbose: bool = False,
+            **kwargs
+    ) -> dict:
+        """
+        Computes the average matrices for each given list of matrices, each one identified by a layer name.
+        The implementation is written for Linear and Embedding layers.
+
+        Args:
+            grouped_layers (dict):
+                Dictionary containing the matrices to average per layer name.
+            verbose (bool):
+                Whether to print information about the conversion.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Dictionary containing the average matrices per layer name.
+        """
+
+        # Regrouping the layers considering also their dimension
+        new_grouped_layers = {}
+        for layer_name in grouped_layers.keys():
+            if len(grouped_layers[layer_name]) > 1:
+                for layer in grouped_layers[layer_name]:
+                    shape = layer.weight.shape
+                    if f"{layer_name}_({shape[0]},{shape[1]})" not in new_grouped_layers.keys():
+                        new_grouped_layers[f"{layer_name}_({shape[0]},{shape[1]})"] = [layer.weight]
+                    else:
+                        new_grouped_layers[f"{layer_name}_({shape[0]},{shape[1]})"].append(layer.weight)
+
+        average_matrices = {}
+        for key in new_grouped_layers.keys():
+            if len(new_grouped_layers[key]) > 1:
+                average_matrix = torch.mean(
+                    torch.stack(
+                        new_grouped_layers[key]
+                    ),
+                    dim=0
+                )
+
+                average_matrices[key] = average_matrix
+
+        return average_matrices
+
     def _convert_into_global_dependent_model(
             self,
             model_tree: nn.Module,
             path: str = "",
+            average_matrices = {},
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -172,6 +288,8 @@ class GlobalDependentModel(ABC, nn.Module):
                 Model or module containing layers.
             path (str):
                 Path to the current layer.
+            average_matrices (dict):
+                Dictionary containing the average matrices per layer name.
             verbose (bool):
                 Whether to print information about the conversion.
             **kwargs:
@@ -187,6 +305,12 @@ class GlobalDependentModel(ABC, nn.Module):
                         print(f"Conversion of {layer_name} in {path}")
                     kwargs_layer = kwargs.copy()
                     kwargs_layer.update(self.target_layers[layer_name])
+                    average_matrix_key = f"{self.mapping_layer_name_key[layer_name]}_({child.weight.shape[0]},{child.weight.shape[1]})"
+                    kwargs_layer.update(
+                        {
+                            "average_matrix": None if average_matrix_key not in average_matrices.keys() else average_matrices[average_matrix_key]
+                        }
+                    )
 
                     model_tree._modules[layer_name] = self.conversions[type(child)](
                         child,
@@ -199,6 +323,7 @@ class GlobalDependentModel(ABC, nn.Module):
                 self._convert_into_global_dependent_model(
                     child,
                     path + (f"{layer_name}" if path == "" else f".{layer_name}"),
+                    average_matrices=average_matrices,
                     verbose=verbose,
                     **kwargs
                 )
@@ -612,6 +737,9 @@ class LocalSVDModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -628,6 +756,7 @@ class LocalSVDModel(GlobalDependentModel):
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             verbose: bool = False,
@@ -638,6 +767,7 @@ class LocalSVDModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            remove_average=remove_average,
             from_pretrained=from_pretrained,
             preserve_original_model=preserve_original_model,
             verbose=verbose,
@@ -688,6 +818,9 @@ class GlobalBaseModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -704,6 +837,7 @@ class GlobalBaseModel(GlobalDependentModel):
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             verbose: bool = False,
@@ -714,6 +848,7 @@ class GlobalBaseModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            remove_average=remove_average,
             from_pretrained=from_pretrained,
             preserve_original_model=preserve_original_model,
             verbose=verbose,
@@ -764,6 +899,9 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
             names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -780,6 +918,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             verbose: bool = False,
@@ -790,6 +929,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
+            remove_average=remove_average,
             from_pretrained=from_pretrained,
             preserve_original_model=preserve_original_model,
             verbose=verbose,
@@ -817,241 +957,3 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         }
 
         return conversions
-
-
-class GlobalAverageModel(GlobalDependentModel):
-    """
-    Model with GlobalBaseLinear layers replacing linear layers.
-
-    Args:
-        pretrained_model (PreTrainedModel):
-            Pretrained model.
-        target_layers (dict):
-            Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
-            rank of the decomposition for the layer.
-            >> Example:
-            >> {
-            >>     "layer_name_1": {"rank": 10},
-            >>     "layer_name_2": {"rank": 20},
-            >> }
-        use_names_as_keys (bool):
-            Whether to use the names of the layers in the keys of the global layers, having different global layers
-            for layers having different roles in the original model.
-        mapping_layer_name_key (dict):
-            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
-            names to have the same global layer.
-        from_pretrained (bool):
-            Whether the model is being loaded from a pretrained model.
-        preserve_original_model (bool):
-            Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
-        **kwargs:
-            Additional keyword arguments.
-    """
-
-    def __init__(
-            self,
-            pretrained_model=None,
-            target_layers: dict = None,
-            use_names_as_keys: bool = False,
-            mapping_layer_name_key: dict = None,
-            from_pretrained: bool = False,
-            preserve_original_model: bool = False,
-            verbose: bool = False,
-            **kwargs
-    ) -> None:
-        super(GlobalBaseModel, self).__init__(
-            pretrained_model,
-            target_layers,
-            use_names_as_keys=use_names_as_keys,
-            mapping_layer_name_key=mapping_layer_name_key,
-            from_pretrained=from_pretrained,
-            preserve_original_model=preserve_original_model,
-            verbose=verbose,
-            **kwargs
-        )
-
-    def __post_init__(
-            self,
-            kwargs: dict
-    ) -> None:
-        """
-        Post-initialization method.
-
-        Args:
-            kwargs (dict):
-                Additional keyword arguments.
-        """
-
-        self._initialize_average_layers(
-            self.model,
-            verbose=True,
-            **kwargs
-        )
-
-    def _initialize_average_layers(
-            self,
-            model_tree: nn.Module,
-            path: str = "",
-            verbose: bool = False,
-            **kwargs
-    ) -> None:
-        """
-        Initializes the global average layers.
-
-        Args:
-            model_tree (nn.Module):
-                Model or module containing layers.
-            path (str):
-                Path to the current layer.
-            verbose (bool):
-                Whether to print information about the initialization.
-            **kwargs:
-                Additional keyword arguments.
-        """
-
-        for layer_name in model_tree._modules.keys():
-            child = model_tree._modules[layer_name]
-            if len(child._modules) == 0:
-                if type(child) is GlobalDependentAverageMatrix:
-                    if verbose:
-                        print(f"Initialization of {layer_name} in {path}")
-                    child.post_initialize(**kwargs)
-
-            else:
-                self._initialize_average_layers(
-                    child,
-                    path + (f"{layer_name}" if path == "" else f".{layer_name}"),
-                    verbose=verbose,
-                    **kwargs
-                )
-
-    def define_conversion(
-            self,
-            **kwargs
-    ) -> dict:
-        """
-        Defines the conversion of layers into global-base layers.
-
-        Args:
-            **kwargs:
-                Additional keyword arguments.
-
-        Returns:
-            Dictionary mapping layer types to corresponding global-base layer classes.
-        """
-
-        conversions = {
-            nn.Linear: GlobalAverageLinear,
-            nn.Embedding: GlobalAverageEmbedding
-        }
-
-        return conversions
-
-
-def check_model_for_nan(model):
-    nan_in_params = False
-    nan_in_grads = False
-
-    for name, param in model.named_parameters():
-        if torch.isnan(param).any():
-            print(f'NaN found in parameter: {name}')
-            nan_in_params = True
-        if param.grad is not None and torch.isnan(param.grad).any():
-            print(f'NaN found in gradient: {name}')
-            nan_in_grads = True
-
-    if not nan_in_params:
-        print('No NaNs found in model parameters.')
-    if not nan_in_grads:
-        print('No NaNs found in model gradients.')
-
-    return nan_in_params or nan_in_grads
-
-
-if __name__ == "__main__":
-    # Load the original BERT model
-    #model_id = "google/gemma-2b"
-    model_id = "bert-base-uncased"
-    original_model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16)
-
-    a = original_model.bert.encoder.layer[0].attention.self.query.weight
-    print(a)
-    print(a.dtype)
-    #print(torch.pinverse(a))
-
-    for name, param in original_model.named_parameters():
-        print(name)
-
-    # Create the global model
-    global_model = GlobalBaseModel(
-        original_model,
-        target_layers={
-            "word_embeddings": {"rank": 128},
-            "query": {"rank": 64},
-            "key": {"rank": 64},
-            "value": {"rank": 64},
-            "dense": {"rank": 64},
-        },
-        use_names_as_keys=True,
-        preserve_original_model=True,
-        verbose=True
-    )
-
-    check_model_for_nan(global_model)
-
-    """
-    # Create the global model
-    global_model = GlobalBaseModel(
-        original_model,
-        target_layers={
-            "word_embeddings": {"rank": 128},
-            "query": {"rank": 64},
-            "key": {"rank": 64},
-            "value": {"rank": 64},
-            "dense": {"rank": 64},
-        },
-        use_names_as_keys=True,
-        #mapping_layer_name_key={
-        #    "query": "attention",
-        #    "value": "attention",
-        #},
-        rank=78,
-        preserve_original_model=True,
-        verbose=True
-    )
-    """
-
-    #global_model.save_pretrained("global_model")
-
-
-    print("Original model:")
-    print(original_model)
-    print("##################################################")
-    
-    print(original_model)
-    print("Global model:")
-    print(global_model)
-    
-    print("##################################################")
-    print("Number of parameters original model:", count_parameters(original_model))
-    print("Number of parameters global model:", count_parameters(global_model))
-    print("Percentage of parameters:", count_parameters(global_model) / count_parameters(original_model))
-    #print("Device of the model:", global_model.device)
-
-    """
-    # Input tensor
-    input_ids = torch.ones((1, 512)).long()  # Ensure input tensor is of type torch.LongTensor
-
-    # Output of original model
-    print("Output of original model:")
-    print(original_model(input_ids))
-    print("##################################################")
-
-    # Output of global model
-    print("Output of global model:")
-    print(global_model.forward(input_ids))
-    """
-
-    print()

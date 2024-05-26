@@ -328,6 +328,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     Attributes:
         target_name (str):
             Name of the target layer.
+        average_matrix (nn.Parameter):
+            Average matrix.
         global_dependent_layer (GlobalDependentLinear):
             Linear layer with dependencies on global matrices.
     """
@@ -345,6 +347,9 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         self.target_name = target_name
         structure = self.define_structure(**{"target_layer": target_layer}, **kwargs)
         structure = self.post_process_structure(structure)
+        self.average_matrix_layer = self._define_average_matrix_layer(
+            kwargs["average_matrix"]
+        )
 
         self.global_dependent_layer = self.define_global_dependent_layer(
             target_layer,
@@ -371,6 +376,27 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             dict:
                 Structure of the layer.
         """
+
+    def _define_average_matrix_layer(
+            self,
+            average_matrix: torch.Tensor,
+            **kwargs
+    ) -> nn.Module:
+        """
+        Defines the average matrix layer.
+
+        Args:
+            average_matrix (torch.Tensor):
+                Average matrix.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            nn.Module:
+                Average matrix layer.
+        """
+
+        return None
 
     @abstractmethod
     def define_global_dependent_layer(
@@ -467,10 +493,14 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Output tensor.
         """
 
-        return self.global_dependent_layer(
+        output = self.global_dependent_layer(
             x,
             **kwargs
         )
+        if self.average_matrix is not None:
+            return output + self.average_matrix_layer(x)
+        else:
+            return output
 
     @abstractmethod
     def initialize_matrices(

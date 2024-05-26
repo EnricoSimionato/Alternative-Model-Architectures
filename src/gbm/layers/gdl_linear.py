@@ -274,6 +274,37 @@ class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, A
                     Structure of the layer.
             """
 
+        def _define_average_matrix_layer(
+                self,
+                average_matrix: torch.Tensor,
+                **kwargs
+        ) -> nn.Module:
+            """
+            Defines the average matrix layer.
+
+            Args:
+                average_matrix (torch.Tensor):
+                    Average matrix.
+                **kwargs:
+                    Additional keyword arguments.
+
+            Returns:
+                nn.Module:
+                    Average matrix layer.
+            """
+
+            if average_matrix is not None:
+                layer = nn.Linear(
+                    average_matrix.size(0),
+                    average_matrix.size(1),
+                    bias=False
+                )
+                with torch.no_grad():
+                    layer.weight.data = average_matrix
+                return layer
+            else:
+                return None
+
         def define_global_dependent_layer(
                 self,
                 target_layer: nn.Module,
@@ -281,6 +312,10 @@ class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, A
                 structure: dict,
                 **kwargs
         ) -> GlobalDependent:
+            if self.average_matrix_layer is not None:
+                with torch.no_grad():
+                    target_layer.weight.data = target_layer.weight.data - self.average_matrix_layer.weight.data
+
             return GlobalDependentLinear(
                 target_layer.in_features,
                 target_layer.out_features,
@@ -531,11 +566,11 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         return (
             {"scope": "global",
              "shape": (target_layer.in_features, rank),
-             "key": str((target_layer.in_features, rank)),
+             "key": f"({target_layer.in_features},{rank})",
              "trainable": True},
             {"scope": "local",
              "shape": (rank, target_layer.out_features),
-             "key": str((rank, target_layer.out_features)),
+             "key": f"({rank},{target_layer.out_features})",
              "trainable": True}
         )
 
