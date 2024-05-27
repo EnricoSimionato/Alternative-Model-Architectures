@@ -44,8 +44,10 @@ class Experiment:
             The dataset to use.
         config (Config):
             The configuration containing the information about the experiment.
-        tokenizer (AutoTokenizer | PreTrainedTokenizer):
+        tokenizer (AutoTokenizer | PreTrainedTokenizer, optional):
             The tokenizer to use.
+        store_model_function (callable, optional):
+            The function to store the model.
         **kwargs:
             Additional keyword arguments.
 
@@ -64,6 +66,8 @@ class Experiment:
             The PyTorch Lightning model.
         lightning_trainer (pl.Trainer):
             The PyTorch Lightning trainer.
+        store_model_function (callable):
+            The function to store the model.
     """
 
     def __init__(
@@ -175,7 +179,9 @@ class Experiment:
                 learning_rate=self.config.get("learning_rate"),
                 max_epochs=self.config.get("num_epochs"),
 
-                warmup_steps=self.config.get("warmup_steps")
+                warmup_steps=self.config.get("warmup_steps"),
+
+                dtype = self.config.get("dtype"),
             )
 
         elif self.task == "question-answering":
@@ -189,7 +195,9 @@ class Experiment:
                 max_epochs=self.config.get("num_epochs"),
                 warmup_steps=self.config.get("warmup_steps"),
 
-                stop_tokens=self.config.get("stop_tokens")
+                stop_tokens=self.config.get("stop_tokens"),
+
+                dtype=self.config.get("dtype"),
             )
 
         else:

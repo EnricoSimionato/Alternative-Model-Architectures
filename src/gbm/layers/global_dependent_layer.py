@@ -348,7 +348,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         self.target_name = target_name
         structure = self._define_structure(**{"target_layer": target_layer}, **kwargs)
 
-        self.average_matrix_layer = None if kwargs["average_matrix"] is None else average_layers
+        average_matrix = None if "average_matrix" not in kwargs else kwargs["average_matrix"]
+        self.average_matrix_layer = None if average_matrix is None else average_layers
 
         self.global_dependent_layer = self._define_global_dependent_layer(
             target_layer,
@@ -358,7 +359,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         )
 
         self._define_average_matrix_layer(
-            kwargs["average_matrix"],
+            average_matrix,
         )
 
         self.initialize_matrices(**{"target_layer": target_layer}, **kwargs)

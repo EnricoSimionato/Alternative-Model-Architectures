@@ -650,7 +650,7 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         global_matrix = self.get_layer("global", global_key).weight.data.T
 
         with torch.no_grad():
-            global_matrix = global_matrix.to(torch.float)
+            global_matrix = global_matrix.to(torch.float32)
             pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
             pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
 
@@ -668,10 +668,12 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
         self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.AdamW(
             [
                 self.get_layer("local", local_key).weight
-            ]
+            ],
+            lr=1e-3,
+            eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
         )
 
         num_epochs = 100
@@ -774,11 +776,11 @@ if __name__ == "__main__":
         embedding_dim=768,
     )
 
-    #print(embedding.weight.shape)
-
     global_embedding = GlobalBaseEmbedding(
         target_layer=embedding,
         global_layers=nn.ModuleDict(),
+        average_layers=nn.ModuleDict(),
+        target_name="embedding",
         rank=100,
     )
 

@@ -33,6 +33,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             Maximum number of training epochs to perform. Defaults to 3.
         warmup_steps (int):
             Number of warmup steps. Defaults to 0.
+        dtype (str):
+            Data type to use. Defaults to "float32".
         **kwargs:
             Additional keyword arguments.
 
@@ -85,6 +87,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             Sum of the test loss in the current epoch.
         test_stat_scores (ClassificationStats):
             Statistics of the test data.
+        dtype (str):
+            Data type to use.
     """
 
     def __init__(
@@ -97,6 +101,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             learning_rate: float = 1e-5,
             max_epochs: int = 3,
             warmup_steps: int = 0,
+            dtype: str = "float32",
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -145,6 +150,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_test_epoch_loss = 0
         self.test_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
 
+        self.dtype = dtype
+
     def configure_optimizers(
             self,
             **kwargs
@@ -162,7 +169,8 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         optimizer = torch.optim.AdamW(
             self.parameters(),
-            lr=self.learning_rate
+            lr=self.learning_rate,
+            eps=1e-5 if self.dtype == "float16" else 1e-8
         )
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(

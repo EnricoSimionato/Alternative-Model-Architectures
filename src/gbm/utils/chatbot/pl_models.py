@@ -73,6 +73,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         max_epochs: int = 3,
         warmup_steps: int = 0,
         stop_tokens: list[str] = ("[INST]", "</s>"),
+        dtype: torch.dtype = torch.float32,
         **kwargs
     ) -> None:
         super().__init__()
@@ -115,6 +116,8 @@ class CausalLMModelWrapper(pl.LightningModule):
             "test": []
         }
 
+        self.dtype = dtype
+
     def configure_optimizers(
             self
     ) -> dict[str, torch.optim.Optimizer | str | Any]:
@@ -126,9 +129,10 @@ class CausalLMModelWrapper(pl.LightningModule):
                 Optimizer.
         """
 
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.AdamW(
             self.parameters(),
-            lr=self.learning_rate
+            lr=self.learning_rate,
+            eps=1e-7 if self.dtype == "float16" else 1e-8
         )
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(

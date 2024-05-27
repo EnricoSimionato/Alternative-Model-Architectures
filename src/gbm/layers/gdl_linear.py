@@ -615,7 +615,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         global_matrix = self.get_layer("global", global_key).weight.data
 
         with torch.no_grad():
-            global_matrix = global_matrix.to(torch.float)
+            global_matrix = global_matrix.to(torch.float32)
             pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
             pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
 
@@ -635,10 +635,12 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
         self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.AdamW(
             [
                 self.get_layer("local", local_key).weight
-            ]
+            ],
+            lr=1e-3,
+            eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
         )
 
         num_epochs = 100
@@ -1070,11 +1072,13 @@ if __name__ == "__main__":
     init_time = time.time()
 
     global_matrices_dict = nn.ModuleDict()
-    gbl = LocalSVDLinear(
+    average_matrices_dict = nn.ModuleDict()
+    gbl = GlobalBaseLinear(
         linear_layer,
         global_matrices_dict,
-        rank=rank,
-        target_name="query"
+        average_matrices_dict,
+        target_name="query",
+        rank=rank
     )
 
     print(f"Time taken: {(time.time() - init_time)}")
