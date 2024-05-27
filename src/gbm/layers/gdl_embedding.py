@@ -775,9 +775,10 @@ if __name__ == "__main__":
     embedding = nn.Embedding(
         num_embeddings=10000,
         embedding_dim=768,
+        dtype=torch.float16
     )
 
-    global_embedding = GlobalBaseEmbedding(
+    global_embedding = LocalSVDEmbedding(
         target_layer=embedding,
         global_layers=nn.ModuleDict(),
         average_layers=nn.ModuleDict(),

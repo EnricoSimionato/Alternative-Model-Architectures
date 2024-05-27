@@ -200,6 +200,8 @@ class Config:
                 "path_to_tokenizer": os.path.join(path_to_experiment, "tokenizer"),
                 "path_to_configuration": os.path.join(path_to_experiment, "configuration"),
                 "path_to_logs": os.path.join(path_to_experiment, "logs"),
+                "path_to_tensorboard_logs": os.path.join(path_to_experiment, "logs", "tensorboard_logs"),
+                "path_to_csv_logs": os.path.join(path_to_experiment, "logs", "csv_logs"),
                 "path_to_checkpoints": os.path.join(path_to_experiment, "checkpoints")
             }
             for _, path in paths.items():
