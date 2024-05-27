@@ -1,8 +1,9 @@
 import os
-
 import pickle
 
 import transformers
+
+import peft
 
 from gbm.utils.pipeline.config import Config
 
@@ -11,6 +12,7 @@ def store_model_and_info(
         model: transformers.AutoModel,
         config: Config,
         tokenizer: transformers.AutoTokenizer = None,
+        store_model_function: callable = None,
         verbose: bool = True
 ) -> None:
     """
@@ -44,7 +46,13 @@ def store_model_and_info(
     if tokenizer is not None:
         tokenizer.save_pretrained(config.get("path_to_tokenizer"))
     # Storing the model
-    model.save_pretrained(config.get("path_to_model"))
+    if store_model_function is not None:
+        store_model_function(
+            model,
+            config.get("path_to_model")
+        )
+    else:
+        model.save_pretrained(config.get("path_to_model"))
 
     if verbose:
         if tokenizer is not None:
@@ -60,81 +68,8 @@ def store_model_and_info(
     print("Stored model and info")
 
 
-def load_model_and_info(
-        model_name: str,
-        path: str = None,
-        print_info: bool = True,
-        verbose: bool = True
-):
-    """
-    Loads the model, tokenizer, hyperparameters and stats from the specified path.
-
-    Args:
-        model_name (str):
-            The base name to use to load the model and its information.
-        path (str, optional):
-            The path where the model, tokenizer, hyperparameters and stats are stored.
-            Defaults to None.
-        print_info (bool, optional):
-            Whether to print the hyperparameters and stats.
-            Defaults to True.
-        verbose (bool, optional):
-            Whether to print the paths where the model, tokenizer, hyperparameters and stats are loaded from.
-            Defaults to True.
-
-    Returns:
-        transformers.AutoModel:
-            The loaded model.
-        transformers.AutoTokenizer:
-            The loaded tokenizer.
-        dict:
-            The hyperparameters used in the training of the model.
-    """
-
-    if path is None:
-        path = os.getcwd()
-
-    if not os.path.exists(path):
-        raise Exception(f"Path '{path}' does not exist.")
-
-    # Check if the directories exist
-    if not os.path.exists(os.path.join(path, "models")):
-        raise Exception(f"Path '{os.path.join(path, 'models')}' does not exist.")
-    if not os.path.exists(os.path.join(path, "tokenizers")):
-        raise Exception(f"Path '{os.path.join(path, 'tokenizers')}' does not exist.")
-    if not os.path.exists(os.path.join(path, "stats")):
-        raise Exception(f"Path '{os.path.join(path, 'stats')}' does not exist.")
-    if not os.path.exists(os.path.join(path, "hyperparameters")):
-        raise Exception(f"Path '{os.path.join(path, 'hyperparameters')}' does not exist.")
-
-    # Defining the paths
-    path_to_tokenizer = os.path.join(path, "tokenizers", model_name)
-    path_to_model = os.path.join(path, "models", model_name)
-    path_to_configuration = os.path.join(path, "hyperparameters", model_name)
-
-    # Loading the tokenizer
-    tokenizer = transformers.AutoTokenizer.from_pretrained(path_to_tokenizer)
-    # Loading the model
-    model = transformers.AutoModel.from_pretrained(path_to_model)
-
-    if verbose:
-        print(f"Tokenizer loaded from: '{path_to_tokenizer}'")
-        print(f"Model loaded from: '{path_to_model}'")
-
-    with open(path_to_configuration, 'rb') as f:
-        config = pickle.load(f)
-
-    if verbose:
-        print(f"Hyperparameters loaded from: '{path_to_configuration}'")
-        print()
-
-    if print_info:
-        print("SETTING OF THE TRAINING - HYPERPARAMETERS:")
-        for key, value in config.items():
-            print(f"{key}: {value}")
-        print()
-
-    return model, tokenizer, config
+def load_model_and_info():
+    pass
 
 
 def test_store() -> None:

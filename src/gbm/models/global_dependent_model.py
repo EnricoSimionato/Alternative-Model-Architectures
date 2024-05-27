@@ -105,8 +105,9 @@ class GlobalDependentModel(ABC, nn.Module):
                 "original_model_trainable_parameters": count_parameters(self.model, only_trainable=True)
             }
             self.global_layers = nn.ModuleDict()
-            self.global_layers = nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
+
+            self.average_layers = nn.ModuleDict()
 
             average_matrices = {}
             if remove_average:
@@ -276,7 +277,7 @@ class GlobalDependentModel(ABC, nn.Module):
             self,
             model_tree: nn.Module,
             path: str = "",
-            average_matrices = {},
+            average_matrices: dict = {},
             verbose: bool = False,
             **kwargs
     ) -> None:
@@ -315,6 +316,7 @@ class GlobalDependentModel(ABC, nn.Module):
                     model_tree._modules[layer_name] = self.conversions[type(child)](
                         child,
                         self.global_layers,
+                        self.average_layers,
                         target_name=None if self.mapping_layer_name_key is None else self.mapping_layer_name_key[layer_name],
                         **kwargs_layer
                     )

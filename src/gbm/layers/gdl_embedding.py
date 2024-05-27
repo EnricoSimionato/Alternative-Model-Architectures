@@ -349,13 +349,15 @@ class StructureSpecificGlobalDependentEmbedding(StructureSpecificGlobalDependent
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
             target_name: str = None,
             *args,
             **kwargs
     ) -> None:
-        super(StructureSpecificGlobalDependentEmbedding, self).__init__(
+        super().__init__(
             target_layer,
             global_layers,
+            average_layers,
             target_name,
             *args,
             **kwargs
@@ -454,7 +456,7 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
             Dictionary containing the global matrices.
         rank (int):
             Rank of the factorization to use.
-        target_name (str, optional):
+        target_name (str):
             Name of the target layer. Defaults to None.
         *args:
             Variable length argument list.
@@ -472,8 +474,9 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
@@ -481,6 +484,7 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
         super().__init__(
             target_layer,
             global_layers,
+            average_layers,
             target_name,
             *args,
             **kwargs
@@ -562,7 +566,7 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
             Dictionary containing the global matrices.
         rank (int):
             Rank of the factorization to use.
-        target_name (str, optional):
+        target_name (str):
             Name of the target layer. Defaults to None.
         *args:
             Variable length argument list.
@@ -580,8 +584,9 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
@@ -589,6 +594,7 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         super().__init__(
             target_layer,
             global_layers,
+            average_layers,
             target_name,
             *args,
             **kwargs

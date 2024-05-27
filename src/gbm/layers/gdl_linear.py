@@ -219,175 +219,192 @@ class GlobalDependentLinear(GlobalDependent):
 
 
 class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, ABC):
+    """
+    Abstract class that implements a linear layer with dependencies on global matrices that wraps a Linear layer.
+
+    Args:
+        target_layer (nn.Module):
+            Target layer to be transformed in the factorized version.
+        global_layers (nn.ModuleDict):
+            Dictionary containing the global matrices.
+        target_name (str):
+            Name of the target layer.
+        *args:
+            Variable length argument list.
+        **kwargs:
+            Arbitrary keyword arguments.
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        global_dependent_layer (GlobalDependentLinear):
+            Linear layer with dependencies on global matrices.
+        average_matrices_layer (nn.ModuleDict):
+            Dictionary containing the average matrices.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str = None,
+            *args,
+            **kwargs
+    ) -> None:
+        super().__init__(
+            target_layer,
+            global_layers,
+            average_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
+
+    @abstractmethod
+    def define_structure(
+            self,
+            **kwargs
+    ) -> dict:
         """
-        Abstract class that implements a linear layer with dependencies on global matrices that wraps a Linear layer.
+        Defines the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+
+        Returns:
+            dict:
+                Structure of the layer.
+        """
+
+    def define_global_dependent_layer(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            structure: dict,
+            **kwargs
+    ) -> GlobalDependent:
+        """
+        Defines the global dependent layer.
 
         Args:
             target_layer (nn.Module):
                 Target layer to be transformed in the factorized version.
             global_layers (nn.ModuleDict):
                 Dictionary containing the global matrices.
-            target_name (str):
-                Name of the target layer.
-            *args:
-                Variable length argument list.
+            structure (dict):
+                Structure of the layer.
             **kwargs:
-                Arbitrary keyword arguments.
+                Additional keyword arguments.
 
-        Attributes:
-            target_name (str):
-                Name of the target layer.
-            global_dependent_layer (GlobalDependentLinear):
-                Linear layer with dependencies on global matrices.
+        Returns:
+            GlobalDependent:
+                Global Linear dependent layer.
         """
 
-        def __init__(
-                self,
-                target_layer: nn.Module,
-                global_layers: nn.ModuleDict,
-                target_name: str = None,
-                *args,
-                **kwargs
-        ) -> None:
-            super(StructureSpecificGlobalDependentLinear, self).__init__(
-                target_layer,
-                global_layers,
-                target_name,
-                *args,
-                **kwargs
-            )
+        return GlobalDependentLinear(
+            target_layer.in_features,
+            target_layer.out_features,
+            global_layers,
+            structure,
+            target_layer.bias is not None,
+            dtype=target_layer.weight.dtype
+        )
 
-        @abstractmethod
-        def define_structure(
-                self,
-                **kwargs
-        ) -> dict:
-            """
-            Defines the structure of the layer.
+    def define_average_matrix_layer(
+            self,
+            average_matrix: torch.Tensor,
+            **kwargs
+    ) -> nn.Module:
+        """
+        Defines a Linear layer that will be the one used as layer containing the average matrix of some grouped
+        layers.
 
-            Args:
-                **kwargs:
-                    Arbitrary keyword arguments.
+        Args:
+            average_matrix (torch.Tensor):
+                Average matrix.
+            **kwargs:
+                Additional keyword arguments.
 
-            Returns:
-                dict:
-                    Structure of the layer.
-            """
+        Returns:
+            nn.Module:
+                Linear layer containing the average matrix.
+        """
 
-        def _define_average_matrix_layer(
-                self,
-                average_matrix: torch.Tensor,
-                **kwargs
-        ) -> nn.Module:
-            """
-            Defines the average matrix layer.
+        layer = nn.Linear(
+            average_matrix.size(0),
+            average_matrix.size(1),
+            bias=False
+        )
+        with torch.no_grad():
+            layer.weight.data = average_matrix
 
-            Args:
-                average_matrix (torch.Tensor):
-                    Average matrix.
-                **kwargs:
-                    Additional keyword arguments.
+        return layer
 
-            Returns:
-                nn.Module:
-                    Average matrix layer.
-            """
+    @property
+    def weight(
+            self
+    ) -> nn.Parameter:
+        """
+        Returns the weight parameter of the layer.
 
-            if average_matrix is not None:
-                layer = nn.Linear(
-                    average_matrix.size(0),
-                    average_matrix.size(1),
-                    bias=False
-                )
-                with torch.no_grad():
-                    layer.weight.data = average_matrix
-                return layer
-            else:
-                return None
+        Returns:
+            Tensor:
+                Weight parameter.
+        """
 
-        def define_global_dependent_layer(
-                self,
-                target_layer: nn.Module,
-                global_layers: nn.ModuleDict,
-                structure: dict,
-                **kwargs
-        ) -> GlobalDependent:
-            if self.average_matrix_layer is not None:
-                with torch.no_grad():
-                    target_layer.weight.data = target_layer.weight.data - self.average_matrix_layer.weight.data
+        return self.global_dependent_layer.weight
 
-            return GlobalDependentLinear(
-                target_layer.in_features,
-                target_layer.out_features,
-                global_layers,
-                structure,
-                target_layer.bias is not None,
-                dtype=target_layer.weight.dtype
-            )
+    @weight.setter
+    def weight(
+            self,
+            value: torch.Tensor
+    ) -> None:
+        """
+        SetS the weight parameter of the linear layer.
 
-        @property
-        def weight(
-                self
-        ) -> nn.Parameter:
-            """
-            Returns the weight parameter of the layer.
+        For now, and probably forever, it is not implemented.
 
-            Returns:
-                Tensor:
-                    Weight parameter.
-            """
+        Args:
+            value (torch.Tensor):
+                Weight parameter value.
 
-            return self.global_dependent_layer.weight
+        Raise:
+            Exception:
+                If the weight is tried to be set.
+        """
 
-        @weight.setter
-        def weight(
-                self,
-                value: torch.Tensor
-        ) -> None:
-            """
-            SetS the weight parameter of the linear layer.
+        self.global_dependent_layer.weight = value
 
-            For now, and probably forever, it is not implemented.
+    @property
+    def bias(
+            self
+    ) -> nn.Parameter:
+        """
+        Returns the bias parameter of the linear layer.
 
-            Args:
-                value (torch.Tensor):
-                    Weight parameter value.
+        Returns:
+            Tensor:
+                Bias parameter.
+        """
 
-            Raise:
-                Exception:
-                    If the weight is tried to be set.
-            """
+        return self.global_dependent_layer.bias
 
-            self.global_dependent_layer.weight = value
+    @bias.setter
+    def bias(
+            self,
+            value: torch.Tensor
+    ) -> None:
+        """
+        Property method to set the bias parameter of the linear layer.
 
-        @property
-        def bias(
-                self
-        ) -> nn.Parameter:
-            """
-            Returns the bias parameter of the linear layer.
+        Args:
+            value (torch.Tensor):
+                Bias parameter value.
+        """
 
-            Returns:
-                Tensor:
-                    Bias parameter.
-            """
-
-            return self.global_dependent_layer.bias
-
-        @bias.setter
-        def bias(
-                self,
-                value: torch.Tensor
-        ) -> None:
-            """
-            Property method to set the bias parameter of the linear layer.
-
-            Args:
-                value (torch.Tensor):
-                    Bias parameter value.
-            """
-
-            self.global_dependent_layer.bias = value
+        self.global_dependent_layer.bias = value
 
 
 class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
@@ -424,8 +441,9 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
@@ -433,6 +451,7 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
         super().__init__(
             target_layer,
             global_layers,
+            average_layers,
             target_name,
             *args,
             **kwargs
@@ -534,8 +553,9 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
@@ -543,6 +563,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         super().__init__(
             target_layer,
             global_layers,
+            average_layers,
             target_name,
             *args,
             **kwargs
@@ -668,12 +689,21 @@ class GlobalFixedBaseLinear(GlobalBaseLinear):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
-        super().__init__(target_layer, global_layers, rank, target_name, *args, **kwargs)
+        kwargs["rank"] = rank
+        super().__init__(
+            target_layer,
+            global_layers,
+            average_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
 
     def define_structure(
             self,
@@ -712,8 +742,9 @@ class GlobalBaseSparseLinear(GlobalBaseLinear):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             sparsity: float,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
@@ -722,8 +753,9 @@ class GlobalBaseSparseLinear(GlobalBaseLinear):
         super().__init__(
             target_layer,
             global_layers,
-            min(target_layer.in_features, target_layer.out_features),
+            average_layers,
             target_name,
+            min(target_layer.in_features, target_layer.out_features),
             *args,
             **kwargs
         )
@@ -922,7 +954,8 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
-            target_name: str = None,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             *args,
             **kwargs
     ) -> None:
@@ -940,7 +973,14 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
                 Arbitrary keyword arguments.
         """
 
-        super().__init__(target_layer, global_layers, target_name, *args, **kwargs)
+        super().__init__(
+            target_layer,
+            global_layers,
+            average_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
 
     def define_structure(
             self,

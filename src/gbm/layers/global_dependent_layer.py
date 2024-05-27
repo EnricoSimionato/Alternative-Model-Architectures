@@ -328,37 +328,65 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     Attributes:
         target_name (str):
             Name of the target layer.
-        average_matrix (nn.Parameter):
-            Average matrix.
         global_dependent_layer (GlobalDependentLinear):
             Linear layer with dependencies on global matrices.
+        average_matrices_layer (nn.ModuleDict):
+            Layer that applies the average matrix to the input.
     """
 
     def __init__(
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
             target_name: str = None,
             *args,
             **kwargs
     ) -> None:
-        super(StructureSpecificGlobalDependent, self).__init__()
+        super().__init__()
 
         self.target_name = target_name
-        structure = self.define_structure(**{"target_layer": target_layer}, **kwargs)
-        structure = self.post_process_structure(structure)
-        self.average_matrix_layer = self._define_average_matrix_layer(
-            kwargs["average_matrix"]
-        )
+        structure = self._define_structure(**{"target_layer": target_layer}, **kwargs)
 
-        self.global_dependent_layer = self.define_global_dependent_layer(
+        self.average_matrix_layer = None if kwargs["average_matrix"] is None else average_layers
+
+        self.global_dependent_layer = self._define_global_dependent_layer(
             target_layer,
             global_layers,
             structure,
             **kwargs
         )
 
+        self._define_average_matrix_layer(
+            kwargs["average_matrix"],
+        )
+
         self.initialize_matrices(**{"target_layer": target_layer}, **kwargs)
+
+    def _define_structure(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Defines the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+
+        Returns:
+            dict:
+                Structure of the layer.
+        """
+
+        structure = self.define_structure(**kwargs)
+
+        # Post-processing of the structure
+        if self.target_name is not None:
+            for idx, _ in enumerate(structure):
+                structure[idx]["key"] = f"{self.target_name}_{structure[idx]['key']}"
+
+        return structure
 
     @abstractmethod
     def define_structure(
@@ -377,26 +405,42 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Structure of the layer.
         """
 
-    def _define_average_matrix_layer(
+    def _define_global_dependent_layer(
             self,
-            average_matrix: torch.Tensor,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            structure: dict,
+            average_matrix: torch.Tensor = None,
             **kwargs
-    ) -> nn.Module:
+    ) -> GlobalDependent:
         """
-        Defines the average matrix layer.
+        Defines the global dependent layer.
 
         Args:
-            average_matrix (torch.Tensor):
-                Average matrix.
+            target_layer (nn.Module):
+                Target layer to be transformed in the factorized version.
+            global_layers (nn.ModuleDict):
+                Dictionary containing the global matrices.
+            structure (dict):
+                Structure of the layer.
             **kwargs:
                 Additional keyword arguments.
 
         Returns:
-            nn.Module:
-                Average matrix layer.
+            GlobalDependent:
+                Global dependent layer.
         """
 
-        return None
+        if average_matrix is not None:
+            with torch.no_grad():
+                target_layer.weight.data = target_layer.weight.data - average_matrix.data
+
+        return self.define_global_dependent_layer(
+            target_layer,
+            global_layers,
+            structure,
+            **kwargs
+        )
 
     @abstractmethod
     def define_global_dependent_layer(
@@ -424,55 +468,55 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Global dependent layer.
         """
 
-    def post_process_structure(
+    def _define_average_matrix_layer(
             self,
-            structure,
+            average_matrix: torch.Tensor,
             **kwargs
-    ) -> dict:
+    ) -> None:
         """
-        Post-processes the structure of the layer.
+        Defines the average matrix layer that is the layer that applies the average matrix to the input following the
+        specific strategy of the class of the layer.
 
         Args:
-            structure:
-                Structure of the layer.
+            average_matrix (torch.Tensor):
+                Average matrix.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if self.average_matrix_layer is not None:
+            if self.get_average_matrix_key() not in self.average_matrix_layer.keys():
+                average_matrix_layer = self.define_average_matrix_layer(
+                        average_matrix,
+                        **kwargs
+                )
+
+                for param in average_matrix_layer.parameters():
+                    param.requires_grad = False
+
+                self.average_matrix_layer[self.get_average_matrix_key()] = average_matrix_layer
+
+    def define_average_matrix_layer(
+            self,
+            average_matrix: torch.Tensor,
+            **kwargs
+    ) -> nn.Module:
+        """
+        Defines the average matrix layer that is the layer that applies the average matrix to the input following the
+        specific strategy of the class of the layer.
+
+        Args:
+            average_matrix (torch.Tensor):
+                Average matrix.
             **kwargs:
                 Additional keyword arguments.
 
         Returns:
-            dict:
-                Post-processed structure of the layer.
+            nn.Module:
+                Average matrix layer.
         """
 
-        if self.target_name is not None:
-            for idx, _ in enumerate(structure):
-                structure[idx]["key"] = f"{self.target_name}_{structure[idx]['key']}"
-
-        return structure
-
-    def get_post_processed_key(
-            self,
-            key,
-            **kwargs
-    ) -> str:
-        """
-        Returns the post-processed key of the layer, given the key without post-processing (or with post-processing).
-
-        Args:
-            key (str):
-                Key of the layer without post-processing.
-            **kwargs:
-                Additional keyword arguments.
-
-        Returns:
-            str:
-                Post-processed key of the layer.
-        """
-
-        post_processed_key = key
-        if self.target_name is not None and not key.startswith(self.target_name):
-            post_processed_key = f"{self.target_name}_{key}"
-
-        return post_processed_key
+        return None
 
     def forward(
             self,
@@ -497,8 +541,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             x,
             **kwargs
         )
-        if self.average_matrix is not None:
-            return output + self.average_matrix_layer(x)
+        if self.average_matrix_layer is not None:
+            return output + self.get_average_matrix().forward(x)
         else:
             return output
 
@@ -537,6 +581,31 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         """
 
         return self.global_dependent_layer.merge()
+
+    def get_post_processed_key(
+            self,
+            key,
+            **kwargs
+    ) -> str:
+        """
+        Returns the post-processed key of the layer, given the key without post-processing (or with post-processing).
+
+        Args:
+            key (str):
+                Key of the layer without post-processing.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            str:
+                Post-processed key of the layer.
+        """
+
+        post_processed_key = key
+        if self.target_name is not None and not key.startswith(self.target_name):
+            post_processed_key = f"{self.target_name}_{key}"
+
+        return post_processed_key
 
     def get_layer(
             self,
@@ -593,6 +662,42 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             self.global_dependent_layer.local_layers[self.get_post_processed_key(key)] = new_layer
         else:
             raise Exception("The scope of the layer has to be 'global' or 'local'.")
+
+    def get_average_matrix_key(
+            self,
+            **kwargs
+    ) -> str:
+        """
+        Returns the key of the average matrix.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            str:
+                Key of the average matrix.
+        """
+
+        return f"{self.target_name}_({self.global_dependent_layer.shape[0]},{self.global_dependent_layer.shape[1]})"
+
+    def get_average_matrix(
+            self,
+            **kwargs
+    ) -> nn.Module:
+        """
+        Returns the average matrix layer.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Average matrix layer.
+        """
+
+        return self.average_matrix_layer[self.get_average_matrix_key()]
 
     @property
     def structure(

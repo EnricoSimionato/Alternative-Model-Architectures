@@ -73,6 +73,7 @@ class Experiment:
             dataset: LightningDataModule,
             config: Config,
             tokenizer: AutoTokenizer | PreTrainedTokenizer = None,
+            store_model_function: callable = None,
             **kwargs
     ) -> None:
         self.task = task
@@ -83,6 +84,8 @@ class Experiment:
 
         self.lightning_model = None
         self.lightning_trainer = None
+
+        self.store_model_function = store_model_function
 
     def start_experiment(
             self,
@@ -127,8 +130,8 @@ class Experiment:
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
-        validate_results = self._validate(**kwargs)
-        print(f"Validate results before training: {validate_results}")
+        #validate_results = self._validate(**kwargs)
+        #print(f"Validate results before training: {validate_results}")
 
         fit_results = self._fit(**kwargs)
         print(f"Fit results: {fit_results}")
@@ -302,5 +305,6 @@ class Experiment:
         store_model_and_info(
             self.lightning_model.model,
             self.config,
-            tokenizer=self.tokenizer
+            tokenizer=self.tokenizer,
+            store_function=self.store_function
         )
