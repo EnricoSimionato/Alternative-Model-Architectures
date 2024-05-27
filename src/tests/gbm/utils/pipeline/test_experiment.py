@@ -94,6 +94,7 @@ def test_experiment_with_classifier():
         config=configuration,
         tokenizer=tokenizer
     )
+    experiment.display_tensorboard_logs()
 
     experiment.run_experiment()
 

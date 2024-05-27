@@ -3,8 +3,6 @@ import pickle
 
 import transformers
 
-import peft
-
 from gbm.utils.pipeline.config import Config
 
 
@@ -24,7 +22,9 @@ def store_model_and_info(
         config (dict):
             The configuration parameters to be stored.
         tokenizer (transformers.AutoTokenizer, optional):
-            The tokenizer to be stored.
+            The tokenizer to be stored. Defaults to None.
+        store_model_function (callable, optional):
+            The function to store the model. Defaults to None.
         verbose (bool, optional):
             Whether to print the paths where the model, tokenizer, hyperparameters and stats are stored.
             Defaults to True.
@@ -70,43 +70,3 @@ def store_model_and_info(
 
 def load_model_and_info():
     pass
-
-
-def test_store() -> None:
-    model = transformers.AutoModel.from_pretrained("bert-base-uncased")
-    tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
-    hyperparameters = {
-        "batch_size": 16,
-        "learning_rate": 1e-5
-    }
-
-    losses = {
-        "train": [0.5, 0.4, 0.3],
-        "validation": [0.6, 0.5, 0.4],
-        "test": [0.7, 0.6, 0.5]
-    }
-
-    _ = store_model_and_info("bert", model, tokenizer, hyperparameters, losses, verbose=False)
-
-
-def test_load() -> None:
-    model = transformers.AutoModel.from_pretrained("bert-base-uncased")
-    tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
-    hyperparameters = {
-        "batch_size": 16,
-        "learning_rate": 1e-5
-    }
-
-    losses = {
-        "train": [0.5, 0.4, 0.3],
-        "validation": [0.6, 0.5, 0.4],
-        "test": [0.7, 0.6, 0.5]
-    }
-
-    model_name = store_model_and_info("bert", model, tokenizer, hyperparameters, losses, verbose=False)
-
-    load_model_and_info(model_name, print_info=True, verbose=True)
-
-
-if __name__ == "__main__":
-    test_load()
