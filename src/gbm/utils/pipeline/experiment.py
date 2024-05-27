@@ -181,7 +181,7 @@ class Experiment:
 
                 warmup_steps=self.config.get("warmup_steps"),
 
-                dtype = self.config.get("dtype"),
+                dtype=self.config.get("dtype"),
             )
 
         elif self.task == "question-answering":

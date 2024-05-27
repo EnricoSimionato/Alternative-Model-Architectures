@@ -116,7 +116,7 @@ class CausalLMModelWrapper(pl.LightningModule):
             "test": []
         }
 
-        self.dtype = dtype
+        self.model_dtype = dtype
 
     def configure_optimizers(
             self
@@ -132,7 +132,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         optimizer = torch.optim.AdamW(
             self.parameters(),
             lr=self.learning_rate,
-            eps=1e-7 if self.dtype == "float16" else 1e-8
+            eps=1e-7 if self.model_dtype == "float16" else 1e-8
         )
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(

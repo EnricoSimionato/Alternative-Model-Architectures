@@ -9,7 +9,7 @@ from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
 
 def test_experiment_with_chatbot():
     configuration = Config(
-        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_LOCAL_BERT.json"
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_CHAT.json"
     )
     original_model = load_original_model_for_causal_lm(configuration)
     tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
