@@ -534,17 +534,18 @@ class LocalSVDEmbedding(StructureSpecificGlobalDependentEmbedding):
         """
 
         target_layer = kwargs["target_layer"]
+        dtype = target_layer.weight.data.numpy().dtype
         rank = kwargs["rank"]
 
-        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy())
+        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy().astype(np.float32))
         min_dim = min(target_layer.num_embeddings, target_layer.embedding_dim)
 
         with torch.no_grad():
             self.get_layer("local", "US").weight.data = torch.tensor(
-                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
+                U[:, :min(min_dim, rank)].astype(dtype) @ np.diag(S[:min(min_dim, rank)]).astype(dtype)
             )
             self.get_layer("local", "VT").weight.data = torch.tensor(
-                VT[:min(min_dim, rank), :]
+                VT[:min(min_dim, rank), :].astype(dtype)
             ).T
 
             for layer in self.structure:

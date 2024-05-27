@@ -186,10 +186,11 @@ class Config:
         if self.begin_time is None:
             self.begin_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
+            dir_name = "_".join([self.__dict__[key].replace("\\", "_") for key in self.keys_for_naming])
             path_to_experiment = os.path.join(
                 self.get("path_to_storage"),
-                "_".join([self.__dict__[key] for key in self.keys_for_naming]) +
-                ("_" if len("_".join([self.__dict__[key] for key in self.keys_for_naming])) > 0 else "") +
+                dir_name +
+                ("_" if len(dir_name) > 0 else "") +
                 self.begin_time
             )
             os.makedirs(path_to_experiment, exist_ok=True)
