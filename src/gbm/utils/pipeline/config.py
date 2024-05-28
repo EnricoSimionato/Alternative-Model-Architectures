@@ -294,7 +294,3 @@ class Config:
         for key in self.__dict__.keys():
             config_string += f"{key}: {self.__dict__[key]}\n"
         return config_string
-
-config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_GEMMA_CHAT.json")
-print(config)
-config.show_config()
