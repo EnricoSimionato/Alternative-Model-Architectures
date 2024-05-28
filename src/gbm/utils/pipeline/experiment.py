@@ -9,7 +9,7 @@ from pytorch_lightning import LightningDataModule
 
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from gbm.utils.storage_utils import store_model_and_info
+from gbm.utils.storage_utils import store_model_and_info, load_model_and_info
 from gbm.utils.pipeline.config import Config, ExperimentStatus
 
 from gbm.utils.classification import ClassifierModelWrapper
@@ -92,6 +92,8 @@ class Experiment:
         self.lightning_trainer = None
 
         self.store_model_function = store_model_function
+
+        config.set("task", task)
 
     def start_experiment(
             self,
@@ -313,8 +315,99 @@ class Experiment:
         """
 
         store_model_and_info(
-            self.lightning_model.model,
+            self.model,
             self.config,
             tokenizer=self.tokenizer,
-            store_function=self.store_function
+            store_model_function=self.store_model_function
         )
+
+    def store_experiment(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Stores the model and the configuration.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+        """
+
+        self._store_experiment()
+
+    @classmethod
+    def load_experiment(
+            cls,
+            path_to_experiment: str,
+            load_model_function: callable = None,
+            **kwargs
+    ) -> Experiment:
+        """
+        Loads the model and the configuration.
+
+        Args:
+            path_to_experiment (str):
+                The path to the experiment.
+            load_model_function (callable, optional):
+                The function to load the model. Defaults to None.
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Experiment:
+                The loaded experiment.
+        """
+
+        model, config, tokenizer = load_model_and_info(
+            path_to_experiment,
+            load_model_function=load_model_function
+        )
+
+        experiment = cls(
+            task=config.get("task"),
+            model=model,
+            dataset=None,
+            config=config,
+            tokenizer=tokenizer
+        )
+
+        return experiment
+
+    def get_model(
+            self
+    ) -> nn.Module:
+        """
+        Returns the model.
+
+        Returns:
+            nn.Module:
+                The model.
+        """
+
+        return self.model
+
+    def get_config(
+            self
+    ) -> Config:
+        """
+        Returns the configuration.
+
+        Returns:
+            Config:
+                The configuration.
+        """
+
+        return self.config
+
+    def get_tokenizer(
+            self
+    ) -> AutoTokenizer | PreTrainedTokenizer:
+        """
+        Returns the tokenizer.
+
+        Returns:
+            AutoTokenizer | PreTrainedTokenizer:
+                The tokenizer.
+        """
+
+        return self.tokenizer

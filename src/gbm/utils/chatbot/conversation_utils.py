@@ -201,7 +201,7 @@ def start_conversation_loop(
         # Generating model response
         encoded_dialogue = encoded_dialogue.to(model.device)
         output_ids = model.generate(encoded_dialogue,
-                                    max_new_tokens=32,
+                                    max_new_tokens=64,
                                     do_sample=True,
                                     top_p=0.9,
                                     top_k=0,
