@@ -129,6 +129,8 @@ class Config:
             "path_to_tokenizer": self.get("path_to_tokenizer"),
             "path_to_configuration": self.get("path_to_configuration"),
             "path_to_logs": self.get("path_to_logs"),
+            "path_to_tensorboard_logs": self.get("path_to_tensorboard_logs"),
+            "path_to_csv_logs": self.get("path_to_csv_logs"),
             "path_to_checkpoints": self.get("path_to_checkpoints"),
             "path_to_experiment": self.get("path_to_experiment")
         }
