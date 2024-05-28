@@ -15,12 +15,12 @@ tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
 
 def test_experiment_with_chatbot():
     configuration = Config(
-        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_GEMMA_CHAT.json"
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_CHAT.json"
     )
     original_model = load_original_model_for_causal_lm(configuration)
     tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
-    #tokenizer.bos_token = "[CLS]"
-    #tokenizer.eos_token = "[SEP]"
+    tokenizer.bos_token = "[CLS]"
+    tokenizer.eos_token = "[SEP]"
     tokenizer.padding_side = "right"
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.chat_template = AutoTokenizer.from_pretrained(
@@ -136,8 +136,5 @@ def test_storage_utilities_of_experiment():
 
 
 if __name__ == "__main__":
-    sentence = "I want"
-    print(sentence)
-    print(tokenizer.decode(original_model.generate(tokenizer.encode(sentence, return_tensors="pt")).tolist()[0], skip_special_tokens=True))
 
-    test_storage_utilities_of_experiment()
+    test_experiment_with_chatbot()

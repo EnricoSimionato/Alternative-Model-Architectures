@@ -69,8 +69,8 @@ class CausalLMModelWrapper(pl.LightningModule):
         self,
         model: transformers.AutoModelForCausalLM,
         tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
-        learning_rate: float = 1e-5,
-        max_epochs: int = 3,
+        learning_rate: float,
+        max_steps: int,
         warmup_steps: int = 0,
         stop_tokens: list[str] = ("[INST]", "</s>"),
         dtype: torch.dtype = torch.float32,
@@ -83,7 +83,7 @@ class CausalLMModelWrapper(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.warmup_steps = warmup_steps
-        self.max_epochs = max_epochs
+        self.max_steps = max_steps
 
         self.stop_tokens = stop_tokens
 
@@ -95,20 +95,6 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.validation_step_losses_count = 0
         self.test_step_losses_sum = 0
         self.test_step_losses_count = 0
-
-        self.log(
-            "validation_loss",
-            torch.inf,
-            on_step=True,
-            prog_bar=True
-        )
-
-        self.log(
-            "training_loss",
-            torch.inf,
-            on_step=True,
-            prog_bar=True
-        )
 
         self.loss_history = {
             "train": [],
@@ -137,8 +123,12 @@ class CausalLMModelWrapper(pl.LightningModule):
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
             optimizer,
-            num_warmup_steps=self.warmup_steps,
-            num_training_steps=self.max_epochs,
+            num_warmup_steps=(
+                self.warmup_steps
+                if isinstance(self.warmup_steps, int)
+                else self.warmup_steps*self.max_steps
+            ),
+            num_training_steps=self.max_steps,
             num_cycles=0.5
         )
 
@@ -198,6 +188,14 @@ class CausalLMModelWrapper(pl.LightningModule):
         loss = outputs.loss
 
         self.log(
+            "loss",
+            loss,
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True
+        )
+
+        self.log(
             "training_loss",
             loss,
             on_step=False,
@@ -241,7 +239,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.log(
             "validation_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True
         )
@@ -432,8 +430,8 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             self,
             model: transformers.AutoModelForCausalLM,
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
-            learning_rate: float = 1e-5,
-            max_epochs: int = 3,
+            learning_rate: float,
+            max_steps: int,
             warmup_steps: int = 0,
             **kwargs
     ) -> None:
@@ -441,7 +439,7 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             model,
             tokenizer,
             learning_rate,
-            max_epochs,
+            max_steps,
             warmup_steps,
             **kwargs
         )

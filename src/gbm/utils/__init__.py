@@ -25,4 +25,4 @@ from gbm.utils.models_utils import check_model_for_nan
 
 from gbm.utils.parameters_count import count_parameters
 
-from gbm.utils.storage_utils import store_model_and_info, load_model_and_info
+from gbm.utils.storage_utils import store_model_and_info, load_model_and_info, load_peft_model_function

@@ -136,6 +136,8 @@ class Experiment:
 
         self.start_experiment(**kwargs)
 
+        self.dataset.setup()
+
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
         validate_results = self._validate(**kwargs)
@@ -196,7 +198,7 @@ class Experiment:
                 tokenizer=self.tokenizer,
 
                 learning_rate=self.config.get("learning_rate"),
-                max_epochs=self.config.get("num_epochs"),
+                max_steps=self.config.get("num_epochs")*len(self.dataset.train_dataloader()),
                 warmup_steps=self.config.get("warmup_steps"),
 
                 stop_tokens=self.config.get("stop_tokens"),

@@ -31,12 +31,13 @@ def get_causal_lm_trainer(
         pl.callbacks.EarlyStopping(
             monitor="validation_loss",
             min_delta=0.001,
-            patience=5
+            patience=3,
+            verbose=True
         ),
         # Defining checkpointing callback
         pl.callbacks.ModelCheckpoint(
             dirpath=config.get("path_to_checkpoints"),
-            filename="{epoch}-{training_loss:.2f}-{validation_loss:.2f}",
+            filename="{epoch}-{validation_loss:.2f}",
             monitor="validation_loss"
         ),
         # Defining learning rate monitor callback
