@@ -246,3 +246,31 @@ class Config:
             return ExperimentStatus.RUNNING
         else:
             return ExperimentStatus.COMPLETED
+
+    def show_config(
+            self
+    ) -> None:
+        import pandas as pd
+        config_df = pd.DataFrame(list(self.__dict__.items()), columns=['Attribute', 'Value'])
+
+        return config_df
+
+    def __str__(
+            self
+    ) -> str:
+        """
+        Returns the string representation of the configuration.
+
+        Returns:
+            str:
+                The string representation of the configuration.
+        """
+
+        config_string = ""
+        for key in self.__dict__.keys():
+            config_string += f"{key}: {self.__dict__[key]}\n"
+        return config_string
+
+config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_GEMMA_CHAT.json")
+print(config)
+config.show_config()
