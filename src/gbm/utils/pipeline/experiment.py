@@ -201,7 +201,7 @@ class Experiment:
 
                 stop_tokens=self.config.get("stop_tokens"),
 
-                dtype=self.config.get("dtype"),
+                dtype=(self.config.get("dtype") if "dtype" in self.config.keys() else "float32"),
             )
 
         else:
