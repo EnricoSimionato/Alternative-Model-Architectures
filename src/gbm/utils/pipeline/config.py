@@ -5,6 +5,8 @@ from typing import Any
 
 from enum import Enum
 
+import transformers
+
 
 class ExperimentStatus(Enum):
     NOT_STARTED = "Not started"
@@ -123,17 +125,39 @@ class Config:
                 A dictionary containing the paths of the experiment.
         """
 
-        return {
-            "path_to_storage": self.get("path_to_storage"),
-            "path_to_model": self.get("path_to_model"),
-            "path_to_tokenizer": self.get("path_to_tokenizer"),
-            "path_to_configuration": self.get("path_to_configuration"),
-            "path_to_logs": self.get("path_to_logs"),
-            "path_to_tensorboard_logs": self.get("path_to_tensorboard_logs"),
-            "path_to_csv_logs": self.get("path_to_csv_logs"),
-            "path_to_checkpoints": self.get("path_to_checkpoints"),
-            "path_to_experiment": self.get("path_to_experiment")
-        }
+        paths = {}
+
+        for key in self.__dict__.keys():
+            if "path" in key:
+                paths[key] = self.__dict__[key]
+
+        return paths
+
+    def get_original_model(
+            self
+    ) -> transformers.PreTrainedModel:
+        """
+        Returns the original model.
+
+        Returns:
+            transformers.PreTrainedModel:
+                The original model.
+        """
+
+        if self.contains("task"):
+            if self.get("task") == "chatbot":
+                original_model = transformers.AutoModelForCausalLM.from_pretrained(self.get("path_to_model"))
+            elif self.get("task") == "classification":
+                original_model = transformers.AutoModelForSequenceClassification.from_pretrained(self.get("path_to_model"))
+            else:
+                original_model = transformers.AutoModel.from_pretrained(self.get("path_to_model"))
+                print("Configuration does not contain a know task, loading the model as a generic model.")
+                print(f"The given task is {config.get('task')}")
+        else:
+            original_model = transformers.AutoModel.from_pretrained(self.get("path_to_model"))
+            print("Configuration does not contain the task, loading the model as a generic model.")
+
+        return original_model
 
     def set(
             self,
@@ -188,7 +212,7 @@ class Config:
         if self.begin_time is None:
             self.begin_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
-            dir_name = "_".join([self.__dict__[key].replace("\\", "_") for key in self.keys_for_naming])
+            dir_name = "_".join([self.__dict__[key].replace("/", "_") for key in self.keys_for_naming])
             path_to_experiment = os.path.join(
                 self.get("path_to_storage"),
                 dir_name +

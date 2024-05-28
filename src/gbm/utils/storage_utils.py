@@ -3,6 +3,9 @@ import pickle
 
 import transformers
 
+import peft
+from peft import PeftModel
+
 from gbm.utils.pipeline.config import Config
 
 
@@ -49,7 +52,8 @@ def store_model_and_info(
     if store_model_function is not None:
         store_model_function(
             model,
-            config.get("path_to_model")
+            config.get("path_to_model"),
+            config
         )
     else:
         model.save_pretrained(config.get("path_to_model"))
@@ -109,7 +113,8 @@ def load_model_and_info(
     # Loading the model
     if load_model_function is not None:
         model = load_model_function(
-            config.get("path_to_model")
+            config.get("path_to_model"),
+            config
         )
     else:
         if config.get("task") == "chatbot":
@@ -130,3 +135,29 @@ def load_model_and_info(
     print()
 
     return model, config, tokenizer
+
+
+def load_peft_model_function(
+        path_to_adapters: str,
+        config: Config
+) -> peft.PeftModel:
+    """
+    Loads the PEFT model from the specified path.
+
+    Args:
+        path_to_adapters (str):
+            The path to the adapters.
+        config (Config):
+            The configuration object.
+
+    Returns:
+        peft.PeftModel:
+            The PEFT model.
+    """
+
+    original_model = config.get_original_model()
+
+    return PeftModel.from_pretrained(
+        original_model,
+        path_to_adapters
+    )
