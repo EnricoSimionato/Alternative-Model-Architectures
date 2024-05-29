@@ -7,6 +7,7 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from gbm.utils.pipeline.config import Config
 from gbm.utils.device_utils import get_available_device
 
+
 def get_causal_lm_trainer(
         config: Config,
         **kwargs

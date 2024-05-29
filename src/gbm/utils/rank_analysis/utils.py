@@ -8,6 +8,24 @@ import re
 import torch.nn as nn
 
 
+def compute_singular_values(
+        matrix: np.ndarray
+) -> np.ndarray:
+    """
+    Computes the singular values of a matrix.
+
+    Args:
+        matrix (np.ndarray):
+            The matrix to compute the singular values of.
+
+    Returns:
+        np.ndarray:
+            The singular values of the matrix.
+    """
+
+    return np.linalg.svd(matrix, compute_uv=False)
+
+
 def compute_explained_variance(
     s: np.array,
     scaling: int = 1
@@ -31,7 +49,7 @@ def compute_explained_variance(
 
 
 def compute_rank(
-        matrix: np.ndarray,
+        s: dict,
         threshold: float = 0,
         s_threshold: float = 0
 ) -> np.ndarray:
@@ -54,7 +72,6 @@ def compute_rank(
             The rank of the matrix.
     """
 
-    _, s, _ = np.linalg.svd(matrix)
     explained_variance = compute_explained_variance(s)
     rank_based_on_explained_variance = np.argmax(explained_variance > threshold)
     if s[-1] < s_threshold:
@@ -70,14 +87,14 @@ def compute_rank(
 
 
 def compute_max_possible_rank(
-        matrices: list
+        singular_values: list
 ) -> int:
     """
     Computes the maximum possible rank for a list of delta matrices.
 
     Args:
-        matrices (list):
-            The list of delta matrices.
+        singular_values (list):
+            The list of singular values 1.
 
     Returns:
         int:
@@ -85,10 +102,8 @@ def compute_max_possible_rank(
     """
 
     max_possible_rank = 0
-    for matrix in matrices:
-        shape = matrix["weight"].shape
-        max_dim = min(shape)
-        max_possible_rank = max(max_possible_rank, max_dim)
+    for singular_values_one_matrix in singular_values:
+        max_possible_rank = max(max_possible_rank, len(singular_values_one_matrix))
 
     return max_possible_rank
 
