@@ -49,17 +49,17 @@ def compute_explained_variance(
 
 
 def compute_rank(
-        s: dict,
+        singular_values: dict,
         threshold: float = 0,
         s_threshold: float = 0
-) -> np.ndarray:
+) -> dict:
     """
     Computes the rank of a matrix considering negligible eigenvalues that are very small or that provide a very small
     change in terms of fraction of explained variance.
 
     Args:
-        matrix (np.ndarray):
-            The matrix to compute the rank of.
+        singular_values (dict):
+            The singular values of the matrices of the model.
         threshold (float):
             The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
             singular values that explain the threshold fraction of the total variance.
@@ -68,33 +68,40 @@ def compute_rank(
             singular values that are greater than the threshold.
 
     Returns:
-        np.ndarray:
-            The rank of the matrix.
+        dict:
+            The ranks given the input singular values.
     """
 
-    explained_variance = compute_explained_variance(s)
-    rank_based_on_explained_variance = np.argmax(explained_variance > threshold)
-    if s[-1] < s_threshold:
-        rank_based_on_explained_variance = len(explained_variance)
+    ranks = {}
+    for layer_name in singular_values.keys():
+        ranks[layer_name] = []
 
-    rank_based_on_singular_values = np.argmax(s < s_threshold)
-    if s[-1] > s_threshold:
-        rank_based_on_singular_values = len(s)
+        for s in singular_values[layer_name]["s"]:
+            explained_variance = compute_explained_variance(s)
+            rank_based_on_explained_variance = np.argmax(explained_variance > threshold)
+            if s[-1] < s_threshold:
+                rank_based_on_explained_variance = len(explained_variance)
 
-    rank = np.minimum(rank_based_on_explained_variance, rank_based_on_singular_values)
+            rank_based_on_singular_values = np.argmax(s < s_threshold)
+            if s[-1] > s_threshold:
+                rank_based_on_singular_values = len(s)
 
-    return rank
+            rank = np.minimum(rank_based_on_explained_variance, rank_based_on_singular_values)
+
+            ranks[layer_name].append(rank)
+
+    return ranks
 
 
 def compute_max_possible_rank(
-        singular_values: list
+        singular_values: dict
 ) -> int:
     """
     Computes the maximum possible rank for a list of delta matrices.
 
     Args:
-        singular_values (list):
-            The list of singular values 1.
+        singular_values (dict):
+            The singular values of the matrices of the model.
 
     Returns:
         int:
@@ -102,8 +109,9 @@ def compute_max_possible_rank(
     """
 
     max_possible_rank = 0
-    for singular_values_one_matrix in singular_values:
-        max_possible_rank = max(max_possible_rank, len(singular_values_one_matrix))
+    for layer_name in singular_values.keys():
+        for singular_values_one_matrix in singular_values[layer_name]["s"]:
+            max_possible_rank = max(max_possible_rank, len(singular_values_one_matrix))
 
     return max_possible_rank
 

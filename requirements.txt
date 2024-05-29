@@ -4,6 +4,7 @@ transformers
 datasets
 torchmetrics
 pytorch-lightning
+peft
 #numpy~=1.24.3
 #torch~=2.0.1
 #transformers~=4.39.3

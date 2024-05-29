@@ -42,8 +42,8 @@ def compute_delta_matrices(
         delta_matrix = minuend_matrix - subtrahend_matrix
         delta_matrices.append(
             {
-                "delta_matrix": delta_matrix,
-                "delta_label": str(minuend_matrices[i]["label"]) + " - " + str(subtrahend_matrices[i]["label"])
+                "matrix": delta_matrix,
+                "label": str(minuend_matrices[i]["label"]) + " - " + str(subtrahend_matrices[i]["label"])
             }
         )
 
@@ -216,12 +216,12 @@ def start_layers_delta_rank_analysis(
 
         for delta_matrix in delta_matrices:
             s = compute_singular_values(
-                delta_matrix["delta_matrix"]
+                delta_matrix["matrix"]
             )
             s_delta_layers[layer_name]["s"].append(s)
-            s_delta_layers[layer_name]["labels"].append(delta_matrix["delta_label"])
+            s_delta_layers[layer_name]["labels"].append(delta_matrix["label"])
             if verbose:
-                print("Singular values for", layer_name, delta_matrix['delta_label'], "extracted")
+                print("Singular values for", layer_name, delta_matrix['label'], "extracted")
 
     if not os.path.exists(os.path.join(path_to_storage, model_name)):
         os.makedirs(os.path.join(path_to_storage, model_name))
@@ -280,11 +280,12 @@ def start_layers_delta_average_rank_analysis(
 
         for delta_matrix in delta_matrices:
             s = compute_singular_values(
-                delta_matrix["delta_matrix"]
+                delta_matrix["matrix"]
             )
             s_delta_layers_wrt_average[layer_name]["s"].append(s)
+            s_delta_layers_wrt_average[layer_name]["labels"].append(delta_matrix["label"])
             if verbose:
-                print("Singular values for", layer_name, delta_matrix['delta_label'], "extracted")
+                print("Singular values for", layer_name, delta_matrix['label'], "extracted")
 
     if not os.path.exists(os.path.join(path_to_storage, model_name)):
         os.makedirs(os.path.join(path_to_storage, model_name))
@@ -302,7 +303,7 @@ def check_path_to_storage(
         model_name: str,
         type_of_analysis: str,
         layers_to_analyze: tuple
-) -> bool:
+) -> tuple[bool, str]:
     """
     Checks if the path to the storage exists.
 
@@ -329,7 +330,6 @@ def check_path_to_storage(
 
     if exists_directory_path:
         names_to_be_contained = [
-            model_name,
             type_of_analysis
         ]
         for layer_name in layers_to_analyze:
@@ -343,18 +343,19 @@ def check_path_to_storage(
             )
 
             files = [f for f in files_and_dirs if os.path.isfile(os.path.join(path_to_storage, model_name, f))]
-            print(files)
+
             for file_name in files:
-                elements = file_name.split("_")
-                names_contained = all(element in file_name for element in elements)
+                names_contained = all(string in file_name for string in names_to_be_contained)
                 if names_contained:
-                    return True
+                    return True, os.path.join(
+                        path_to_storage, model_name, file_name
+                    )
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            return False
+            return False, ""
 
-    return False
+    return False, ""
 
 
 def start_layers_analysis(
@@ -386,11 +387,12 @@ def start_layers_analysis(
         # Load the data from the storage
         with open(file_path, 'rb') as f:
             s_dict = pickle.load(f)
+            print(f"Data loaded from '{file_path}'")
 
     if type_of_analysis == "original_layers":
         title = "Ranks of matrices of the layers"
 
-        if len(s_dict) == 0:
+        if not file_available:
             s_dict = start_original_layers_rank_analysis(
                 model,
                 model_name=model_name,
@@ -402,7 +404,7 @@ def start_layers_analysis(
     elif type_of_analysis == "delta_consecutive_layers":
         title = "Ranks of delta matrices with respect to the matrix in the previous layer"
 
-        if len(s_dict) == 0:
+        if not file_available:
             s_dict = start_layers_delta_rank_analysis(
                 model,
                 model_name=model_name,
@@ -414,7 +416,7 @@ def start_layers_analysis(
     elif type_of_analysis == "delta_layers_wrt_average":
         title = "Ranks of delta matrices with respect to the average matrix"
 
-        if len(s_dict) == 0:
+        if not file_available:
             s_dict = start_layers_delta_average_rank_analysis(
                 model,
                 model_name=model_name,
@@ -425,17 +427,16 @@ def start_layers_analysis(
     else:
         raise Exception(f"The type of analysis '{type_of_analysis}' is not supported.")
 
-    columns_labels = [s_dict[layer_name]["labels"] for layer_name in layers_to_analyze]
+    columns_labels = [s_dict[layer_name]["labels"] for layer_name in layers_to_analyze][0]
 
-    for layer_name in layers_to_analyze:
-        ranks = compute_rank(
-            s_dict,
-            threshold=threshold,
-            s_threshold=s_threshold
-        )
+    ranks = compute_rank(
+        s_dict,
+        threshold=threshold,
+        s_threshold=s_threshold
+    )
 
     plot_heatmap(
-        np.array(ranks).reshape(len(layers_to_analyze), -1),
+        np.array([ranks[layer_name] for layer_name in ranks.keys()]).reshape(len(layers_to_analyze), -1),
         interval={"min": 0, "max": compute_max_possible_rank(s_dict)},
         figure_title=title,
         rows_labels=layers_to_analyze,
@@ -445,12 +446,16 @@ def start_layers_analysis(
 
 
 if __name__ == "__main__":
-    #model_id = "mistralai/Mistral-7B-v0.1"
-    #model_name = "Mistral-7B-v0.1"
+    # model_id = "mistralai/Mistral-7B-v0.1"
+    # model_name = "Mistral-7B-v0.1"
     model_id = "google/gemma-2b"
     model_name = "gemma-2b"
+    # model_id = "bert-base-uncased"
+    # model_name = "bert-base-uncased"
+    path_to_storage = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
     model_to_analyse = AutoModelForCausalLM.from_pretrained(model_id)
-    print(model_to_analyse)
+    #print(model_to_analyse)
+
     layers_to_analyze_attention = (
         "q_proj",
         "k_proj",
@@ -462,53 +467,22 @@ if __name__ == "__main__":
         "up_proj",
         "down_proj"
     )
-    
-    """
-    start_original_layers_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_attention,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
 
-    start_layers_delta_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_attention,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
+    types_of_analysis = [
+        "original_layers",
+        "delta_consecutive_layers",
+        "delta_layers_wrt_average"
+    ]
 
-    start_layers_delta_average_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_attention,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
-    """
-    start_original_layers_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_dense,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
-
-    start_layers_delta_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_dense,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
-
-    start_layers_delta_average_rank_analysis(
-        model_to_analyse,
-        model_name,
-        layers_to_analyze=layers_to_analyze_dense,
-        path_to_storage="/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis",
-        verbose=True
-    )
-    #"""
+    for type_of_analysis in types_of_analysis:
+        start_layers_analysis(
+            type_of_analysis,
+            model_to_analyse,
+            model_name,
+            layers_to_analyze=layers_to_analyze_attention,
+            threshold=0.99,
+            s_threshold=0,
+            path_to_storage=path_to_storage,
+            figure_size=(14, 8),
+            verbose=True
+        )
