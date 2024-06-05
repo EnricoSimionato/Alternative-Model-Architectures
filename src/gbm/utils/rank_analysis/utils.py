@@ -1,3 +1,6 @@
+import os
+from time import sleep
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -171,16 +174,15 @@ def extract(
 def plot_heatmap(
         data: np.ndarray,
         interval: dict,
-        figure_title: str = "Heatmaps",
-        titles: list = (
-                "Map with colour bar between maximum and maximum rank value",
-                "Map with colore bar between 0 and the maximum rank value"
-        ),
+        title: str = "Rank analysis of the matrices of the model",
         x_title: str = "Layer indexes",
         y_title: str = "Type of matrix",
         columns_labels: list = None,
         rows_labels: list = None,
-        figure_size: tuple = (10, 8)
+        figure_size: tuple = (24, 5),
+        save_path: str = None,
+        heatmap_name: str = "heatmap",
+        show: bool = False
 ):
     """
     Plots a heatmap.
@@ -189,14 +191,9 @@ def plot_heatmap(
         data (np.ndarray):
             The data to plot.
         interval (dict):
-            The interval in which input data can assume values.
-        figure_title (str, optional):
-            The title of the figure. Defaults to "Heatmaps".
-        titles (list, optional):
-            The titles of the two heatmaps. Defaults to (
-                "Map with colour bar between maximum and maximum rank value",
-                "Map with colore bar between 0 and the maximum rank value"
-            ).
+            The interval to use to plot the heatmap.
+        title (str, optional):
+            The title of the heatmap. Defaults to "Rank analysis of the matrices of the model".
         x_title (str, optional):
             The title of the x axis. Defaults to "Layer indexes".
         y_title (str, optional):
@@ -206,61 +203,84 @@ def plot_heatmap(
         rows_labels (list, optional):
             The labels of the rows. Defaults to None.
         figure_size (tuple, optional):
-            The size of the figure. Defaults to (10, 8).
+            The size of the figure. Defaults to (10, 5).
+        save_path (str, optional):
+            The path where to save the heatmap. Defaults to None.
+        heatmap_name (str, optional):
+            The name of the heatmap. Defaults to "heatmap".
+        show (bool, optional):
+            Whether to show the heatmap. Defaults to False.
     """
 
-    fig, axs = plt.subplots(2, 1, figsize=figure_size)
-    fig.suptitle(figure_title)
+    # Creating the figure
+    fig, axs = plt.subplots(
+        1,
+        1,
+        figsize=figure_size
+    )
 
-    im0 = axs[0].imshow(data, cmap="hot", interpolation="nearest")
-    axs[0].set_title(titles[0])
-    axs[0].set_xlabel(x_title)
-    axs[0].set_ylabel(y_title)
+    # Showing the heatmap
+    heatmap = axs.imshow(
+        data,
+        cmap="hot",
+        interpolation="nearest",
+        vmin=interval["min"],
+        vmax=interval["max"]
+    )
+
+    # Setting title, labels and ticks
+    axs.set_title(
+        title,
+        fontsize=18,
+        y=1.05
+    )
+    axs.set_xlabel(
+        x_title,
+        fontsize=12
+    )
+    axs.set_ylabel(
+        y_title,
+        fontsize=12
+    )
     if rows_labels:
-        axs[0].set_yticks(np.arange(len(rows_labels)))
-        axs[0].set_yticklabels(rows_labels)
+        axs.set_yticks(np.arange(len(rows_labels)))
+        axs.set_yticklabels(rows_labels)
     if columns_labels:
-        axs[0].set_xticks(np.arange(len(columns_labels)))
-        axs[0].set_xticklabels(columns_labels)
-    axs[0].set_xticks(np.arange(0, data.shape[1]))
-    axs[0].tick_params(axis="x", which='both', length=0)
-    axs[0].tick_params(axis="y", which="both", length=0)
-    axs[0].axis("on")
-    divider0 = make_axes_locatable(axs[0])
-    cax0 = divider0.append_axes("right", size="5%", pad=0.05)
-    fig.colorbar(im0, cax=cax0)
+        axs.set_xticks(np.arange(len(columns_labels)))
+        axs.set_xticklabels(columns_labels)
+    axs.axis("on")
+
+    # Adding the colorbar
+    divider = make_axes_locatable(axs)
+    colormap_axis = divider.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(
+        heatmap,
+        cax=colormap_axis
+    )
+
+    # Changing the color of the text based on the background to make it more readable
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            if data[i, j] > np.min(data) + (np.max(data) - np.min(data)) / 2:
+            if data[i, j] > interval["min"] + (interval["max"] - interval["min"]) / 3:
                 text_color = "black"
             else:
                 text_color = "white"
-            axs[0].text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
-
-    im1 = axs[1].imshow(data, cmap="hot", interpolation="nearest", vmin=interval["min"], vmax=interval["max"])
-    axs[1].set_title(titles[1])
-    axs[1].set_xlabel(x_title)
-    axs[1].set_ylabel(y_title)
-    if rows_labels:
-        axs[1].set_yticks(np.arange(len(rows_labels)))
-        axs[1].set_yticklabels(rows_labels)
-    if columns_labels:
-        axs[1].set_xticks(np.arange(len(columns_labels)))
-        axs[1].set_xticklabels(columns_labels)
-    axs[1].tick_params(axis="x", which="both", length=0)
-    axs[1].tick_params(axis="y", which="both", length=0)
-    axs[1].axis("on")
-    divider1 = make_axes_locatable(axs[1])
-    cax1 = divider1.append_axes("right", size="5%", pad=0.05)
-    fig.colorbar(im1, cax=cax1)
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if data[i, j] > interval["min"] + (interval["max"] - interval["min"]) / 2:
-                text_color = "black"
-            else:
-                text_color = "white"
-            axs[1].text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
+            axs.text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
 
     plt.tight_layout()
-    plt.show()
 
+    # Storing the heatmap
+    if save_path and os.path.exists(save_path):
+        plt.savefig(
+            os.path.join(
+                save_path,
+                heatmap_name
+            )
+        )
+        print("Heatmap stored to", os.path.join(save_path, heatmap_name))
+
+    # Showing the heatmap
+    if show:
+        plt.show()
+
+    plt.close()

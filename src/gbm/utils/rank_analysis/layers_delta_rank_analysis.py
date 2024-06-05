@@ -360,15 +360,62 @@ def check_path_to_storage(
 
 def start_layers_analysis(
         type_of_analysis: str,
+        model_id: str,
         model: nn.Module = None,
-        model_name: str = None,
         layers_to_analyze: tuple = None,
         threshold: float = 0.9,
         s_threshold: float = 0,
-        figure_size: tuple = (10, 8),
+        relative_plot: bool = True,
+        figure_size: tuple = (24, 5),
         path_to_storage: str = None,
-        verbose: bool = False
+        verbose: bool = False,
+        heatmap_save_path: str = None,
 ):
+    """
+    Starts the layers analysis.
+
+    Args:
+        type_of_analysis (str):
+            The type of analysis.
+        model_id (str):
+            The model id.
+        model (nn.Module, optional):
+            The model to analyze. Defaults to None.
+        layers_to_analyze (tuple, optional):
+            The layers to analyze. Defaults to None.
+        threshold (float, optional):
+            The threshold. Defaults to 0.9.
+        s_threshold (float, optional):
+            The threshold for the singular values. Defaults to 0.
+        figure_size (tuple, optional):
+            The size of the figure. Defaults to (10, 8).
+        path_to_storage (str, optional):
+            The path to the storage. Defaults to None.
+        verbose (bool, optional):
+            Whether to print some additional information. Defaults to False.
+        heatmap_save_path (str, optional):
+            The path where to save the heatmap. Defaults to None.
+
+    Raises:
+        Exception:
+            If the type of analysis is not supported.
+
+    Notes:
+        The format of the s_dict dictionary is the following:
+        {
+            layer_name: {
+                "s": list,
+                "labels": list
+            }
+        }
+        The format of the ranks dictionary is the following:
+        {
+            layer_name: list
+        }
+
+    """
+
+    model_name = model_id.split("/")[-1]
 
     file_available, file_path = check_path_to_storage(
         path_to_storage,
@@ -381,6 +428,12 @@ def start_layers_analysis(
     if not file_available:
         print("No data storage to use for the analysis found.")
         print("Performing svd and then running the analysis.")
+
+        if model is None:
+            model_to_analyse = AutoModelForCausalLM.from_pretrained(model_id)
+        else:
+            model_to_analyse = model
+
     else:
         print("Data storage to use for the analysis found.")
 
@@ -390,11 +443,11 @@ def start_layers_analysis(
             print(f"Data loaded from '{file_path}'")
 
     if type_of_analysis == "original_layers":
-        title = "Ranks of matrices of the layers"
+        title = f"Ranks of matrices of the layers (expl. var.: {threshold}, min. sing. value: {s_threshold})"
 
         if not file_available:
             s_dict = start_original_layers_rank_analysis(
-                model,
+                model_to_analyse,
                 model_name=model_name,
                 layers_to_analyze=layers_to_analyze,
                 path_to_storage=path_to_storage,
@@ -402,11 +455,11 @@ def start_layers_analysis(
             )
 
     elif type_of_analysis == "delta_consecutive_layers":
-        title = "Ranks of delta matrices with respect to the matrix in the previous layer"
+        title = f"Ranks of delta matrices with respect to the matrix in the previous layer (expl. var.: {threshold}, min. sing. value: {s_threshold})"
 
         if not file_available:
             s_dict = start_layers_delta_rank_analysis(
-                model,
+                model_to_analyse,
                 model_name=model_name,
                 layers_to_analyze=layers_to_analyze,
                 path_to_storage=path_to_storage,
@@ -414,11 +467,11 @@ def start_layers_analysis(
             )
 
     elif type_of_analysis == "delta_layers_wrt_average":
-        title = "Ranks of delta matrices with respect to the average matrix"
+        title = f"Ranks of delta matrices with respect to the average matrix (expl. var.: {threshold}, min. sing. value: {s_threshold})"
 
         if not file_available:
             s_dict = start_layers_delta_average_rank_analysis(
-                model,
+                model_to_analyse,
                 model_name=model_name,
                 layers_to_analyze=layers_to_analyze,
                 path_to_storage=path_to_storage,
@@ -427,34 +480,53 @@ def start_layers_analysis(
     else:
         raise Exception(f"The type of analysis '{type_of_analysis}' is not supported.")
 
+    interval = {"min": 0, "max": compute_max_possible_rank(s_dict)}
     columns_labels = [s_dict[layer_name]["labels"] for layer_name in layers_to_analyze][0]
 
     ranks = compute_rank(
         s_dict,
         threshold=threshold,
-        s_threshold=s_threshold
+        s_threshold=s_threshold,
     )
+
+    relative_ranks = {}
+    if relative_plot:
+        for layer_name in layers_to_analyze:
+            relative_ranks[layer_name] = [
+                round(rank / len(s_dict[layer_name]["s"][i]), 2) for i, rank in enumerate(ranks[layer_name])
+            ]
+        interval = {
+            "min": 0,
+            "max": 1
+        }
+
+
 
     plot_heatmap(
-        np.array([ranks[layer_name] for layer_name in ranks.keys()]).reshape(len(layers_to_analyze), -1),
-        interval={"min": 0, "max": compute_max_possible_rank(s_dict)},
-        figure_title=title,
+        np.array(
+            [ranks[layer_name] for layer_name in ranks.keys()] if not relative_plot else [relative_ranks[layer_name] for layer_name in relative_ranks.keys()]
+        ).reshape(len(layers_to_analyze), -1),
+        interval=interval,
+        title=title,
         rows_labels=layers_to_analyze,
         columns_labels=columns_labels,
-        figure_size=figure_size
+        figure_size=figure_size,
+        save_path=heatmap_save_path,
+        heatmap_name=f"{model_name}_{type_of_analysis}_{'_'.join(layers_to_analyze)}_{threshold}_{s_threshold}_heatmap.png"
     )
 
 
-if __name__ == "__main__":
-    # model_id = "mistralai/Mistral-7B-v0.1"
-    # model_name = "Mistral-7B-v0.1"
-    model_id = "google/gemma-2b"
-    model_name = "gemma-2b"
-    # model_id = "bert-base-uncased"
-    # model_name = "bert-base-uncased"
-    path_to_storage = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
-    model_to_analyse = AutoModelForCausalLM.from_pretrained(model_id)
-    #print(model_to_analyse)
+def run_mistral_7b_v0_1_analysis(
+        path_to_storage: str,
+        path_to_heatmap: str,
+        thresholds: list = [0.99],
+        s_thresholds: list = [0]
+):
+
+    if len(thresholds) != len(s_thresholds):
+        raise Exception("The length of the thresholds and s_thresholds lists must be the same.")
+
+    model_id = "mistralai/Mistral-7B-v0.1"
 
     layers_to_analyze_attention = (
         "q_proj",
@@ -474,15 +546,113 @@ if __name__ == "__main__":
         "delta_layers_wrt_average"
     ]
 
-    for type_of_analysis in types_of_analysis:
-        start_layers_analysis(
-            type_of_analysis,
-            model_to_analyse,
-            model_name,
-            layers_to_analyze=layers_to_analyze_attention,
-            threshold=0.99,
-            s_threshold=0,
-            path_to_storage=path_to_storage,
-            figure_size=(14, 8),
-            verbose=True
-        )
+    for index in range(len(thresholds)):
+        for type_of_analysis in types_of_analysis:
+            start_layers_analysis(
+                type_of_analysis,
+                model_id,
+                layers_to_analyze=layers_to_analyze_attention,
+                threshold=thresholds[index],
+                s_threshold=s_thresholds[index],
+                path_to_storage=path_to_storage,
+                figure_size=(24, 5),
+                heatmap_save_path=path_to_heatmap,
+                verbose=True
+            )
+
+            start_layers_analysis(
+                type_of_analysis,
+                model_id,
+                layers_to_analyze=layers_to_analyze_dense,
+                threshold=thresholds[index],
+                s_threshold=s_thresholds[index],
+                path_to_storage=path_to_storage,
+                figure_size=(24, 4),
+                heatmap_save_path=path_to_heatmap,
+                verbose=True
+            )
+
+
+def run_gemma_2b_analysis(
+        path_to_storage: str,
+        path_to_heatmap: str,
+        thresholds: list = [0.99],
+        s_thresholds: list = [0]
+):
+
+    if len(thresholds) != len(s_thresholds):
+        raise Exception("The length of the thresholds and s_thresholds lists must be the same.")
+
+    model_id = "google/gemma-2b"
+
+    layers_to_analyze_attention = (
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj"
+    )
+    layers_to_analyze_dense = (
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+    )
+
+    types_of_analysis = [
+        "original_layers",
+        "delta_consecutive_layers",
+        "delta_layers_wrt_average"
+    ]
+
+    for index in range(len(thresholds)):
+        for type_of_analysis in types_of_analysis:
+            start_layers_analysis(
+                type_of_analysis,
+                model_id,
+                layers_to_analyze=layers_to_analyze_attention,
+                threshold=thresholds[index],
+                s_threshold=s_thresholds[index],
+                path_to_storage=path_to_storage,
+                figure_size=(14, 8),
+                heatmap_save_path=path_to_heatmap,
+                verbose=True
+            )
+
+            start_layers_analysis(
+                type_of_analysis,
+                model_id,
+                layers_to_analyze=layers_to_analyze_dense,
+                threshold=thresholds[index],
+                s_threshold=s_thresholds[index],
+                path_to_storage=path_to_storage,
+                figure_size=(14, 8),
+                heatmap_save_path=path_to_heatmap,
+                verbose=True
+            )
+
+
+if __name__ == "__main__":
+    path_to_storage = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
+    path_to_heatmap = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
+    thresholds = np.linspace(0.8, 0.99, 5).tolist()
+
+    run_mistral_7b_v0_1_analysis(
+        path_to_storage,
+        path_to_heatmap,
+        thresholds=thresholds,
+        s_thresholds=[0]*len(thresholds)
+    )
+"""
+if __name__ == "__main__":
+    path = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis/Mistral-7B-v0.1/delta_layers_wrt_average_gate_proj_up_proj_down_proj"
+
+    with open(path, 'rb') as f:
+        s_dict = pickle.load(f)
+        print(f"Data loaded from '{path}'")
+
+    for key in s_dict.keys():
+        print(key)
+        print(len(s_dict[key]["s"]))
+        for s in s_dict[key]["s"]:
+            print(len(s))
+        print()
+"""
