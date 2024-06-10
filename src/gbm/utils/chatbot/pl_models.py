@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 
 import transformers
 
+from gbm.utils import Config
 from gbm.utils.chatbot.conversation_utils import (
     get_conversation_example_1,
     get_conversation_example_2,
@@ -65,6 +66,11 @@ class CausalLMModelWrapper(pl.LightningModule):
             Number of test step losses.
     """
 
+    weights_to_exclude = [
+        "lora",
+        "vera"
+    ]
+
     def __init__(
         self,
         model: transformers.AutoModelForCausalLM,
@@ -73,6 +79,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         max_steps: int,
         warmup_steps: int = 0,
         stop_tokens: list[str] = ("[INST]", "</s>"),
+        kfc_training: bool = False,
         dtype: torch.dtype = torch.float32,
         **kwargs
     ) -> None:
@@ -86,6 +93,10 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.max_steps = max_steps
 
         self.stop_tokens = stop_tokens
+
+        self.kfc_training = kfc_training
+        self.start_step_regularization = 0
+        self.regularization_weight = torch.tensor(0.000001)
 
         self.training_step_index = 0
 
@@ -161,6 +172,34 @@ class CausalLMModelWrapper(pl.LightningModule):
 
         return self.model(input_ids, **kwargs)
 
+    def get_unweighted_penalization(
+            self
+    ) -> torch.Tensor:
+        original_params = []
+        for name, param in self.model.named_parameters():
+            if not any(substring in name for substring in CausalLMModelWrapper.weights_to_exclude):
+                original_params.append(param)
+
+        sum_l1_norms = torch.tensor(0.0, device=self.device)
+        for i, param in enumerate(original_params):
+            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+
+        return sum_l1_norms
+
+    def get_weighted_loss(
+            self,
+            loss: torch.Tensor,
+            penalization: torch.Tensor
+    ) -> torch.Tensor:
+
+        return penalization
+
+    def regularization_scheduler_step(
+            self
+    ):
+        k = torch.sqrt(torch.tensor(2)).to(self.regularization_weight.device)
+        self.regularization_weight = self.regularization_weight * k
+
     def training_step(
         self,
         batch: dict[str, torch.Tensor],
@@ -186,6 +225,15 @@ class CausalLMModelWrapper(pl.LightningModule):
         # Computing the loss of the model for the considered train batch
         outputs = self(input_ids, labels=labels)
         loss = outputs.loss
+
+        if self.training_step_index >= self.start_step_regularization:
+            unweighted_penalization = self.get_unweighted_penalization()
+            weighted_penalization = self.get_weighted_loss(loss, unweighted_penalization)
+
+            weighted_penalization = weighted_penalization.to(loss.device)
+            self.regularization_weight = self.regularization_weight.to(loss.device)
+            loss = loss + self.regularization_weight * weighted_penalization
+            self.regularization_scheduler_step()
 
         self.log(
             "loss",
@@ -329,7 +377,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         print(f'Validation loss: {avg_val_loss}')
         print("----------------------------------------------------------")
 
-        self.start_conversation_trial()
+        #self.start_conversation_trial()
 
     def on_test_epoch_end(
         self
@@ -433,6 +481,9 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             learning_rate: float,
             max_steps: int,
             warmup_steps: int = 0,
+            stop_tokens: list[str] = ("[INST]", "</s>"),
+            kfc_training: bool = False,
+            dtype: torch.dtype = torch.float32,
             **kwargs
     ) -> None:
         super().__init__(
@@ -441,5 +492,11 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             learning_rate,
             max_steps,
             warmup_steps,
+            stop_tokens,
+            kfc_training,
+            dtype,
             **kwargs
         )
+
+
+

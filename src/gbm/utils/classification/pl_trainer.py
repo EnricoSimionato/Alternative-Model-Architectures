@@ -4,6 +4,7 @@ from pytorch_lightning.loggers.csv_logs import CSVLogger
 from pytorch_lightning.loggers.comet import CometLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
 
+from gbm.utils.device_utils import get_available_device
 from gbm.utils.pipeline.config import Config
 
 
@@ -69,7 +70,10 @@ def get_classification_trainer(
         val_check_interval=1/config.get("num_checks_per_epoch"),
         accumulate_grad_batches=config.get("gradient_accumulation_steps"),
         callbacks=callbacks,
-        accelerator=config.get("device"),
+        accelerator=get_available_device(
+            config.get("device"),
+            just_string=True
+        ),
         logger=loggers
     )
 

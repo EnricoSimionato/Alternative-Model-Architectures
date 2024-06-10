@@ -1,6 +1,11 @@
+from datasets import load_dataset
+from huggingface_hub import login
 from transformers import AutoTokenizer
 
+from peft import get_peft_model, LoraConfig
+
 from gbm import GlobalBaseModel
+from gbm.utils.classification import load_original_model_for_sequence_classification, IMDBDataModule
 from gbm.utils.pipeline.experiment import Experiment
 from gbm.utils.pipeline.config import Config
 from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
@@ -135,6 +140,48 @@ def test_storage_utilities_of_experiment():
     )
 
 
+def test_kfc():
+    configuration = Config(
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_KFC_CLASS.json"
+    )
+    original_model = load_original_model_for_sequence_classification(configuration)
+    tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
+    tokenizer.bos_token = "[CLS]"
+    tokenizer.eos_token = "[SEP]"
+    tokenizer.padding_side = "right"
+    tokenizer.pad_token = tokenizer.eos_token
+
+    lora_configuration = LoraConfig(
+        r=16,
+        target_modules="all-linear"
+    )
+
+    model = get_peft_model(
+        original_model,
+        lora_configuration
+    )
+
+    for name, param in model.named_parameters():
+        param.requires_grad = True
+
+    experiment = Experiment(
+        task="classification",
+        model=model,
+        dataset=IMDBDataModule(
+            configuration.get("batch_size"),
+            configuration.get("num_workers"),
+            tokenizer,
+            configuration.get("max_len_tokenizer"),
+            configuration.get("split"),
+            configuration.get("seed")
+        ),
+        config=configuration,
+        tokenizer=tokenizer
+    )
+
+    experiment.run_experiment()
+
+
 if __name__ == "__main__":
 
-    test_experiment_with_chatbot()
+    test_kfc()

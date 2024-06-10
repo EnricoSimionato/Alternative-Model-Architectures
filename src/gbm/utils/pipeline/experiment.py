@@ -19,7 +19,6 @@ from gbm.utils.chatbot import ChatbotModelWrapper
 from gbm.utils.chatbot.pl_trainer import get_causal_lm_trainer
 
 
-# TODO documentation of experiment
 class Experiment:
     """
     Class to run an experiment in a standardized way.
@@ -172,9 +171,10 @@ class Experiment:
             pl.LightningModule:
                 The PyTorch Lightning model.
         """
+        pl_model = None
 
         if self.task == "classification":
-            return ClassifierModelWrapper(
+            pl_model = ClassifierModelWrapper(
                 model=self.model,
                 tokenizer=self.tokenizer,
 
@@ -193,7 +193,7 @@ class Experiment:
         elif self.task == "question-answering":
             pass
         elif self.task == "chatbot":
-            return ChatbotModelWrapper(
+            pl_model = ChatbotModelWrapper(
                 model=self.model,
                 tokenizer=self.tokenizer,
 
@@ -203,11 +203,18 @@ class Experiment:
 
                 stop_tokens=self.config.get("stop_tokens"),
 
+                kfc_training=self.config.get("kfc_training") and self.config.get("kfc_training"),
+                # self.config.get("initial_regularization_term"),
+                # self.config.get("start_step_regularization")
                 dtype=(self.config.get("dtype") if self.config.contains("dtype") else "float32"),
             )
 
         else:
             raise ValueError(f"Task {self.task} not recognized")
+
+
+
+        return pl_model
 
     def _get_trainer(
             self,

@@ -1,7 +1,7 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed experiments",
     "keys_for_naming": [
-        "factorization_method",
+        "kfc_label",
         "original_model_id"
     ],
 
@@ -31,39 +31,16 @@
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
-    "factorization_method": "",
-    "target_layers": {
-        "embed_tokens": {
-            "rank": 512
-        },
-        "q_proj": {
-            "rank": 512
-        },
-        "k_proj": {
-            "rank": 128
-        },
-        "v_proj": {
-            "rank": 128
-        },
-        "o_proj": {
-            "rank": 512
-        },
-        "gate_proj": {
-            "rank": 512
-        },
-        "up_proj": {
-            "rank": 512
-        },
-        "down_proj": {
-            "rank": 512
-        }
-    },
-
     "original_model_parameters": 0,
     "model_parameters": 0,
     "percentage_parameters": 0,
     "model_trainable_parameters": 0,
 
     "device": "cuda",
-    "seed": 42
+    "seed": 42,
+
+    "kfc_training": true,
+    "kfc_label": "kfc",
+    "initial_regularization_term": 0.000001,
+    "start_step_regularization": 100
 }

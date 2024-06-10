@@ -90,6 +90,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         dtype (str):
             Data type to use.
     """
+    weights_to_exclude = [
+        "lora",
+        "vera"
+    ]
 
     def __init__(
             self,
@@ -102,6 +106,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             max_epochs: int = 3,
             warmup_steps: int = 0,
             dtype: str = "float32",
+            kfc_training: bool = False,
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -116,6 +121,12 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.learning_rate = learning_rate
         self.warmup_steps = warmup_steps
         self.max_epochs = max_epochs
+
+        self.kfc_training = kfc_training
+        self.start_step_regularization = 0
+        self.regularization_weight = torch.tensor(0.000001)
+
+        self.training_step_index = 0
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass",
@@ -150,7 +161,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_test_epoch_loss = 0
         self.test_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
 
-        self.dtype = dtype
+        self.model_dtype = dtype
 
     def configure_optimizers(
             self,
@@ -170,7 +181,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         optimizer = torch.optim.AdamW(
             self.parameters(),
             lr=self.learning_rate,
-            eps=1e-5 if self.dtype == "float16" else 1e-8
+            eps=1e-5 if self.model_dtype == "float16" else 1e-8
         )
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
@@ -212,6 +223,34 @@ class ClassifierModelWrapper(pl.LightningModule):
             **kwargs
         ).logits
 
+    def get_unweighted_penalization(
+            self
+    ) -> torch.Tensor:
+        original_params = []
+        for name, param in self.model.named_parameters():
+            if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
+                original_params.append(param)
+
+        sum_l1_norms = torch.tensor(0.0, device=self.device)
+        for i, param in enumerate(original_params):
+            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+
+        return sum_l1_norms
+
+    def get_weighted_loss(
+            self,
+            loss: torch.Tensor,
+            penalization: torch.Tensor
+    ) -> torch.Tensor:
+
+        return penalization
+
+    def regularization_scheduler_step(
+            self
+    ):
+        k = torch.sqrt(torch.tensor(1.001)).to(self.regularization_weight.device)
+        self.regularization_weight = self.regularization_weight * k
+
     def training_step(
             self,
             batch: dict[str, torch.Tensor],
@@ -233,6 +272,43 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 
+        if self.training_step_index >= self.start_step_regularization:
+            self.log(
+                "task_loss",
+                loss,
+                on_step=True,
+                on_epoch=False,
+            )
+            self.log(
+                "regularization_weight",
+                self.regularization_weight,
+                on_step=True,
+                on_epoch=False,
+            )
+
+            unweighted_penalization = self.get_unweighted_penalization()
+            self.log(
+                "unweighted_penalization",
+                unweighted_penalization,
+                on_step=True,
+                on_epoch=False
+            )
+
+            weighted_penalization = self.get_weighted_loss(loss, unweighted_penalization)
+            self.log(
+                "weighted_penalization",
+                unweighted_penalization,
+                on_step=True,
+                on_epoch=False
+            )
+
+            weighted_penalization = weighted_penalization.to(loss.device)
+            self.regularization_weight = self.regularization_weight.to(loss.device)
+
+            loss = loss + self.regularization_weight * weighted_penalization
+
+            self.regularization_scheduler_step()
+
         self.log(
             "loss",
             loss,
@@ -248,6 +324,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.training_samples_count += logits.shape[0]
         self.sum_training_epoch_loss += loss.item() * logits.shape[0]
         self.training_stat_scores.update(logits.argmax(-1), labels)
+
+        self.training_step_index += 1
 
         return loss
 
