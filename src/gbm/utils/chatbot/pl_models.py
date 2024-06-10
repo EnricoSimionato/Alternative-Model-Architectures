@@ -102,7 +102,7 @@ class CausalLMModelWrapper(pl.LightningModule):
             initial_regularization_weight,
             requires_grad=False
         )
-        
+
         self.training_step_index = 0
 
         self.training_step_losses_sum = 0

@@ -139,8 +139,8 @@ class Experiment:
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
-        #validate_results = self._validate(**kwargs)
-        #print(f"Validate results before training: {validate_results}")
+        validate_results = self._validate(**kwargs)
+        print(f"Validate results before training: {validate_results}")
 
         fit_results = self._fit(**kwargs)
         print(f"Fit results: {fit_results}")
