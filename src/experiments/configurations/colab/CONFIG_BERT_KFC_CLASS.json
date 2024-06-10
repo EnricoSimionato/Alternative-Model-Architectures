@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed experiments",
+    "path_to_storage": "/drive/MyDrive/Colab Notebooks/Thesis",
     "keys_for_naming": [
         "kfc_label",
         "original_model_id"
@@ -23,7 +23,7 @@
     "warmup_steps": 0,
     "batch_size": 8,
     "num_workers": 2,
-    "num_checks_per_epoch": 5,
+    "num_checks_per_epoch": 10,
     "gradient_accumulation_steps": 4,
 
     "num_classes": 2,
@@ -46,6 +46,6 @@
 
     "kfc_training": true,
     "kfc_label": "kfc",
-    "initial_regularization_term": 0.000001,
-    "start_step_regularization": 100
+    "initial_regularization_term": 0.00001,
+    "start_step_regularization": 0
 }
