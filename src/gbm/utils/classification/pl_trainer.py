@@ -50,9 +50,11 @@ def get_classification_trainer(
     loggers = [
         TensorBoardLogger(
             save_dir=config.get("path_to_logs"),
+            name="tensorboard_logs"
         ),
         CSVLogger(
             save_dir=config.get("path_to_logs"),
+            name="csv_logs"
         ),
         #CometLogger(
         #    save_dir=config.get("path_to_logs"),

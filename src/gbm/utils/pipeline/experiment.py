@@ -139,8 +139,8 @@ class Experiment:
 
         self.lightning_trainer = self._get_trainer(**kwargs)
         self.lightning_model = self._get_lightning_model(**kwargs)
-        validate_results = self._validate(**kwargs)
-        print(f"Validate results before training: {validate_results}")
+        #validate_results = self._validate(**kwargs)
+        #print(f"Validate results before training: {validate_results}")
 
         fit_results = self._fit(**kwargs)
         print(f"Fit results: {fit_results}")
@@ -186,6 +186,8 @@ class Experiment:
                 max_epochs=self.config.get("num_epochs"),
 
                 warmup_steps=self.config.get("warmup_steps"),
+
+                kfc_training=self.config.get("kfc_training") and self.config.get("kfc_training"),
 
                 dtype=self.config.get("dtype"),
             )

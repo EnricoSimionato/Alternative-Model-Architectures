@@ -107,6 +107,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             warmup_steps: int = 0,
             dtype: str = "float32",
             kfc_training: bool = False,
+            initial_regularization_weight: float = 0.001,
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -124,7 +125,11 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.kfc_training = kfc_training
         self.start_step_regularization = 0
-        self.regularization_weight = torch.tensor(0.000001)
+        self.fixed_regularization_weight = None
+        self.adaptive_regularization_weight = torch.tensor(
+            initial_regularization_weight,
+            requires_grad=False
+        )
 
         self.training_step_index = 0
 
@@ -226,30 +231,71 @@ class ClassifierModelWrapper(pl.LightningModule):
     def get_unweighted_penalization(
             self
     ) -> torch.Tensor:
-        original_params = []
-        for name, param in self.model.named_parameters():
-            if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
-                original_params.append(param)
+        """
+        Computes the unweighted penalization term as the L1 norm of the model weights.
 
-        sum_l1_norms = torch.tensor(0.0, device=self.device)
-        for i, param in enumerate(original_params):
-            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+        Returns:
+            torch.Tensor:
+                Unweighted penalization term.
+        """
 
-        return sum_l1_norms
+        with torch.no_grad():
+            original_params = []
+            for name, param in self.model.named_parameters():
+                if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
+                    original_params.append(param)
 
-    def get_weighted_loss(
+            sum_l1_norms = torch.tensor(0.0, device=self.device)
+            for i, param in enumerate(original_params):
+                sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+
+            return sum_l1_norms
+
+    def get_weighted_penalization(
             self,
-            loss: torch.Tensor,
-            penalization: torch.Tensor
+            penalization: torch.Tensor,
+            loss: torch.Tensor
     ) -> torch.Tensor:
+        """
+        Computes the weighted penalization term.
 
-        return penalization
+        Args:
+            penalization (torch.Tensor):
+                Unweighted penalization term.
+            loss (torch.Tensor):
+                Loss of the model computed for the current batch.
+
+        Returns:
+            torch.Tensor:
+                Weighted penalization term.
+        """
+
+        if self.fixed_regularization_weight is None:
+            self.fixed_regularization_weight = torch.tensor(
+                (loss / penalization).clone().detach().item(),
+                requires_grad=False
+            )
+            self.log(
+                "fixed_regularization_weight",
+                self.fixed_regularization_weight,
+                on_step=True,
+                on_epoch=False,
+            )
+
+        return penalization * self.fixed_regularization_weight
 
     def regularization_scheduler_step(
             self
     ):
-        k = torch.sqrt(torch.tensor(1.001)).to(self.regularization_weight.device)
-        self.regularization_weight = self.regularization_weight * k
+        """
+        Updates the regularization weight.
+        """
+
+        k = torch.sqrt(torch.tensor(
+            1.001,
+            requires_grad=False
+        )).to(self.adaptive_regularization_weight.device)
+        self.adaptive_regularization_weight = self.adaptive_regularization_weight * k
 
     def training_step(
             self,
@@ -272,16 +318,17 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 
-        if self.training_step_index >= self.start_step_regularization:
+        if self.kfc_training and self.training_step_index >= self.start_step_regularization:
             self.log(
                 "task_loss",
                 loss,
                 on_step=True,
                 on_epoch=False,
             )
+
             self.log(
-                "regularization_weight",
-                self.regularization_weight,
+                "adaptive_regularization_weight",
+                self.adaptive_regularization_weight,
                 on_step=True,
                 on_epoch=False,
             )
@@ -294,7 +341,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 on_epoch=False
             )
 
-            weighted_penalization = self.get_weighted_loss(loss, unweighted_penalization)
+            weighted_penalization = self.get_weighted_penalization(unweighted_penalization, loss)
             self.log(
                 "weighted_penalization",
                 unweighted_penalization,
@@ -303,9 +350,9 @@ class ClassifierModelWrapper(pl.LightningModule):
             )
 
             weighted_penalization = weighted_penalization.to(loss.device)
-            self.regularization_weight = self.regularization_weight.to(loss.device)
+            self.adaptive_regularization_weight = self.adaptive_regularization_weight.to(loss.device)
 
-            loss = loss + self.regularization_weight * weighted_penalization
+            loss = loss + self.adaptive_regularization_weight * weighted_penalization
 
             self.regularization_scheduler_step()
 
