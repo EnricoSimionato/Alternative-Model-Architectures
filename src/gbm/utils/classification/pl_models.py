@@ -239,17 +239,16 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Unweighted penalization term.
         """
 
-        with torch.no_grad():
-            original_params = []
-            for name, param in self.model.named_parameters():
-                if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
-                    original_params.append(param)
+        original_params = []
+        for name, param in self.model.named_parameters():
+            if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
+                original_params.append(param)
 
-            sum_l1_norms = torch.tensor(0.0, device=self.device)
-            for i, param in enumerate(original_params):
-                sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+        sum_l1_norms = torch.tensor(0.0, device=self.device)
+        for i, param in enumerate(original_params):
+            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
 
-            return sum_l1_norms
+        return sum_l1_norms
 
     def get_weighted_penalization(
             self,
@@ -272,11 +271,9 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                #(loss / penalization).clone().detach().item(),
-                1e-3,
+                (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
-
 
         self.log(
             "fixed_regularization_weight",
