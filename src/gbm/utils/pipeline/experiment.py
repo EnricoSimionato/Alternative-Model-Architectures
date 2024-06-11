@@ -173,6 +173,18 @@ class Experiment:
         """
         pl_model = None
 
+        # Defining KFC training arguments
+        kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
+        kfc_training_args = {
+            "kfc_training": self.config.contains("kfc_training") and self.config.get("kfc_training")
+        }
+        for key in kfc_training_keys:
+            if self.config.contains(key):
+                kfc_training_args[key] = self.config.get(key)
+
+        # Defining the data type of the model
+        dtype = (self.config.get("dtype") if self.config.contains("dtype") else "float32"),
+
         if self.task == "classification":
             pl_model = ClassifierModelWrapper(
                 model=self.model,
@@ -184,17 +196,17 @@ class Experiment:
 
                 learning_rate=self.config.get("learning_rate"),
                 max_epochs=self.config.get("num_epochs"),
-
                 warmup_steps=self.config.get("warmup_steps"),
 
-                kfc_training=self.config.get("kfc_training") and self.config.get("kfc_training"),
+                **kfc_training_args,
 
-                dtype=self.config.get("dtype"),
+                dtype=dtype
             )
 
         elif self.task == "question-answering":
             pass
         elif self.task == "chatbot":
+
             pl_model = ChatbotModelWrapper(
                 model=self.model,
                 tokenizer=self.tokenizer,
@@ -205,16 +217,13 @@ class Experiment:
 
                 stop_tokens=self.config.get("stop_tokens"),
 
-                kfc_training=self.config.get("kfc_training") and self.config.get("kfc_training"),
-                # self.config.get("initial_regularization_term"),
-                # self.config.get("start_step_regularization")
-                dtype=(self.config.get("dtype") if self.config.contains("dtype") else "float32"),
+                **kfc_training_args,
+
+                dtype=dtype
             )
 
         else:
             raise ValueError(f"Task {self.task} not recognized")
-
-
 
         return pl_model
 
