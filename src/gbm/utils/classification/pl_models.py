@@ -87,9 +87,10 @@ class ClassifierModelWrapper(pl.LightningModule):
             Sum of the test loss in the current epoch.
         test_stat_scores (ClassificationStats):
             Statistics of the test data.
-        dtype (str):
+        model_dtype (str):
             Data type to use.
     """
+
     weights_to_exclude = [
         "lora",
         "vera"
@@ -108,6 +109,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             dtype: str = "float32",
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
+            max_regularization_weight: float = 10.0,
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -128,6 +130,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
             initial_regularization_weight,
+            requires_grad=False
+        )
+        self.max_regularization_weight = torch.tensor(
+            max_regularization_weight,
             requires_grad=False
         )
 
@@ -292,10 +298,13 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.01,
+            1.05,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
-        self.adaptive_regularization_weight = torch.min(torch.tensor(1).to(self.adaptive_regularization_weight.device), self.adaptive_regularization_weight * k)
+        self.adaptive_regularization_weight = torch.min(
+            self.max_regularization_weight.to(self.adaptive_regularization_weight.device),
+            self.adaptive_regularization_weight * k
+        )
 
     def training_step(
             self,
@@ -324,6 +333,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 loss,
                 on_step=True,
                 on_epoch=False,
+                prog_bar=True
             )
 
             self.log(
@@ -331,6 +341,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 self.adaptive_regularization_weight,
                 on_step=True,
                 on_epoch=False,
+                prog_bar=True
             )
 
             unweighted_penalization = self.get_unweighted_penalization()
@@ -338,7 +349,8 @@ class ClassifierModelWrapper(pl.LightningModule):
                 "unweighted_penalization",
                 unweighted_penalization,
                 on_step=True,
-                on_epoch=False
+                on_epoch=False,
+                prog_bar=True
             )
 
             weighted_penalization = self.get_weighted_penalization(unweighted_penalization, loss)
@@ -346,7 +358,8 @@ class ClassifierModelWrapper(pl.LightningModule):
                 "weighted_penalization",
                 weighted_penalization,
                 on_step=True,
-                on_epoch=False
+                on_epoch=False,
+                prog_bar=True
             )
 
             weighted_penalization = weighted_penalization.to(loss.device)
