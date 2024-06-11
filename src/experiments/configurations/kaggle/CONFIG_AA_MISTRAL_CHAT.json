@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed experiments",
+    "path_to_storage": "kaggle/working",
     "keys_for_naming": [
         "factorization_method",
         "original_model_id"

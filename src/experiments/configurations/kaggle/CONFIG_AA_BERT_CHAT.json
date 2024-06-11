@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed experiments",
+    "path_to_storage": "kaggle/working",
     "keys_for_naming": [
         "factorization_method",
         "original_model_id"
@@ -33,29 +33,14 @@
 
     "factorization_method": "",
     "target_layers": {
-        "embed_tokens": {
+        "query": {
             "rank": 512
         },
-        "q_proj": {
-            "rank": 512
-        },
-        "k_proj": {
+        "key": {
             "rank": 128
         },
-        "v_proj": {
+        "value": {
             "rank": 128
-        },
-        "o_proj": {
-            "rank": 512
-        },
-        "gate_proj": {
-            "rank": 512
-        },
-        "up_proj": {
-            "rank": 512
-        },
-        "down_proj": {
-            "rank": 512
         }
     },
 
