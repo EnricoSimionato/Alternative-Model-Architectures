@@ -107,7 +107,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             warmup_steps: int = 0,
             dtype: str = "float32",
             kfc_training: bool = False,
-            initial_regularization_weight: float = 0.001,
+            initial_regularization_weight: float = 0.01,
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -275,12 +275,13 @@ class ClassifierModelWrapper(pl.LightningModule):
                 (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
-            self.log(
-                "fixed_regularization_weight",
-                self.fixed_regularization_weight,
-                on_step=True,
-                on_epoch=False,
-            )
+
+        self.log(
+            "fixed_regularization_weight",
+            self.fixed_regularization_weight,
+            on_step=True,
+            on_epoch=False,
+        )
 
         return penalization * self.fixed_regularization_weight
 
@@ -292,10 +293,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.001,
+            1.01,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
-        self.adaptive_regularization_weight = self.adaptive_regularization_weight * k
+        self.adaptive_regularization_weight = torch.min(torch.tensor(1).to(self.adaptive_regularization_weight.device), self.adaptive_regularization_weight * k)
 
     def training_step(
             self,
@@ -344,7 +345,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             weighted_penalization = self.get_weighted_penalization(unweighted_penalization, loss)
             self.log(
                 "weighted_penalization",
-                unweighted_penalization,
+                weighted_penalization,
                 on_step=True,
                 on_epoch=False
             )
