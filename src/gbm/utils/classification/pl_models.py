@@ -272,9 +272,11 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                (loss / penalization).clone().detach().item(),
+                #(loss / penalization).clone().detach().item(),
+                1e-3,
                 requires_grad=False
             )
+
 
         self.log(
             "fixed_regularization_weight",
