@@ -12,11 +12,6 @@ from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_
 from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
 from gbm.utils.chatbot.conversation_utils import start_conversation_loop
 
-configuration = Config(
-    "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_CLASS.json"
-)
-original_model = load_original_model_for_causal_lm(configuration)
-tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
 
 def test_experiment_with_chatbot():
     configuration = Config(
@@ -64,6 +59,7 @@ def test_experiment_with_chatbot():
     )
 
     experiment.run_experiment()
+
 
 def test_experiment_with_classifier():
     configuration = Config(
@@ -142,7 +138,7 @@ def test_storage_utilities_of_experiment():
 
 def test_kfc():
     configuration = Config(
-        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_KFC_CLASS.json"
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local/CONFIG_KFC_BERT_CLASS.json"
     )
     original_model = load_original_model_for_sequence_classification(configuration)
     tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))

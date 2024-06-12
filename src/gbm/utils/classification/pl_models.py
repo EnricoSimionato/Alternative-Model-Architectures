@@ -33,6 +33,12 @@ class ClassifierModelWrapper(pl.LightningModule):
             Maximum number of training epochs to perform. Defaults to 3.
         warmup_steps (int):
             Number of warmup steps. Defaults to 0.
+        kfc_training (bool):
+            Whether to perform KFC training. Defaults to False.
+        initial_regularization_weight (torch.Tensor):
+            Initial regularization weight. Defaults to 0.01.
+        max_regularization_weight (torch.Tensor):
+            Maximum regularization weight. Defaults to 10000.0.
         dtype (str):
             Data type to use. Defaults to "float32".
         **kwargs:
@@ -96,6 +102,9 @@ class ClassifierModelWrapper(pl.LightningModule):
         "vera"
     ]
 
+    # TODO log also the norm of the adapters
+    # TODO Increase the regularization
+
     def __init__(
             self,
             model,
@@ -106,10 +115,10 @@ class ClassifierModelWrapper(pl.LightningModule):
             learning_rate: float = 1e-5,
             max_epochs: int = 3,
             warmup_steps: int = 0,
-            dtype: str = "float32",
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
-            max_regularization_weight: float = 10.0,
+            max_regularization_weight: float = 10000.0,
+            dtype: str = "float32",
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -235,10 +244,15 @@ class ClassifierModelWrapper(pl.LightningModule):
         ).logits
 
     def get_unweighted_penalization(
-            self
+            self,
+            layers_to_penalize: list[str]
     ) -> torch.Tensor:
         """
         Computes the unweighted penalization term as the L1 norm of the model weights.
+
+        Args:
+            layers_to_penalize (list[str]):
+                List of the names of the model parameters that are penalized.
 
         Returns:
             torch.Tensor:
@@ -247,7 +261,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         original_params = []
         for name, param in self.model.named_parameters():
-            if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude):
+            if name in layers_to_penalize:
                 original_params.append(param)
 
         sum_l1_norms = torch.tensor(0.0, device=self.device)
@@ -344,10 +358,30 @@ class ClassifierModelWrapper(pl.LightningModule):
                 prog_bar=True
             )
 
-            unweighted_penalization = self.get_unweighted_penalization()
+            unweighted_penalization = self.get_unweighted_penalization(
+                [
+                    name
+                    for name, param in self.model.named_parameters()
+                    if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
+                ]
+            )
             self.log(
                 "unweighted_penalization",
                 unweighted_penalization,
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True
+            )
+
+            self.log(
+                "norm of non-regularized weights",
+                self.get_unweighted_penalization(
+                    [
+                        name
+                        for name, param in self.model.named_parameters()
+                        if any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
+                    ]
+                ),
                 on_step=True,
                 on_epoch=False,
                 prog_bar=True

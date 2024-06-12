@@ -173,6 +173,15 @@ class Experiment:
         """
         pl_model = None
 
+        # Defining training arguments
+        training_keys = ["learning_rate", "warmup_steps"]
+        training_args = {}
+        for key in training_keys:
+            if self.config.contains(key):
+                training_args[key] = self.config.get(key)
+        if self.config.contains("num_epochs"):
+            training_args["max_epochs"] = self.config.get("max_epochs") * len(self.dataset.train_dataloader())
+
         # Defining KFC training arguments
         kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
         kfc_training_args = {
@@ -194,9 +203,7 @@ class Experiment:
                 id2label=self.config.get("id2label"),
                 label2id=self.config.get("label2id"),
 
-                learning_rate=self.config.get("learning_rate"),
-                max_epochs=self.config.get("num_epochs"),
-                warmup_steps=self.config.get("warmup_steps"),
+                **training_args,
 
                 **kfc_training_args,
 
@@ -206,14 +213,11 @@ class Experiment:
         elif self.task == "question-answering":
             pass
         elif self.task == "chatbot":
-
             pl_model = ChatbotModelWrapper(
                 model=self.model,
                 tokenizer=self.tokenizer,
 
-                learning_rate=self.config.get("learning_rate"),
-                max_steps=self.config.get("num_epochs")*len(self.dataset.train_dataloader()),
-                warmup_steps=self.config.get("warmup_steps"),
+                **training_args,
 
                 stop_tokens=self.config.get("stop_tokens"),
 
