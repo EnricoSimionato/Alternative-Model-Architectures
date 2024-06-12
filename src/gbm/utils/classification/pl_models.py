@@ -113,7 +113,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             id2label: dict,
             label2id: dict,
             learning_rate: float = 1e-5,
-            max_steps: int = 100,
+            max_steps: int = 1,
             warmup_steps: int = 0,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,

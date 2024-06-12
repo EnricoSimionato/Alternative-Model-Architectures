@@ -181,6 +181,8 @@ class Experiment:
                 training_args[key] = self.config.get(key)
         if self.config.contains("num_epochs"):
             training_args["max_steps"] = self.config.get("max_epochs") * len(self.dataset.train_dataloader())
+        else:
+            training_args["max_steps"] = len(self.dataset.train_dataloader())
 
         # Defining KFC training arguments
         kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
