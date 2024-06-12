@@ -80,7 +80,8 @@ class CausalLMModelWrapper(pl.LightningModule):
         warmup_steps: int = 0,
         stop_tokens: list[str] = ("[INST]", "</s>"),
         kfc_training: bool = False,
-        initial_regularization_weight: float = 0.001,
+        initial_regularization_weight: float = 0.01,
+        max_regularization_weight: float = 10000.0,
         dtype: torch.dtype = torch.float32,
         **kwargs
     ) -> None:
@@ -100,6 +101,10 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
             initial_regularization_weight,
+            requires_grad=False
+        )
+        self.max_regularization_weight = torch.tensor(
+            max_regularization_weight,
             requires_grad=False
         )
 
@@ -557,6 +562,8 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             warmup_steps: int = 0,
             stop_tokens: list[str] = ("[INST]", "</s>"),
             kfc_training: bool = False,
+            initial_regularization_weight: float = 0.01,
+            max_regularization_weight: float = 10000.0,
             dtype: torch.dtype = torch.float32,
             **kwargs
     ) -> None:
@@ -568,6 +575,8 @@ class ChatbotModelWrapper(CausalLMModelWrapper):
             warmup_steps,
             stop_tokens,
             kfc_training,
+            initial_regularization_weight,
+            max_regularization_weight,
             dtype,
             **kwargs
         )
