@@ -113,7 +113,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             id2label: dict,
             label2id: dict,
             learning_rate: float = 1e-5,
-            max_epochs: int = 3,
+            max_steps: int = 100,
             warmup_steps: int = 0,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
@@ -132,7 +132,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.warmup_steps = warmup_steps
-        self.max_epochs = max_epochs
+        self.max_steps = max_steps
 
         self.kfc_training = kfc_training
         self.start_step_regularization = 0
@@ -207,7 +207,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
             optimizer,
             num_warmup_steps=self.warmup_steps,
-            num_training_steps=self.max_epochs,
+            num_training_steps=self.max_steps,
             num_cycles=0.5
         )
 
