@@ -653,9 +653,10 @@ class GlobalBaseEmbedding(StructureSpecificGlobalDependentEmbedding):
         with torch.no_grad():
             global_matrix = global_matrix.to(torch.float32)
             pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
-            pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
+            #pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
 
-            local_matrix = target_weight @ pinv_global_matrix
+            local_matrix = target_weight.to(torch.float32) @ pinv_global_matrix
+            local_matrix = local_matrix.to(self.global_dependent_layer.dtype)
 
             self.get_layer("local", local_key).weight.data = local_matrix
 
