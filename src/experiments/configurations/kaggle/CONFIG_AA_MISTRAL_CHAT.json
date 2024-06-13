@@ -28,22 +28,31 @@
     "warmup_steps": 0,
     "batch_size": 1,
     "num_workers": 2,
-    "num_checks_per_epoch": 5,
+    "num_checks_per_epoch": 10,
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "",
     "target_layers": {
         "q_proj": {
-            "rank": 1024
+            "rank": 128
         },
         "k_proj": {
-            "rank": 512
+            "rank": 64
         },
         "v_proj": {
-            "rank": 512
+            "rank": 64
         },
         "o_proj": {
-            "rank": 1024
+            "rank": 128
+        },
+        "gate_proj": {
+            "rank": 128
+        },
+        "up_proj": {
+            "rank": 128
+        },
+        "down_proj": {
+            "rank": 128
         }
     },
 
