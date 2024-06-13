@@ -276,7 +276,7 @@ def load_original_model_for_causal_lm(
 
     torch_dtype = torch.float32
     if config.contains("dtype") and config.get("dtype") == "float16":
-        torch_dtype = torch.float16
+        torch_dtype = torch.bfloat16
         if verbose:
             print("Using float16 dtype\n")
 

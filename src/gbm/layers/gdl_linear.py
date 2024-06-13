@@ -641,7 +641,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
                 self.get_layer("local", local_key).weight
             ],
             lr=1e-3,
-            eps=1e-6 if target_weight.dtype == torch.float16 else 1e-8
+            eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
         )
 
         num_epochs = 100
