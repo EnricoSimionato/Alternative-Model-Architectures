@@ -11,6 +11,7 @@ from gbm.utils.pipeline.config import Config
 from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
 from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
 from gbm.utils.chatbot.conversation_utils import start_conversation_loop
+from gbm.utils.chatbot.pl_models import ChatbotModelWrapper
 
 
 def test_experiment_with_chatbot():
@@ -107,10 +108,48 @@ def test_experiment_with_classifier():
     experiment.run_experiment()
 
 
-def test_storage_utilities_of_experiment():
+def test_aa_chatbot():
+    configuration = Config(
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local/CONFIG_AA_BERT_CLASS.json"
+    )
+    original_model = load_original_model_for_causal_lm(configuration)
+    tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
+    tokenizer.bos_token = "[CLS]"
+    tokenizer.eos_token = "[SEP]"
+    tokenizer.padding_side = "right"
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.chat_template = AutoTokenizer.from_pretrained(
+        configuration.get("tokenizer_id_for_chat_template")).chat_template
+
+    global_model = GlobalBaseModel(
+        original_model,
+        target_layers={
+            "query": {"rank": 64},
+            "key": {"rank": 64},
+            "value": {"rank": 64},
+            "dense": {"rank": 64},
+        },
+        use_names_as_keys=True,
+        preserve_original_model=True,
+        verbose=True
+    )
+
+    chatbot_model = ChatbotModelWrapper(
+        global_model,
+        tokenizer,
+        configuration.get("stop_tokens"),
+    )
+
+    start_conversation_loop(
+        chatbot_model.model.to("mps"),
+        tokenizer,
+        configuration.get("stop_tokens"),
+        user_inputs=["Hello", "How are you?"]
+    )
+
     experiment = Experiment(
         task="chatbot",
-        model=original_model,
+        model=chatbot_model,
         dataset=OpenAssistantGuanacoDataModule(
             configuration.get("batch_size"),
             configuration.get("num_workers"),
@@ -121,19 +160,8 @@ def test_storage_utilities_of_experiment():
         config=configuration,
         tokenizer=tokenizer
     )
-    experiment.start_experiment()
 
-    experiment.store_experiment()
-
-    Experiment.load_experiment(configuration.get("path_to_experiment"))
-
-
-    start_conversation_loop(
-        experiment.get_model(),
-        experiment.get_tokenizer(),
-        experiment.get_config().get("stop_tokens"),
-        user_inputs=["Hello", "How are you?"]
-    )
+    experiment.run_experiment()
 
 
 def test_kfc():
@@ -207,5 +235,4 @@ def test_16bits():
 
 
 if __name__ == "__main__":
-
-    test_16bits()
+    test_aa_chatbot()
