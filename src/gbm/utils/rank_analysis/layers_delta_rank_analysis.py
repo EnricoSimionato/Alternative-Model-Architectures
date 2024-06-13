@@ -631,8 +631,8 @@ def run_gemma_2b_analysis(
 
 
 if __name__ == "__main__":
-    path_to_storage = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
-    path_to_heatmap = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis"
+    path_to_storage = "/experiments/rank analysis"
+    path_to_heatmap = "/experiments/rank analysis"
     thresholds = np.linspace(0.8, 0.99, 5).tolist()
 
     run_mistral_7b_v0_1_analysis(

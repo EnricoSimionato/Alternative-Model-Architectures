@@ -16,8 +16,8 @@
         0.1,
         0.1
     ],
-    "tokenizer_id": "google/gemma-2b-it",
-    "tokenizer_id_for_chat_template": "mistralai/Mistral-7B-Instruct-v0.2",
+    "tokenizer_id": "google/gemma-2b",
+    "tokenizer_id_for_chat_template": "google/gemma-2b-it",
     "stop_tokens": [
         "[INST]",
         "[SEP]"

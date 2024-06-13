@@ -178,6 +178,34 @@ def test_kfc():
     experiment.run_experiment()
 
 
+def test_16bits():
+    configuration = Config(
+        "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local/CONFIG_AA_GEMMA_CHAT.json"
+    )
+    original_model = load_original_model_for_causal_lm(configuration)
+    tokenizer = AutoTokenizer.from_pretrained(configuration.get("tokenizer_id"))
+    tokenizer.padding_side = "right"
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.chat_template = AutoTokenizer.from_pretrained(
+        configuration.get("tokenizer_id_for_chat_template")).chat_template
+
+    experiment = Experiment(
+        task="chatbot",
+        model=original_model,
+        dataset=OpenAssistantGuanacoDataModule(
+            configuration.get("batch_size"),
+            configuration.get("num_workers"),
+            tokenizer,
+            configuration.get("max_len_tokenizer"),
+            configuration.get("split")
+        ),
+        config=configuration,
+        tokenizer=tokenizer
+    )
+
+    experiment.run_experiment()
+
+
 if __name__ == "__main__":
 
-    test_kfc()
+    test_16bits()
