@@ -184,6 +184,10 @@ class Experiment:
         else:
             training_args["max_steps"] = len(self.dataset.train_dataloader())
 
+        if self.config.contains("warmup_steps") and not isinstance(self.config.get("warmup_steps"), int):
+            training_args["warmup_steps"] = self.config.get("warmup_steps") * len(self.dataset.train_dataloader())
+            print(f"Setting warmup steps to {training_args['warmup_steps']}")
+
         # Defining KFC training arguments
         kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
         kfc_training_args = {

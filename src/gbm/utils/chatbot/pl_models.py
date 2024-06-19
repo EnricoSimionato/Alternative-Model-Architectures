@@ -144,11 +144,7 @@ class CausalLMModelWrapper(pl.LightningModule):
 
         learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
             optimizer,
-            num_warmup_steps=(
-                self.warmup_steps
-                if isinstance(self.warmup_steps, int)
-                else self.warmup_steps*self.max_steps
-            ),
+            num_warmup_steps=100,
             num_training_steps=self.max_steps,
             num_cycles=0.5
         )
@@ -504,8 +500,6 @@ class CausalLMModelWrapper(pl.LightningModule):
             user_inputs=get_conversation_example_2(),
             make_model_trainable=True
         )
-
-
 
 
 class ChatbotModelWrapper(CausalLMModelWrapper):

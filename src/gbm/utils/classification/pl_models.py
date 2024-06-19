@@ -117,7 +117,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             warmup_steps: int = 0,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
-            max_regularization_weight: float = 10000.0,
+            max_regularization_weight: float = 1000.0,
+            start_step_regularization: int = 0,
             dtype: str = "float32",
             **kwargs
     ) -> None:
@@ -135,7 +136,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.max_steps = max_steps
 
         self.kfc_training = kfc_training
-        self.start_step_regularization = 0
+        self.start_step_regularization = start_step_regularization
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
             initial_regularization_weight,
@@ -291,8 +292,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                #1000 * (loss / penalization).clone().detach().item(),
-                1,
+                (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
 
@@ -300,7 +300,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             "fixed_regularization_weight",
             self.fixed_regularization_weight,
             on_step=True,
-            on_epoch=False,
+            on_epoch=False
         )
 
         return penalization * self.fixed_regularization_weight
@@ -313,7 +313,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.05,
+            1.,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
         self.adaptive_regularization_weight = torch.min(
