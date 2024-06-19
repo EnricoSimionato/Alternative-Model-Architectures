@@ -326,7 +326,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.05,
+            1.1,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
         self.adaptive_regularization_weight = torch.min(
