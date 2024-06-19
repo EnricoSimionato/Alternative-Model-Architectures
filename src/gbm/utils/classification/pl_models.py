@@ -117,7 +117,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             warmup_steps: int = 0,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
-            max_regularization_weight: float = 1000.0,
+            max_regularization_weight: float = 10.0,
             start_step_regularization: int = 0,
             dtype: str = "float32",
             **kwargs
@@ -313,7 +313,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.,
+            1.01,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
         self.adaptive_regularization_weight = torch.min(
