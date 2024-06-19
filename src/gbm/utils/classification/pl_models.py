@@ -119,6 +119,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             initial_regularization_weight: float = 0.01,
             max_regularization_weight: float = 10.0,
             start_step_regularization: int = 0,
+            steps_fixed_regularization_weight_resets: int = 100,
             dtype: str = "float32",
             **kwargs
     ) -> None:
@@ -137,6 +138,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.kfc_training = kfc_training
         self.start_step_regularization = start_step_regularization
+        self.initial_regularization_weight = initial_regularization_weight
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
             initial_regularization_weight,
@@ -146,6 +148,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             max_regularization_weight,
             requires_grad=False
         )
+        self.steps_fixed_regularization_weight_resets = steps_fixed_regularization_weight_resets
 
         self.training_step_index = 0
 
@@ -295,6 +298,16 @@ class ClassifierModelWrapper(pl.LightningModule):
                 (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
+        elif self.fixed_regularization_weight_resets_per_epoch > 0 and self.training_step_index % self.steps_fixed_regularization_weight_resets == 0:
+            self.fixed_regularization_weight = torch.tensor(
+                (loss / penalization).clone().detach().item(),
+                requires_grad=False
+            )
+            self.adaptive_regularization_weight = torch.tensor(
+                self.initial_regularization_weight,
+                requires_grad=False
+            )
+            print("Fixed regularization weight reset to", self.fixed_regularization_weight.item(), "and adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
 
         self.log(
             "fixed_regularization_weight",
@@ -313,7 +326,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         k = torch.sqrt(torch.tensor(
-            1.01,
+            1.05,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
         self.adaptive_regularization_weight = torch.min(
