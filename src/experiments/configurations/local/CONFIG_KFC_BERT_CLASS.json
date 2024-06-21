@@ -18,9 +18,25 @@
     ],
     "tokenizer_id": "bert-base-uncased",
     "max_len_tokenizer": 512,
-    "max_epochs": 1,
-    "learning_rate": 1e-05,
-    "warmup_steps": 0,
+    "max_epochs": 10,
+    "optimizer_settings": [
+        {
+            "optimizer": "AdamW",
+            "parameters_group": [],
+            "learning_rate": 1e-05,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        },
+        {
+            "optimizer": "Adam",
+            "parameters_group": [],
+            "learning_rate": 1e-03,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        }
+    ],
     "batch_size": 8,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
@@ -46,6 +62,8 @@
 
     "kfc_training": true,
     "kfc_label": "kfc",
-    "initial_regularization_term": 0.000001,
-    "start_step_regularization": 100
+    "initial_regularization_weight": 0.01,
+    "max_regularization_weight": 1000,
+    "start_step_regularization": 0,
+    "steps_regularization_weight_resets": 300
 }

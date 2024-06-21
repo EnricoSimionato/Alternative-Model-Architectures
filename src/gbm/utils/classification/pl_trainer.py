@@ -29,11 +29,11 @@ def get_classification_trainer(
     # Defining callbacks
     callbacks = [
         # Defining early stopping callback
-        pl.callbacks.EarlyStopping(
-            monitor="validation_loss",
-            min_delta=0.001,
-            patience=5
-        ),
+        #pl.callbacks.EarlyStopping(
+        #    monitor="validation_loss",
+        #    min_delta=0.001,
+        #    patience=5
+        #),
         # Defining checkpointing callback
         pl.callbacks.ModelCheckpoint(
             dirpath=config.get("path_to_checkpoints"),

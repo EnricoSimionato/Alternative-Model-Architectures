@@ -29,12 +29,12 @@ def get_causal_lm_trainer(
     # Defining callbacks
     callbacks = [
         # Defining early stopping callback
-        #pl.callbacks.EarlyStopping(
-        #    monitor="validation_loss",
-        #    min_delta=0.001,
-        #    patience=3,
-        #    verbose=True
-        #),
+        pl.callbacks.EarlyStopping(
+            monitor="validation_loss",
+            min_delta=0.001,
+            patience=3,
+            verbose=True
+        ),
         # Defining checkpointing callback
         pl.callbacks.ModelCheckpoint(
             dirpath=config.get("path_to_checkpoints"),
@@ -77,7 +77,8 @@ def get_causal_lm_trainer(
             config.get("device"),
             just_string=True
         ),
-        logger=loggers
+        logger=loggers,
+        log_every_n_steps=1
     )
 
     return lightning_trainer
