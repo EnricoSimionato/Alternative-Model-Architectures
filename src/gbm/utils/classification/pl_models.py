@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 import transformers
 
 from gbm.utils.classification.pl_metrics import ClassificationStats
-
+from gbm.utils.pl_utils.utility_mappings import optimizers_mapping
 
 class ClassifierModelWrapper(pl.LightningModule):
     """
@@ -27,15 +27,22 @@ class ClassifierModelWrapper(pl.LightningModule):
             Mapping from class IDs to labels.
         label2id (dict):
             Mapping from labels to class IDs.
-        learning_rate (float):
-            Learning rate. Defaults to 1e-5.
-        max_epochs (int):
+        optimizers_settings (list[dict]):
+            List of dictionaries containing the optimizer settings.
+            The dictionaries can contain the following keys:
+                - optimizer (str): Name of the optimizer.
+                - parameters_group (list[str]): List of the names of the model parameters that are optimized by the optimizer.
+                - learning_rate (float): Learning rate of the optimizer.
+                - weight_decay (float): Weight decay of the optimizer.
+                - lr_scheduler (str): Name of the learning rate scheduler.
+                - warmup_steps (int): Number of warmup steps.
+        max_steps (int):
             Maximum number of training epochs to perform. Defaults to 3.
         warmup_steps (int):
             Number of warmup steps. Defaults to 0.
         kfc_training (bool):
             Whether to perform KFC training. Defaults to False.
-        initial_regularization_weight (torch.Tensor):
+        initial_regularization_weight (float):
             Initial regularization weight. Defaults to 0.01.
         max_regularization_weight (torch.Tensor):
             Maximum regularization weight. Defaults to 10000.0.
@@ -55,9 +62,9 @@ class ClassifierModelWrapper(pl.LightningModule):
             Mapping from class IDs to labels.
         label2id (dict):
             Mapping from labels to class IDs.
-        learning_rate (float):
+        learning_rates (list):
             Learning rate.
-        max_epochs (int):
+        max_steps (int):
             Maximum number of training epochs to perform.
         warmup_steps (int):
             Number of warmup steps.
@@ -112,9 +119,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             num_classes: int,
             id2label: dict,
             label2id: dict,
-            learning_rate: float = 1e-5,
+            optimizers_settings: list[dict],
             max_steps: int = 1,
-            warmup_steps: int = 0,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
             max_regularization_weight: float = 10.0,
@@ -132,8 +138,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.id2label = id2label
         self.label2id = label2id
 
-        self.learning_rate = learning_rate
-        self.warmup_steps = warmup_steps
+        self.optimizers_settings = optimizers_settings
         self.max_steps = max_steps
 
         self.kfc_training = kfc_training
@@ -199,29 +204,48 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Additional keyword arguments.
 
         Returns:
-
+            list[dict[str, torch.optim.Optimizer | str | Any]]:
+                List of dictionaries containing the optimizer and the learning rate scheduler.
         """
 
-        optimizer = torch.optim.AdamW(
-            self.parameters(),
-            lr=self.learning_rate,
-            eps=1e-7 if self.model_dtype == "float16" else 1e-8
-        )
+        if self.optimizers_settings is None or self.optimizers_settings == []:
+            raise ValueError("The optimizers' settings are not defined")
+        if not all(key in optimizer_settings for key in ["optimizer", "parameters_group", "learning_rate"] for optimizer_settings in self.optimizers_settings):
+            raise ValueError("The optimizers' settings are not well defined, they should contain the keys 'optimizer', 'parameters_group' and 'learning_rate'")
+        if not all(optimizer_settings["optimizer"].lower() in optimizers_mapping for optimizer_settings in self.optimizers_settings):
+            raise ValueError(f"The following optimizers are not supported: {set(optimizer_settings['optimizer'] for optimizer_settings in self.optimizers_settings if optimizer_settings['optimizer'].lower() not in optimizers_mapping)}")
 
-        learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=self.warmup_steps,
-            num_training_steps=self.max_steps,
-            num_cycles=0.5
-        )
+        optimizers = []
+        for optimizer_settings in self.optimizers_settings:
+            optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
+                [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]],
+                lr=optimizer_settings["learning_rate"],
+                eps=1e-7 if self.model_dtype == "float16" else 1e-8
+            )
 
-        monitored_metrics = "loss"
+            if "lr_scheduler" in optimizer_settings:
+                # TODO: Add the possibility to use different learning rate schedulers
+                # TODO: Pass to optimizer and lr_scheduler a dictionary of parameters
+                new_optimizer = {
+                    "optimizer": optimizer,
+                    "lr_scheduler": {
+                        "scheduler": transformers.get_cosine_schedule_with_warmup(
+                            optimizer,
+                            num_warmup_steps=optimizer_settings["warmup_steps"],
+                            num_training_steps=self.max_steps,
+                            num_cycles=0.5
+                        ),
+                        "monitor": optimizer_settings["monitored_metric"]
+                    }
+                }
+            else:
+                new_optimizer = {
+                    "optimizer": optimizer
+                }
 
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": learning_rate_scheduler,
-            "monitor": monitored_metrics
-        }
+            optimizers.append(new_optimizer)
+
+        return optimizers
 
     def forward(
             self,

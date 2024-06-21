@@ -10,12 +10,12 @@ import pytorch_lightning as pl
 
 import transformers
 
-from gbm.utils import Config
 from gbm.utils.chatbot.conversation_utils import (
     get_conversation_example_1,
     get_conversation_example_2,
     start_conversation_loop
 )
+from gbm.utils.pl_utils.utility_mappings import optimizers_mapping
 
 
 # TODO change the loss in a metric and update the description of the model
@@ -75,9 +75,8 @@ class CausalLMModelWrapper(pl.LightningModule):
         self,
         model: transformers.AutoModelForCausalLM,
         tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
-        learning_rate: float = 1e-5,
+        optimizers_settings: list[dict],
         max_steps: int = 1,
-        warmup_steps: int = 0,
         stop_tokens: list[str] = ("[INST]", "</s>"),
         kfc_training: bool = False,
         initial_regularization_weight: float = 0.01,
@@ -90,8 +89,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.model = model
         self.tokenizer = tokenizer
 
-        self.learning_rate = learning_rate
-        self.warmup_steps = warmup_steps
+        self.optimizers_settings = optimizers_settings
         self.max_steps = max_steps
 
         self.stop_tokens = stop_tokens
@@ -126,36 +124,64 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.model_dtype = dtype
 
     def configure_optimizers(
-            self
+            self,
+            **kwargs
     ) -> dict[str, torch.optim.Optimizer | str | Any]:
         """
         Configures the optimizer.
 
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
         Returns:
-            torch.optim.Optimizer:
-                Optimizer.
+            list[dict[str, torch.optim.Optimizer | str | Any]]:
+                List of dictionaries containing the optimizer and the learning rate scheduler.
         """
 
-        optimizer = torch.optim.AdamW(
-            self.parameters(),
-            lr=self.learning_rate,
-            eps=1e-7 if self.model_dtype == "float16" else 1e-8
-        )
+        if self.optimizers_settings is None or self.optimizers_settings == []:
+            raise ValueError("The optimizers' settings are not defined")
+        if not all(key in optimizer_settings for key in ["optimizer", "parameters_group", "learning_rate"] for
+                   optimizer_settings in self.optimizers_settings):
+            raise ValueError(
+                "The optimizers' settings are not well defined, they should contain the keys 'optimizer', 'parameters_group' and 'learning_rate'")
+        if not all(optimizer_settings["optimizer"].lower() in optimizers_mapping for optimizer_settings in
+                   self.optimizers_settings):
+            raise ValueError(
+                f"The following optimizers are not supported: {set(optimizer_settings['optimizer'] for optimizer_settings in self.optimizers_settings if optimizer_settings['optimizer'].lower() not in optimizers_mapping)}")
 
-        learning_rate_scheduler = transformers.get_cosine_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=100,
-            num_training_steps=self.max_steps,
-            num_cycles=0.5
-        )
+        optimizers = []
+        for optimizer_settings in self.optimizers_settings:
+            optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
+                [param for name, param in self.model.named_parameters() if
+                 name in optimizer_settings["parameters_group"]],
+                lr=optimizer_settings["learning_rate"],
+                eps=1e-7 if self.model_dtype == "float16" else 1e-8
+            )
 
-        monitored_metrics = "loss"
+            if "lr_scheduler" in optimizer_settings:
+                # TODO: Add the possibility to use different learning rate schedulers
+                # TODO: Pass to optimizer and lr_scheduler a dictionary of parameters
+                new_optimizer = {
+                    "optimizer": optimizer,
+                    "lr_scheduler": {
+                        "scheduler": transformers.get_cosine_schedule_with_warmup(
+                            optimizer,
+                            num_warmup_steps=optimizer_settings["warmup_steps"],
+                            num_training_steps=self.max_steps,
+                            num_cycles=0.5
+                        ),
+                        "monitor": optimizer_settings["monitored_metric"]
+                    }
+                }
+            else:
+                new_optimizer = {
+                    "optimizer": optimizer
+                }
 
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": learning_rate_scheduler,
-            "monitor": monitored_metrics
-        }
+            optimizers.append(new_optimizer)
+
+        return optimizers
 
     def forward(
         self,

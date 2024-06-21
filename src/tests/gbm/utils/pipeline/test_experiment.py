@@ -134,22 +134,9 @@ def test_aa_chatbot():
         verbose=True
     )
 
-    chatbot_model = ChatbotModelWrapper(
-        global_model,
-        tokenizer,
-        configuration.get("stop_tokens"),
-    )
-
-    start_conversation_loop(
-        chatbot_model.model.to("mps"),
-        tokenizer,
-        configuration.get("stop_tokens"),
-        user_inputs=["Hello", "How are you?"]
-    )
-
     experiment = Experiment(
         task="chatbot",
-        model=chatbot_model,
+        model=global_model,
         dataset=OpenAssistantGuanacoDataModule(
             configuration.get("batch_size"),
             configuration.get("num_workers"),
