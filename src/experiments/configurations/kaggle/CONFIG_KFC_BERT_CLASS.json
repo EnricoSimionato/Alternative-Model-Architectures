@@ -37,7 +37,7 @@
             "monitored_metric": "loss"
         }
     ],
-    "batch_size": 32,
+    "batch_size": 8,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
