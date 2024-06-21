@@ -333,13 +333,13 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                2 * (loss / penalization).clone().detach().item(),
+                10 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
         elif (self.steps_regularization_weight_resets > 0 and
               self.training_step_index % self.steps_regularization_weight_resets == 0):
             self.fixed_regularization_weight = torch.tensor(
-                2 * (loss / penalization).clone().detach().item(),
+                10 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
             self.adaptive_regularization_weight = torch.tensor(
@@ -372,6 +372,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             self.max_regularization_weight.to(self.adaptive_regularization_weight.device),
             self.adaptive_regularization_weight * k
         )
+
+        print(self.adaptive_regularization_weight)
 
     def training_step(
             self,
@@ -471,8 +473,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.training_samples_count += logits.shape[0]
         self.sum_training_epoch_loss += loss.item() * logits.shape[0]
         self.training_stat_scores.update(logits.argmax(-1), labels)
-
-        print(self.training_step_index)
 
         self.training_step_index += 1
 
