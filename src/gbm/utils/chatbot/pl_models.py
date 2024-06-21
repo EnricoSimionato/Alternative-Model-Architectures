@@ -75,7 +75,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         self,
         model: transformers.AutoModelForCausalLM,
         tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
-        optimizers_settings: list[dict],
+        optimizers_settings: list[dict] = None,
         max_steps: int = 1,
         stop_tokens: list[str] = ("[INST]", "</s>"),
         kfc_training: bool = False,
@@ -140,7 +140,20 @@ class CausalLMModelWrapper(pl.LightningModule):
         """
 
         if self.optimizers_settings is None or self.optimizers_settings == []:
-            raise ValueError("The optimizers' settings are not defined")
+            self.optimizers_settings = [
+                {
+                    "optimizer": "adamw",
+                    "parameters_group": [
+                        name
+                        for name, param in self.model.named_parameters()
+                    ],
+                    "learning_rate": 1e-5,
+                    "weight_decay": 0.01,
+                    "lr_scheduler": "cosine_with_warmup",
+                    "warmup_steps": 0,
+                    "monitored_metric": "loss"
+                }
+            ]
         if not all(key in optimizer_settings for key in ["optimizer", "parameters_group", "learning_rate"] for
                    optimizer_settings in self.optimizers_settings):
             raise ValueError(

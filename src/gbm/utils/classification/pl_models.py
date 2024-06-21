@@ -119,7 +119,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             num_classes: int,
             id2label: dict,
             label2id: dict,
-            optimizers_settings: list[dict],
+            optimizers_settings: list[dict] = None,
             max_steps: int = 1,
             kfc_training: bool = False,
             initial_regularization_weight: float = 0.01,
@@ -209,7 +209,20 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         if self.optimizers_settings is None or self.optimizers_settings == []:
-            raise ValueError("The optimizers' settings are not defined")
+            self.optimizers_settings = [
+                {
+                    "optimizer": "adamw",
+                    "parameters_group": [
+                        name
+                        for name, param in self.model.named_parameters()
+                    ],
+                    "learning_rate": 1e-5,
+                    "weight_decay": 0.01,
+                    "lr_scheduler": "cosine_with_warmup",
+                    "warmup_steps": 0,
+                    "monitored_metric": "loss"
+                }
+            ]
         if not all(key in optimizer_settings for key in ["optimizer", "parameters_group", "learning_rate"] for optimizer_settings in self.optimizers_settings):
             raise ValueError("The optimizers' settings are not well defined, they should contain the keys 'optimizer', 'parameters_group' and 'learning_rate'")
         if not all(optimizer_settings["optimizer"].lower() in optimizers_mapping for optimizer_settings in self.optimizers_settings):
