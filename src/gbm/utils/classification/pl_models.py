@@ -472,6 +472,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_training_epoch_loss += loss.item() * logits.shape[0]
         self.training_stat_scores.update(logits.argmax(-1), labels)
 
+        print(self.training_step_index)
+
         self.training_step_index += 1
 
         return loss
