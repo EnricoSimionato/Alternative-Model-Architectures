@@ -364,17 +364,14 @@ class ClassifierModelWrapper(pl.LightningModule):
         Updates the regularization weight.
         """
 
-        k = torch.sqrt(torch.tensor(
-            1.1,
+        k = torch.tensor(
+            1.05,
             requires_grad=False
-        )).to(self.adaptive_regularization_weight.device)
-        print(f"K: {k}")
+        ).to(self.adaptive_regularization_weight.device)
         self.adaptive_regularization_weight = torch.min(
             self.max_regularization_weight.to(self.adaptive_regularization_weight.device),
             self.adaptive_regularization_weight * k
         )
-
-        print(self.adaptive_regularization_weight)
 
     def training_step(
             self,
