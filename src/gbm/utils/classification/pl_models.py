@@ -12,6 +12,7 @@ import transformers
 from gbm.utils.classification.pl_metrics import ClassificationStats
 from gbm.utils.pl_utils.utility_mappings import optimizers_mapping
 
+
 class ClassifierModelWrapper(pl.LightningModule):
     """
     Wrapper to train a classifier model in Pytorch Lightning.
@@ -125,7 +126,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             initial_regularization_weight: float = 0.01,
             max_regularization_weight: float = 10.0,
             start_step_regularization: int = 0,
-            steps_fixed_regularization_weight_resets: int = 1000,
+            steps_regularization_weight_resets: int = 1000,
             dtype: str = "float32",
             **kwargs
     ) -> None:
@@ -142,7 +143,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.max_steps = max_steps
 
         self.kfc_training = kfc_training
-        self.start_step_regularization = start_step_regularization
         self.initial_regularization_weight = initial_regularization_weight
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
@@ -153,7 +153,8 @@ class ClassifierModelWrapper(pl.LightningModule):
             max_regularization_weight,
             requires_grad=False
         )
-        self.steps_fixed_regularization_weight_resets = steps_fixed_regularization_weight_resets
+        self.start_step_regularization = start_step_regularization
+        self.steps_regularization_weight_resets = steps_regularization_weight_resets
 
         self.training_step_index = 0
 
@@ -335,7 +336,8 @@ class ClassifierModelWrapper(pl.LightningModule):
                 2 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
-        elif self.steps_fixed_regularization_weight_resets > 0 and self.training_step_index % self.steps_fixed_regularization_weight_resets == 0:
+        elif (self.steps_regularization_weight_resets > 0 and
+              self.training_step_index % self.steps_regularization_weight_resets == 0):
             self.fixed_regularization_weight = torch.tensor(
                 2 * (loss / penalization).clone().detach().item(),
                 requires_grad=False

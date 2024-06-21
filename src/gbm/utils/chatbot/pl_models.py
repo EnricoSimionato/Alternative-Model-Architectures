@@ -80,7 +80,9 @@ class CausalLMModelWrapper(pl.LightningModule):
         stop_tokens: list[str] = ("[INST]", "</s>"),
         kfc_training: bool = False,
         initial_regularization_weight: float = 0.01,
-        max_regularization_weight: float = 10000.0,
+        max_regularization_weight: float = 10.0,
+        start_step_regularization: int = 0,
+        steps_regularization_weight_resets: int = 1000,
         dtype: torch.dtype = torch.float32,
         **kwargs
     ) -> None:
@@ -95,7 +97,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         self.stop_tokens = stop_tokens
 
         self.kfc_training = kfc_training
-        self.start_step_regularization = 0
+        self.initial_regularization_weight = initial_regularization_weight
         self.fixed_regularization_weight = None
         self.adaptive_regularization_weight = torch.tensor(
             initial_regularization_weight,
@@ -105,6 +107,8 @@ class CausalLMModelWrapper(pl.LightningModule):
             max_regularization_weight,
             requires_grad=False
         )
+        self.start_step_regularization = start_step_regularization
+        self.steps_regularization_weight_resets = steps_regularization_weight_resets
 
         self.training_step_index = 0
 
@@ -261,15 +265,27 @@ class CausalLMModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                (loss / penalization).clone().detach().item(),
+                2 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
-            self.log(
-                "fixed_regularization_weight",
-                self.fixed_regularization_weight,
-                on_step=True,
-                on_epoch=False,
+        elif (self.steps_regularization_weight_resets > 0 and
+              self.training_step_index % self.steps_regularization_weight_resets == 0):
+            self.fixed_regularization_weight = torch.tensor(
+                2 * (loss / penalization).clone().detach().item(),
+                requires_grad=False
             )
+            self.adaptive_regularization_weight = torch.tensor(
+                self.initial_regularization_weight,
+                requires_grad=False
+            )
+            print("Fixed regularization weight reset to", self.fixed_regularization_weight.item(), "and adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
+
+        self.log(
+            "fixed_regularization_weight",
+            self.fixed_regularization_weight,
+            on_step=True,
+            on_epoch=False
+        )
 
         return penalization * self.fixed_regularization_weight
 
