@@ -174,19 +174,19 @@ class Experiment:
         pl_model = None
 
         # Defining training arguments
-        training_keys = ["learning_rate", "warmup_steps"]
+        training_keys = ["optimizer_settings"]
         training_args = {}
         for key in training_keys:
             if self.config.contains(key):
                 training_args[key] = self.config.get(key)
-        if self.config.contains("num_epochs"):
+        if self.config.contains("max_epochs"):
             training_args["max_steps"] = self.config.get("max_epochs") * len(self.dataset.train_dataloader())
         else:
             training_args["max_steps"] = len(self.dataset.train_dataloader())
 
-        if self.config.contains("warmup_steps") and not isinstance(self.config.get("warmup_steps"), int):
-            training_args["warmup_steps"] = self.config.get("warmup_steps") * len(self.dataset.train_dataloader())
-            print(f"Setting warmup steps to {training_args['warmup_steps']}")
+        #if self.config.contains("warmup_steps") and not isinstance(self.config.get("warmup_steps"), int):
+        #    training_args["warmup_steps"] = self.config.get("warmup_steps") * len(self.dataset.train_dataloader())
+        #    print(f"Setting warmup steps to {training_args['warmup_steps']}")
 
         # Defining KFC training arguments
         kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
