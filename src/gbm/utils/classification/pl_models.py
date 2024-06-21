@@ -454,9 +454,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
             loss = loss + self.adaptive_regularization_weight * weighted_penalization
 
-            print("ciao1")
             self.regularization_scheduler_step()
-            print("ciao2")
 
         self.log(
             "loss",
