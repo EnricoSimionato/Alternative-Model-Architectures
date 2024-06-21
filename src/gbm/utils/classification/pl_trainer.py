@@ -76,7 +76,8 @@ def get_classification_trainer(
             config.get("device"),
             just_string=True
         ),
-        logger=loggers
+        logger=loggers,
+        log_every_n_steps=1
     )
 
     return lightning_trainer
