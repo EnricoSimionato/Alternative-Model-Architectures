@@ -368,6 +368,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             1.1,
             requires_grad=False
         )).to(self.adaptive_regularization_weight.device)
+        print(f"K: {k}")
         self.adaptive_regularization_weight = torch.min(
             self.max_regularization_weight.to(self.adaptive_regularization_weight.device),
             self.adaptive_regularization_weight * k
@@ -456,7 +457,9 @@ class ClassifierModelWrapper(pl.LightningModule):
 
             loss = loss + self.adaptive_regularization_weight * weighted_penalization
 
+            print("ciao1")
             self.regularization_scheduler_step()
+            print("ciao2")
 
         self.log(
             "loss",
