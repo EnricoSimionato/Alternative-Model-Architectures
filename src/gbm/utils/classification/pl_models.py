@@ -361,13 +361,13 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                1 * (loss / penalization).clone().detach().item(),
+                (loss / penalization).clone().detach().item() / self.initial_regularization_weight,
                 requires_grad=False
             )
         elif (self.steps_regularization_weight_resets > 0 and
               self.training_step_index % self.steps_regularization_weight_resets == 0):
             self.fixed_regularization_weight = torch.tensor(
-                1 * (loss / penalization).clone().detach().item(),
+                (loss / penalization).clone().detach().item() / self.initial_regularization_weight,
                 requires_grad=False
             )
             self.adaptive_regularization_weight = torch.tensor(
@@ -375,6 +375,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                 requires_grad=False
             )
             print("Fixed regularization weight reset to", self.fixed_regularization_weight.item(), "and adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
+            print("Adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
 
         self.log(
             "fixed_regularization_weight",
@@ -446,6 +447,7 @@ class ClassifierModelWrapper(pl.LightningModule):
                     if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
                 ]
             )
+
             self.log(
                 "unweighted_penalization",
                 unweighted_penalization,
@@ -500,7 +502,7 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.log(
             "loss",
-            loss,
+            total_loss,
             on_step=True,
             on_epoch=True,
             prog_bar=True

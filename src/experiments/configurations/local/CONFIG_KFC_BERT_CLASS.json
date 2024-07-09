@@ -30,7 +30,7 @@
         {
             "optimizer": "Adam",
             "parameters_group": [],
-            "learning_rate": 1e-04,
+            "learning_rate": 1e-03,
             "lr_scheduler": "cosine_with_warmup",
             "warmup_steps": 100,
             "monitored_metric": "loss"
