@@ -1,19 +1,21 @@
 __all__ = [
     "load_original_model_for_sequence_classification",
+    "load_tokenizer_for_sequence_classification",
 
     "IMDBDataset",
     "IMDBDataModule",
 
-    "ClassifierModelWrapper",
+    "ClassifierModelWrapper"
 ]
 
 from gbm.utils.classification.classification_utils import (
     load_original_model_for_sequence_classification,
+    load_tokenizer_for_sequence_classification
 )
 
 from gbm.utils.classification.pl_datasets import (
     IMDBDataset,
-    IMDBDataModule,
+    IMDBDataModule
 )
 
 from gbm.utils.classification.pl_models import (

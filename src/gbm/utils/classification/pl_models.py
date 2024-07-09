@@ -210,6 +210,7 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         if self.optimizers_settings is None or self.optimizers_settings == []:
+            print("No optimizer settings provided, using default settings")
             self.optimizers_settings = [
                 {
                     "optimizer": "adamw",
@@ -228,9 +229,30 @@ class ClassifierModelWrapper(pl.LightningModule):
             raise ValueError("The optimizers' settings are not well defined, they should contain the keys 'optimizer', 'parameters_group' and 'learning_rate'")
         if not all(optimizer_settings["optimizer"].lower() in optimizers_mapping for optimizer_settings in self.optimizers_settings):
             raise ValueError(f"The following optimizers are not supported: {set(optimizer_settings['optimizer'] for optimizer_settings in self.optimizers_settings if optimizer_settings['optimizer'].lower() not in optimizers_mapping)}")
+        if len(self.optimizers_settings) == 1 and len(self.optimizers_settings[0]["parameters_group"]) == 0:
+            self.optimizers_settings[0]["parameters_group"] = [
+                name
+                for name, param in self.model.named_parameters()
+            ]
+        if self.kfc_training:
+            self.optimizers_settings[0]["parameters_group"] = [
+                name
+                for name, _ in self.model.named_parameters()
+                if any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
+            ]
+            self.optimizers_settings[1]["parameters_group"] = [
+                name
+                for name, _ in self.model.named_parameters()
+                if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
+            ]
+        if len(self.optimizers_settings) > 1 and any(len(optimizer_settings["parameters_group"]) == 0 for optimizer_settings in self.optimizers_settings):
+            raise ValueError("The parameters group of the optimizers' settings should not be empty")
 
+        # Defining the optimizers
         optimizers = []
         for optimizer_settings in self.optimizers_settings:
+            a = [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]]
+            b = optimizer_settings["parameters_group"]
             optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
                 [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]],
                 lr=optimizer_settings["learning_rate"],
@@ -258,6 +280,9 @@ class ClassifierModelWrapper(pl.LightningModule):
                 }
 
             optimizers.append(new_optimizer)
+
+        if len(optimizers) > 1:
+            self.automatic_optimization = False
 
         return optimizers
 
@@ -452,7 +477,21 @@ class ClassifierModelWrapper(pl.LightningModule):
             weighted_penalization = weighted_penalization.to(loss.device)
             self.adaptive_regularization_weight = self.adaptive_regularization_weight.to(loss.device)
 
-            loss = loss + self.adaptive_regularization_weight * weighted_penalization
+            total_loss = loss + self.adaptive_regularization_weight * weighted_penalization
+
+            optimizers = self.optimizers()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
+
+            self.manual_backward(total_loss, retain_graph=True)
+
+            for optimizer in optimizers:
+                optimizer.step()
+
+            lr_schedulers = self.lr_schedulers()
+
+            for lr_scheduler in lr_schedulers:
+                lr_scheduler.step()
 
             self.regularization_scheduler_step()
 

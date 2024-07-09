@@ -7,7 +7,7 @@ from transformers import (
     AutoModelForCausalLM,
     PreTrainedTokenizer,
     StoppingCriteria,
-    BitsAndBytesConfig
+    BitsAndBytesConfig, AutoTokenizer
 )
 
 from gbm.utils.pipeline.config import Config
@@ -242,11 +242,11 @@ def load_original_model_for_causal_lm(
         verbose: bool = False
 ) -> transformers.AutoModelForCausalLM:
     """
-    Loads the original model for causal language modeling.
+    Loads the original model to be used in the causal language modeling.
 
     Args:
-        config (Config):
-            The configuration object.
+        config (dict):
+            The configuration parameters to use in the loading.
         verbose (bool):
             Whether to print the model. Defaults to False.
 
@@ -291,3 +291,35 @@ def load_original_model_for_causal_lm(
 
     return model
 
+
+def load_tokenizer_for_causal_lm(
+        config: Config
+) -> transformers.AutoModelForCausalLM:
+    """
+    Loads the tokenizer to be used in the causal language modeling task.
+
+    Args:
+        config (dict):
+            The configuration parameters to use in the loading.
+
+    Returns:
+        transformers.AutoTokenizer:
+            The tokenizer for causal language modeling.
+    """
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.get("tokenizer_id")
+    )
+
+    if "bert" in config.get("tokenizer_id"):
+        tokenizer.bos_token = "[CLS]"
+        tokenizer.eos_token = "[SEP]"
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+
+    tokenizer.chat_template = AutoTokenizer.from_pretrained(
+        config.get("tokenizer_id_for_chat_template")
+    ).chat_template
+
+    return tokenizer

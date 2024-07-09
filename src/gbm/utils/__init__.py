@@ -1,5 +1,6 @@
 __all__ = [
     "Config",
+    "Experiment",
 
     "convert_seconds_in_other_units",
 

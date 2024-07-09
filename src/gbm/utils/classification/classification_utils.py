@@ -1,5 +1,5 @@
 import transformers
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from gbm.utils.pipeline.config import Config
 
@@ -8,7 +8,7 @@ def load_original_model_for_sequence_classification(
         config: Config
 ) -> transformers.AutoModel:
     """
-    Loads the model that will be used to experiment alternative architectures.
+    Loads the model to be used in the sequence classification task.
 
     Args:
         config (dict):
@@ -16,7 +16,7 @@ def load_original_model_for_sequence_classification(
 
     Returns:
         transformers.AutoModel:
-            The loaded model.
+            The model for sequence classification.
     """
 
     return AutoModelForSequenceClassification.from_pretrained(
@@ -25,3 +25,32 @@ def load_original_model_for_sequence_classification(
         id2label=config.get("id2label"),
         label2id=config.get("label2id"),
     )
+
+
+def load_tokenizer_for_sequence_classification(
+        config: Config
+) -> transformers.AutoModel:
+    """
+    Loads the tokenizer to be used in the sequence classification task.
+
+    Args:
+        config (dict):
+            The configuration parameters to use in the loading.
+
+    Returns:
+        transformers.AutoTokenizer:
+            The tokenizer for sequence classification.
+    """
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.get("tokenizer_id")
+    )
+
+    if "bert" in config.get("original_model_id"):
+        tokenizer.bos_token = "[CLS]"
+        tokenizer.eos_token = "[SEP]"
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+
+    return tokenizer

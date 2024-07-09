@@ -46,5 +46,5 @@
     "model_trainable_parameters": 0,
 
     "device": "cuda",
-    "seed": "seed"
+    "seed": 42
 }

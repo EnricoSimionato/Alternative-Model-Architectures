@@ -17,16 +17,32 @@
         0.1
     ],
     "tokenizer_id": "bert-base-uncased",
-    "tokenizer_id_for_chat_template": "mistralai/Mistral-7B-Instruct-v0.2",
+    "tokenizer_id_for_chat_template": "meta-llama/Llama-2-70b-chat-hf",
     "stop_tokens": [
         "[INST]",
         "[SEP]"
     ],
     "max_len_tokenizer": 512,
-    "max_epochs": 1,
-    "learning_rate": 1e-05,
-    "warmup_steps": 0,
-    "batch_size": 1,
+    "max_epochs": 10,
+    "optimizer_settings": [
+        {
+            "optimizer": "AdamW",
+            "parameters_group": [],
+            "learning_rate": 1e-05,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        },
+        {
+            "optimizer": "Adam",
+            "parameters_group": [],
+            "learning_rate": 1e-03,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        }
+    ],
+    "batch_size": 8,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
@@ -36,8 +52,16 @@
     "percentage_parameters": 0,
     "model_trainable_parameters": 0,
 
-    "device": "cuda",
+    "device": "mps",
     "seed": 42,
+
+    "adapter_method": "LoRA",
+    "lora_rank": 32,
+    "lora_alpha": 32,
+    "target_modules": "all-linear",
+    "lora_dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM",
 
     "kfc_training": true,
     "kfc_label": "kfc",
