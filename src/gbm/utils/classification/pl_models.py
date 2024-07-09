@@ -326,6 +326,9 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Unweighted penalization term.
         """
 
+        if not self.kfc_training:
+            return torch.tensor(0.0, device=self.device)
+
         original_params = []
         for name, param in self.model.named_parameters():
             if name in layers_to_penalize:
@@ -358,13 +361,13 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
-                10 * (loss / penalization).clone().detach().item(),
+                1 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
         elif (self.steps_regularization_weight_resets > 0 and
               self.training_step_index % self.steps_regularization_weight_resets == 0):
             self.fixed_regularization_weight = torch.tensor(
-                10 * (loss / penalization).clone().detach().item(),
+                1 * (loss / penalization).clone().detach().item(),
                 requires_grad=False
             )
             self.adaptive_regularization_weight = torch.tensor(
