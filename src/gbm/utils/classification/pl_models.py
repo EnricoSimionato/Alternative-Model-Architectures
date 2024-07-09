@@ -480,22 +480,24 @@ class ClassifierModelWrapper(pl.LightningModule):
             self.adaptive_regularization_weight = self.adaptive_regularization_weight.to(loss.device)
 
             total_loss = loss + self.adaptive_regularization_weight * weighted_penalization
+        else:
+            total_loss = loss
 
-            optimizers = self.optimizers()
-            for optimizer in optimizers:
-                optimizer.zero_grad()
+        optimizers = self.optimizers()
+        for optimizer in optimizers:
+            optimizer.zero_grad()
 
-            self.manual_backward(total_loss, retain_graph=True)
+        self.manual_backward(total_loss, retain_graph=True)
 
-            for optimizer in optimizers:
-                optimizer.step()
+        for optimizer in optimizers:
+            optimizer.step()
 
-            lr_schedulers = self.lr_schedulers()
+        lr_schedulers = self.lr_schedulers()
 
-            for lr_scheduler in lr_schedulers:
-                lr_scheduler.step()
+        for lr_scheduler in lr_schedulers:
+            lr_scheduler.step()
 
-            self.regularization_scheduler_step()
+        self.regularization_scheduler_step()
 
         self.log(
             "loss",
