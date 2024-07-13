@@ -109,6 +109,32 @@ class Config:
 
         return self.__dict__[key]
 
+    def get_dict(
+            self,
+            keys: list,
+            **kwargs
+    ) -> dict:
+        """
+        Returns a dictionary containing the values of the specified keys.
+
+        Args:
+            keys (list):
+                A list of keys whose values are to be returned.
+
+        Returns:
+            dict:
+                A dictionary containing the values of the specified keys.
+        """
+        for key in keys:
+            if not self.contains(key):
+                print(f"The key '{key}' is not present in the configuration.")
+
+        filtered_dict = {
+            key: self.get(key) for key in keys if self.contains(key)
+        }
+
+        return filtered_dict
+
     def get_paths(
             self,
             **kwargs

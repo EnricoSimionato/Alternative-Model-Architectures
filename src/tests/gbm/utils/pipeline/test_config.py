@@ -1,4 +1,4 @@
-from gbm.utils.pipeline.config import (Config)
+from gbm.utils.experiment_pipeline.config import (Config)
 
 if __name__ == "__main__":
     config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/gbm/utils/CONFIG_LOCAL.json")

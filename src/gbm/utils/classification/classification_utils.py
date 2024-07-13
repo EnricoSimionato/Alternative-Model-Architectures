@@ -1,7 +1,7 @@
 import transformers
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 
 
 def load_original_model_for_sequence_classification(

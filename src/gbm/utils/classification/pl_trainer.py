@@ -5,7 +5,7 @@ from pytorch_lightning.loggers.comet import CometLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
 
 from gbm.utils.device_utils import get_available_device
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 
 
 def get_classification_trainer(

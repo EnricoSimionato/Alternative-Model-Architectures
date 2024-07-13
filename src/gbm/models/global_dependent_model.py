@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import pickle
 from copy import deepcopy
@@ -7,6 +9,7 @@ from typing import Optional, Callable, Union
 
 import torch
 import torch.nn as nn
+from peft import PeftModel
 from torch import device
 
 from gbm.layers.global_dependent_layer import (
@@ -15,7 +18,8 @@ from gbm.layers.global_dependent_layer import (
 from gbm.layers.gdl_linear import (
     LocalSVDLinear,
     GlobalBaseLinear,
-    GlobalFixedBaseLinear
+    GlobalFixedBaseLinear,
+    GLAMSVDLinear
 )
 
 from gbm.layers.gdl_embedding import (
@@ -24,9 +28,224 @@ from gbm.layers.gdl_embedding import (
     GlobalFixedBaseEmbedding
 )
 
-from transformers import AutoModel, AutoModelForSequenceClassification, AutoModelForCausalLM
+from transformers import AutoModel
 
-from gbm.utils import count_parameters
+from gbm.utils.parameters_count import count_parameters
+
+
+class RegularizedTrainingInterface(ABC):
+    """
+    Model with regularization for the training.
+
+    Args:
+        initial_regularization_weight (float | torch.Tensor):
+            Initial regularization weight.
+        max_regularization_weight (float | torch.Tensor):
+            Maximum regularization weight.
+        start_step_regularization (int):
+            Step at which to start the regularization.
+        steps_regularization_weight_resets (int):
+            Number of steps after which to reset the regularization weights.
+
+    Attributes:
+        initial_regularization_weight (torch.Tensor):
+            Initial regularization weight.
+        fixed_regularization_weight (torch.Tensor):
+            Fixed regularization weight.
+        adaptive_regularization_weight (torch.Tensor):
+            Adaptive regularization weight.
+        max_regularization_weight (torch.Tensor):
+            Maximum regularization weight.
+        start_step_regularization (int):
+            Step at which to start the regularization.
+        steps_regularization_weight_resets (int):
+            Number of steps after which to reset the regularization weight.
+        task_loss (torch.Tensor):
+            Task loss.
+        unweighted_penalization (torch.Tensor):
+            Unweighted penalization term.
+        weighted_penalization (torch.Tensor):
+            Weighted penalization term.
+        regularization_loss (torch.Tensor):
+            Regularization loss.
+    """
+
+    def __init__(
+            self,
+            initial_regularization_weight: [float, torch.Tensor],
+            max_regularization_weight: [float, torch.Tensor],
+            start_step_regularization: int,
+            steps_regularization_weight_resets: int,
+            **kwargs
+    ) -> None:
+        super(RegularizedTrainingInterface, self).__init__(**kwargs)
+
+        self.initial_regularization_weight = initial_regularization_weight
+        self.fixed_regularization_weight = None
+        self.adaptive_regularization_weight = torch.tensor(initial_regularization_weight)
+        self.max_regularization_weight = torch.tensor(max_regularization_weight)
+        self.start_step_regularization = start_step_regularization
+        self.steps_regularization_weight_resets = steps_regularization_weight_resets
+
+        self.task_loss = 0.0
+        self.unweighted_penalization = 0.0
+        self.weighted_penalization = 0.0
+        self.regularization_loss = 0.0
+
+    def get_training_penalization_loss(
+            self,
+            loss: torch.Tensor,
+            training_step: int,
+            model_device: torch.device,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Computes the penalization term for the training of the model.
+
+        Args:
+            loss (torch.Tensor):
+                Current training step loss on the downstream task.
+            training_step (int):
+                Current training step.
+            model_device (torch.device):
+                Device where the model is located.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Penalization term.
+        """
+
+        if training_step < self.start_step_regularization:
+            return torch.tensor(0.0).to(model_device)
+
+        self.task_loss = loss
+        self.unweighted_penalization = self.get_unweighted_penalization(**kwargs)
+        self.weighted_penalization = self.get_weighted_penalization(
+            self.unweighted_penalization,
+            loss,
+            training_step,
+            **kwargs
+        )
+        self.regularization_loss = self.weighted_penalization * self.adaptive_regularization_weight
+        self.regularization_scheduler_step(
+            training_step,
+            **kwargs
+        )
+
+        return self.regularization_loss.to(model_device)
+
+    @abstractmethod
+    def get_unweighted_penalization(
+            self,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Computes the unweighted penalization term depending on the specific subclass strategy.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Unweighted penalization term.
+        """
+
+    def get_weighted_penalization(
+            self,
+            penalization: torch.Tensor,
+            loss: torch.Tensor,
+            training_step: int,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Computes the weighted penalization term.
+
+        Args:
+            penalization (torch.Tensor):
+                Unweighted penalization term.
+            loss (torch.Tensor):
+                Current training step loss on the downstream task.
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Weighted penalization term.
+        """
+
+        if self.fixed_regularization_weight is None:
+            self.fixed_regularization_weight = torch.tensor(
+                (loss / penalization).clone().detach().item(),
+                requires_grad=False
+            )
+        elif (self.steps_regularization_weight_resets > 0 and
+              training_step % self.steps_regularization_weight_resets == 0):
+            self.fixed_regularization_weight = torch.tensor(
+                (loss / penalization).clone().detach().item(),
+                requires_grad=False
+            )
+            self.adaptive_regularization_weight = torch.tensor(
+                self.initial_regularization_weight,
+                requires_grad=False
+            )
+            print("Fixed regularization weight reset to", self.fixed_regularization_weight.item(), "and adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
+            print("Adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
+
+        return penalization * self.fixed_regularization_weight
+
+    def regularization_scheduler_step(
+            self,
+            training_step: int,
+            **kwargs
+    ) -> None:
+        """
+        Updates the adaptive regularization weight.
+        Here the update is linear and the weight goes from the initial regularization weight to the maximum
+        regularization weight in steps_regularization_weight_resets steps.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        self.adaptive_regularization_weight = torch.tensor(self.initial_regularization_weight).to(self.device) + (
+                self.max_regularization_weight - self.initial_regularization_weight
+        ) * (
+                training_step % self.steps_regularization_weight_resets + 1
+        ) / self.steps_regularization_weight_resets
+
+    @torch.no_grad()
+    def get_logging_info(
+            self,
+            **kwargs
+    ) -> list:
+        """
+        Returns additional information to log.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Additional information to log.
+        """
+
+        return [
+            {"name": "task_loss", "value": self.task_loss, "on_step": True, "on_epoch": False, "prog_bar": True},
+            {"name": "unweighted_penalization", "value": self.unweighted_penalization, "on_step": True, "on_epoch": False, "prog_bar": True},
+            {"name": "weighted_penalization", "value": self.weighted_penalization, "on_step": True, "on_epoch": False, "prog_bar": True},
+            {"name": "regularization_loss", "value": self.regularization_loss, "on_step": True, "on_epoch": False, "prog_bar": True},
+            {"name": "adaptive_regularization_weight", "value": self.adaptive_regularization_weight, "on_step": True, "on_epoch": False, "prog_bar": False},
+            {"name": "fixed_regularization_weight", "value": self.fixed_regularization_weight, "on_step": True, "on_epoch": False, "prog_bar": False}
+        ]
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -83,7 +302,7 @@ class GlobalDependentModel(ABC, nn.Module):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        super(GlobalDependentModel, self).__init__()
+        super(GlobalDependentModel, self).__init__(**kwargs)
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
@@ -306,10 +525,12 @@ class GlobalDependentModel(ABC, nn.Module):
                         print(f"Conversion of {layer_name} in {path}")
                     kwargs_layer = kwargs.copy()
                     kwargs_layer.update(self.target_layers[layer_name])
-                    average_matrix_key = f"{self.mapping_layer_name_key[layer_name]}_({child.weight.shape[0]},{child.weight.shape[1]})"
+                    target_name_for_average = self.mapping_layer_name_key[layer_name] if self.mapping_layer_name_key is not None else "entire_model_average"
+                    average_matrix_key = f"{target_name_for_average}_({child.weight.shape[0]},{child.weight.shape[1]})"
                     kwargs_layer.update(
                         {
-                            "average_matrix": None if average_matrix_key not in average_matrices.keys() else average_matrices[average_matrix_key]
+                            "average_matrix": None if average_matrix_key not in average_matrices.keys() else average_matrices[average_matrix_key],
+                            "path": path
                         }
                     )
 
@@ -324,7 +545,7 @@ class GlobalDependentModel(ABC, nn.Module):
             else:
                 self._convert_into_global_dependent_model(
                     child,
-                    path + (f"{layer_name}" if path == "" else f".{layer_name}"),
+                    path + (f"{layer_name}" if path == "" else f"_{layer_name}"),
                     average_matrices=average_matrices,
                     verbose=verbose,
                     **kwargs
@@ -959,3 +1180,290 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         }
 
         return conversions
+
+
+class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
+    """
+    Model with GLAMSVDLinear layers replacing linear layers and GLAMSVDEmbedding layers
+    replacing Embedding layers.
+
+    Args:
+        pretrained_model (PreTrainedModel):
+            Pretrained model.
+        target_layers (dict):
+            Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
+            rank of the decomposition for the layer.
+            >> Example:
+            >> {
+            >>     "layer_name_1": {"rank": 10},
+            >>     "layer_name_2": {"rank": 20},
+            >> }
+        use_names_as_keys (bool):
+            Whether to use the names of the layers in the keys of the global layers, having different global layers
+            for layers having different roles in the original model.
+        mapping_layer_name_key (dict):
+            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
+            names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
+        verbose (bool):
+            Whether to print information about the conversion.
+        initial_regularization_weight (float or torch.Tensor):
+            Initial weight for regularization.
+        max_regularization_weight (float or torch.Tensor):
+            Maximum weight for regularization.
+        start_step_regularization (int):
+            Step at which regularization starts.
+        steps_regularization_weight_resets (int):
+            Number of steps before the regularization weight resets.
+        **kwargs:
+            Additional keyword arguments.
+    """
+
+    def __init__(
+            self,
+            pretrained_model=None,
+            target_layers: dict = None,
+            use_names_as_keys: bool = False,
+            mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
+            from_pretrained: bool = False,
+            preserve_original_model: bool = False,
+            verbose: bool = False,
+            initial_regularization_weight=0.0,
+            max_regularization_weight=0.0,
+            start_step_regularization=0,
+            steps_regularization_weight_resets=0,
+            pruning_interval: [float | int] = 0,
+            **kwargs
+    ) -> None:
+        # Ensure use_names_as_keys is set to True
+        use_names_as_keys = True
+
+        # Initialize the first base class (GlobalDependentModel)
+        super(GLAMSVDModel, self).__init__(
+            pretrained_model,
+            target_layers,
+            use_names_as_keys=use_names_as_keys,
+            mapping_layer_name_key=mapping_layer_name_key,
+            remove_average=remove_average,
+            from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
+            verbose=verbose,
+            initial_regularization_weight=initial_regularization_weight,
+            max_regularization_weight=max_regularization_weight,
+            start_step_regularization=start_step_regularization,
+            steps_regularization_weight_resets=steps_regularization_weight_resets,
+            **kwargs
+        )
+
+        self.pruning_interval = pruning_interval
+    def define_conversion(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Defines the conversion of layers into global-base layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Dictionary mapping layer types to corresponding global-base layer classes.
+        """
+
+        conversions = {
+            nn.Linear: GLAMSVDLinear,
+            #nn.Embedding: GLAMSVDEmbedding
+        }
+
+        return conversions
+
+    def get_unweighted_penalization(
+            self,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Returns the penalization term for the training of the global layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Penalization term.
+        """
+
+        penalization_term = torch.tensor(0.0, device=self.device)
+        l1_norms_table = {}
+
+        for index1, layer1 in enumerate(self.global_layers.values()):
+            for index2, layer2 in enumerate(list(self.global_layers.values())[index1+1:]):
+                if layer1.weight.shape == layer2.weight.shape:
+                    l1_norm = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
+                    penalization_term += l1_norm
+                    l1_norms_table[(index1, index2)] = l1_norm.item()
+        """
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        max_index = max(max(indices) for indices in l1_norms_table.keys()) + 1
+        heatmap_matrix = np.zeros((max_index, max_index))
+
+        for (i, j), value in l1_norms_table.items():
+            heatmap_matrix[i, j] = value
+            heatmap_matrix[j, i] = value  # To make the matrix symmetric
+
+        plt.figure(figsize=(30, 24))
+        sns.heatmap(heatmap_matrix, annot=True, fmt=".1f", cmap="viridis")
+        plt.title("L1 Norms Heatmap")
+        plt.xlabel("Layer Index")
+        plt.ylabel("Layer Index")
+        plt.show()
+        """
+        return penalization_term
+
+
+class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
+    """
+    Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
+
+    Args:
+        model (nn.Module):
+            Model to wrap.
+
+    Attributes:
+        weights_to_exclude (list):
+            List of substrings that identify the weights to exclude from the penalization.
+    """
+
+    weights_to_exclude = [
+        "lora",
+        "vera"
+    ]
+
+    def __init__(
+            self,
+            model: nn.Module,
+            initial_regularization_weight: [float, torch.Tensor] = 0.0,
+            max_regularization_weight: [float, torch.Tensor] = 0.0,
+            start_step_regularization: int = 0,
+            steps_regularization_weight_resets: int = 0,
+    ):
+        if not isinstance(model, PeftModel):
+            raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
+
+        super(KFCTrainedModel, self).__init__(
+            initial_regularization_weight,
+            max_regularization_weight,
+            start_step_regularization,
+            steps_regularization_weight_resets
+        )
+
+        self.model = model
+
+        self.layers_to_penalize = [
+            name
+            for name, param in self.model.named_parameters()
+            if not any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
+        ]
+        self.layers_to_exclude = [
+            name
+            for name, param in self.model.named_parameters()
+            if any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
+        ]
+
+    def forward(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor = None,
+            **kwargs
+    ) -> None:
+        """
+        Forward pass of the model.
+
+        Args:
+            input_ids:
+                Input IDs.
+            attention_mask:
+                Attention mask.
+
+        Returns:
+            Output tensor.
+        """
+
+        output = self.model.forward(
+            input_ids,
+            attention_mask=attention_mask,
+            **kwargs
+        )
+
+        return output
+
+    def compute_sum_l1_norms(
+            self,
+            layers: list
+    ) -> torch.Tensor:
+        """
+        Computes the sum of the L1-norms of the weights of the given layers.
+
+        Args:
+            layers (list):
+                List of layer names.
+
+        Returns:
+            torch.Tensor:
+                Sum of the L1-norms of the weights of the given layers.
+        """
+
+        sum_l1_norms = torch.tensor(0.0, device=self.device)
+        for i, param in enumerate([parameter for name, parameter in self.model.named_parameters() if name in layers]):
+            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
+
+        return sum_l1_norms
+
+    def get_unweighted_penalization(
+            self,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Returns the penalization term that is the L1-norm of the weights of the pretrained model.
+        The adapter weights are exlucluded from the computation.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Penalization term.
+        """
+
+        return self.compute_sum_l1_norms(self.layers_to_penalize)
+
+    @torch.no_grad()
+    def get_logging_info(
+            self
+    ) -> list:
+        """
+        Returns additional information to log.
+
+        Returns:
+            dict:
+                Additional information to log.
+        """
+
+        logging_info = super().get_logging_info()
+        logging_info.append(
+            {"name": "norm of non-regularized weights", "value": self.compute_sum_l1_norms(self.layers_to_exclude), "on_step": True, "on_epoch": False, "prog_bar": False},
+        )
+
+        return logging_info

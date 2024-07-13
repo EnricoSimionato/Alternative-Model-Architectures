@@ -10,7 +10,7 @@ from transformers import (
     BitsAndBytesConfig, AutoTokenizer
 )
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 
 
 def get_conversation_example_1(

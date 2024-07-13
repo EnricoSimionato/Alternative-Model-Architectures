@@ -5,10 +5,21 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from pytorch_lightning import LightningDataModule
 
-from transformers import AutoTokenizer, PreTrainedTokenizer
+import transformers
+from transformers import (
+    AutoTokenizer,
+    PreTrainedTokenizer
+)
 
-from gbm.utils.storage_utils import store_model_and_info, load_model_and_info
-from gbm.utils.pipeline.config import Config, ExperimentStatus
+from gbm.utils.experiment_pipeline.storage_utils import (
+    store_model_and_info,
+    load_model_and_info
+)
+
+from gbm.utils.experiment_pipeline.config import (
+    ExperimentStatus,
+    Config
+)
 
 from gbm.utils.classification import ClassifierModelWrapper
 from gbm.utils.classification.pl_trainer import get_classification_trainer
@@ -53,7 +64,7 @@ class Experiment:
     Attributes:
         task (str):
             The task to perform.
-        model (nn.Module):
+        model (nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
             The model to use.
         dataset (LightningDataModule):
             The dataset to use.
@@ -72,7 +83,7 @@ class Experiment:
     def __init__(
             self,
             task: str,
-            model: nn.Module,
+            model: [nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
             dataset: LightningDataModule,
             config: Config,
             tokenizer: AutoTokenizer | PreTrainedTokenizer = None,
@@ -183,17 +194,8 @@ class Experiment:
         else:
             training_args["max_steps"] = len(self.dataset.train_dataloader())
 
-        # Defining KFC training arguments
-        kfc_training_keys = ["initial_regularization_weight", "max_regularization_weight", "start_step_regularization"]
-        kfc_training_args = {
-            "kfc_training": self.config.contains("kfc_training") and self.config.get("kfc_training")
-        }
-        for key in kfc_training_keys:
-            if self.config.contains(key):
-                kfc_training_args[key] = self.config.get(key)
-
         # Defining the data type of the model
-        dtype = (self.config.get("dtype") if self.config.contains("dtype") else "float32"),
+        dtype = (self.config.get("dtype") if self.config.contains("dtype") else "float32")
 
         if self.task == "classification":
             pl_model = ClassifierModelWrapper(
@@ -205,8 +207,6 @@ class Experiment:
                 label2id=self.config.get("label2id"),
 
                 **training_args,
-
-                **kfc_training_args,
 
                 dtype=dtype
             )
@@ -221,8 +221,6 @@ class Experiment:
                 **training_args,
 
                 stop_tokens=self.config.get("stop_tokens"),
-
-                **kfc_training_args,
 
                 dtype=dtype
             )

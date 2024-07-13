@@ -7,7 +7,7 @@ from peft import (
     get_peft_model
 )
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 
 
 def get_adapted_model(

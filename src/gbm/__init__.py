@@ -15,14 +15,20 @@ __all__ = [
     "GlobalFixedBaseEmbedding",
 
     "GlobalDependentModel",
-    "GlobalBaseModel",
+
+    "RegularizedTrainingInterface",
+
     "LocalSVDModel",
+    "GlobalBaseModel",
     "GlobalFixedBaseModel",
+    "GLAMSVDModel",
+
+    "KFCTrainedModel"
 ]
 
 from gbm.layers.global_dependent_layer import (
     GlobalDependent,
-    StructureSpecificGlobalDependent,
+    StructureSpecificGlobalDependent
 )
 
 from gbm.layers.gdl_linear import (
@@ -31,6 +37,7 @@ from gbm.layers.gdl_linear import (
     GlobalBaseLinear,
     LocalSVDLinear,
     GlobalFixedBaseLinear,
+    GLAMSVDLinear
 )
 
 from gbm.layers.gdl_embedding import (
@@ -38,12 +45,18 @@ from gbm.layers.gdl_embedding import (
     StructureSpecificGlobalDependentEmbedding,
     LocalSVDEmbedding,
     GlobalBaseEmbedding,
-    GlobalFixedBaseEmbedding,
+    GlobalFixedBaseEmbedding
 )
 
 from gbm.models.global_dependent_model import (
     GlobalDependentModel,
-    GlobalBaseModel,
+
+    RegularizedTrainingInterface,
+
     LocalSVDModel,
+    GlobalBaseModel,
     GlobalFixedBaseModel,
+    GLAMSVDModel,
+
+    KFCTrainedModel
 )

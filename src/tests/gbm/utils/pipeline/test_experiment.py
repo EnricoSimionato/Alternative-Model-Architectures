@@ -6,8 +6,8 @@ from peft import get_peft_model, LoraConfig
 
 from gbm import GlobalBaseModel
 from gbm.utils.classification import load_original_model_for_sequence_classification, IMDBDataModule
-from gbm.utils.pipeline.experiment import Experiment
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.experiment import Experiment
+from gbm.utils.experiment_pipeline.config import Config
 from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
 from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
 from gbm.utils.chatbot.conversation_utils import start_conversation_loop

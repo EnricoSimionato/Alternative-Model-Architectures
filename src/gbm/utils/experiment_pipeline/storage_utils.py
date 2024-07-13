@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 import os
-import pickle
+import json
+
+from torch import nn
 
 import transformers
 
 import peft
 from peft import PeftModel
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 
 
 def store_model_and_info(
-        model: transformers.AutoModel,
+        model: [nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
         config: Config,
         tokenizer: transformers.AutoTokenizer = None,
         store_model_function: callable = None,
@@ -63,11 +67,14 @@ def store_model_and_info(
             print(f"Tokenizer saved in: '{config.get('path_to_tokenizer')}'")
         print(f"Model saved in: '{config.get('path_to_model')}'")
 
-    with open(os.path.join(config.get("path_to_configuration"), 'config'), 'wb') as f:
-        pickle.dump(config, f)
+    # Convert config to dictionary if it is not already
+    config_dict = config.__dict__
+
+    with open(os.path.join(config.get("path_to_configuration"), 'config.json'), 'w') as f:
+        json.dump(config_dict, f, indent=4)
 
     if verbose:
-        print(f"Experiment configuration parameters saved in: '{os.path.join(config.get('path_to_configuration'), 'config')}'")
+        print(f"Experiment configuration parameters saved in: '{os.path.join(config.get('path_to_configuration'), 'config.json')}'")
         print()
 
     print("Stored model and info")
@@ -105,8 +112,7 @@ def load_model_and_info(
         print()
 
     # Loading configuration parameters
-    with open(os.path.join(path_to_experiment, "configuration", "config"), 'rb') as f:
-        config = pickle.load(f)
+    config = Config(os.path.join(path_to_experiment, "configuration", "config.json"))
     if verbose:
         print(f"Configuration parameters loaded from: '{os.path.join(path_to_experiment, 'configuration')}'")
 

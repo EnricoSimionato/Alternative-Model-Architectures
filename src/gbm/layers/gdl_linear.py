@@ -8,6 +8,7 @@ import numpy as np
 import math
 
 from gbm.utils.device_utils import get_available_device
+
 from gbm.layers.global_dependent_layer import GlobalDependent, StructureSpecificGlobalDependent
 
 
@@ -733,6 +734,124 @@ class GlobalFixedBaseLinear(GlobalBaseLinear):
              "key": str((rank, target_layer.out_features)),
              "trainable": True}
         )
+
+
+class GLAMSVDLinear(StructureSpecificGlobalDependentLinear):
+    """
+    Implementation of a Linear layer on which is performed matrix decomposition in two matrices:
+    - a global matrix of shape (in_features, rank);
+    - a local matrix of shape (rank, out_features).
+
+    The global matrix is fixed and not trainable.
+
+    Args:
+        target_layer (nn.Module):
+            Target layer to be transformed in the factorized version.
+        global_layers (nn.ModuleDict):
+            Dictionary containing the global matrices.
+        rank (int):
+            Rank of the global matrix.
+        target_name (str):
+            Name of the target layer.
+        *args:
+            Variable length argument list.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        global_dependent_layer (GlobalDependentLinear):
+            Linear layer with dependencies on global matrices.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
+            rank: int,
+            *args,
+            **kwargs
+    ) -> None:
+        kwargs["rank"] = rank
+        kwargs["path"] = f"{kwargs['path']}_{target_name}"
+
+        super().__init__(
+            target_layer,
+            global_layers,
+            average_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
+
+    def define_structure(
+            self,
+            **kwargs
+    ) -> Any:
+        """
+        Defines the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+        path = kwargs["path"]
+
+        return (
+            {"scope": "global",
+             "shape": (target_layer.in_features, rank),
+             "key": f"({target_layer.in_features},{rank})_{path}",
+             "trainable": True},
+            {"scope": "local",
+             "shape": (rank, target_layer.out_features),
+             "key": f"({rank}, {target_layer.out_features})",
+             "trainable": True}
+        )
+
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        dtype = target_layer.weight.data.numpy().dtype
+        rank = kwargs["rank"]
+        global_key = self.global_dependent_layer.structure[0]["key"]
+        local_key = self.global_dependent_layer.structure[1]["key"]
+
+        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy().astype(np.float32))
+        min_dim = min(target_layer.in_features, target_layer.out_features)
+
+        with torch.no_grad():
+            self.get_layer("local", local_key).weight.data = torch.tensor(
+                U[:, :min(min_dim, rank)].astype(dtype)
+            ) @ np.diag(
+                S[:min(min_dim, rank)].astype(dtype)
+            )
+
+            self.get_layer("global", global_key).weight.data = torch.tensor(
+                VT[:min(min_dim, rank), :].astype(dtype)
+            )
+
+            for layer in self.structure:
+                if "trainable" in layer.keys() and layer["scope"] == "local":
+                    for params in self.get_layer("local", layer["key"]).parameters():
+                        params.requires_grad = layer["trainable"]
+
+            self.get_layer("local", local_key).bias = target_layer.bias
 
 
 # TODO: Implement the GlobalBaseSparseLinear class

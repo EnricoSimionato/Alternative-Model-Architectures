@@ -62,7 +62,6 @@
     "bias": "none",
     "task_type": "SEQ_CLS",
 
-    "kfc_training": true,
     "kfc_label": "kfc",
     "initial_regularization_weight": 0.01,
     "max_regularization_weight": 10,

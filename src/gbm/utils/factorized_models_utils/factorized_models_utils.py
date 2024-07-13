@@ -2,11 +2,31 @@ import transformers
 
 import gbm
 from gbm import (
+    LocalSVDModel,
     GlobalBaseModel,
-    LocalSVDModel
+    GlobalFixedBaseModel,
+    GLAMSVDModel
 )
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
+
+
+regularized_training_keys = [
+    "initial_regularization_weight",
+    "max_regularization_weight",
+    "start_step_regularization",
+    "steps_regularization_weight_resets"
+]
+
+alternative_architectures_keys = [
+    "target_layers",
+    "use_names_as_keys",
+    "mapping_layer_name_key",
+    "remove_average",
+    "from_pretrained",
+    "preserve_original_model",
+    "verbose"
+]
 
 
 def get_factorized_model(
@@ -17,6 +37,8 @@ def get_factorized_model(
     Returns the factorized model to use in the experiment.
 
     Args:
+        model (transformers.AutoModel):
+            The original model to factorize.
         config (Config):
             The configuration parameters for the experiment.
 
@@ -28,29 +50,34 @@ def get_factorized_model(
     if not config.contains("factorization_method"):
         raise ValueError("Factorization method not specified")
 
-    keys = [
-        "target_layers",
-        "use_names_as_keys",
-        "mapping_layer_name_key",
-        "remove_average",
-        "from_pretrained",
-        "preserve_original_model",
-        "verbose"
-    ]
-    arguments = {}
-    for key in keys:
-        if config.contains(key):
-            arguments[key] = config.get(key)
+    alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)
 
-    if config.get("factorization_method").lower() == "globalbase":
-        return GlobalBaseModel(
-            model,
-            **arguments
-        )
-    elif config.get("factorization_method").lower() == "localsvd":
+    factorization_method = config.get("factorization_method").lower()
+    if factorization_method.endswith("model"):
+        factorization_method = factorization_method[:-5]
+
+    if factorization_method == "localsvd":
         return LocalSVDModel(
             model,
-            **arguments
+            **alternative_architectures_arguments
+        )
+    elif factorization_method == "globalbase":
+        return GlobalBaseModel(
+            model,
+            **alternative_architectures_arguments
+        )
+    elif factorization_method == "globalfixedbase":
+        return GlobalFixedBaseModel(
+            model,
+            **alternative_architectures_arguments
+        )
+    elif factorization_method == "glamsvd":
+        regularized_training_arguments = config.get_dict(regularized_training_keys)
+        print(regularized_training_arguments)
+        return GLAMSVDModel(
+            model,
+            **alternative_architectures_arguments,
+            **regularized_training_arguments
         )
     else:
         raise ValueError("Factorization method not recognized")

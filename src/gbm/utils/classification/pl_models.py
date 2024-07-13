@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 
 import transformers
 
+from gbm.models.global_dependent_model import RegularizedTrainingInterface
 from gbm.utils.classification.pl_metrics import ClassificationStats
 from gbm.utils.pl_utils.utility_mappings import optimizers_mapping
 
@@ -41,12 +42,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             Maximum number of training epochs to perform. Defaults to 3.
         warmup_steps (int):
             Number of warmup steps. Defaults to 0.
-        kfc_training (bool):
-            Whether to perform KFC training. Defaults to False.
-        initial_regularization_weight (float):
-            Initial regularization weight. Defaults to 0.01.
-        max_regularization_weight (torch.Tensor):
-            Maximum regularization weight. Defaults to 10000.0.
         dtype (str):
             Data type to use. Defaults to "float32".
         **kwargs:
@@ -63,12 +58,12 @@ class ClassifierModelWrapper(pl.LightningModule):
             Mapping from class IDs to labels.
         label2id (dict):
             Mapping from labels to class IDs.
-        learning_rates (list):
-            Learning rate.
+        optimizers_settings (list[dict]):
+            List of dictionaries containing the optimizer settings.
         max_steps (int):
             Maximum number of training epochs to perform.
-        warmup_steps (int):
-            Number of warmup steps.
+        training_step_index (int):
+            Index of the training step.
         accuracy (torchmetrics.classification.Accuracy):
             Accuracy metric.
         precision (torchmetrics.classification.Precision):
@@ -80,38 +75,30 @@ class ClassifierModelWrapper(pl.LightningModule):
         training_samples_count (int):
             Number of training samples.
         sum_training_epoch_loss (float):
-            Sum of the training loss in the current epoch.
+            Sum of the training loss.
         training_stat_scores (ClassificationStats):
             Statistics of the training data.
         from_last_val_training_samples_count (int):
-            Number of training samples from the last validation epoch.
+            Number of training samples from the last validation.
         sum_from_last_val_training_loss (float):
-            Sum of the training loss from the last validation epoch.
+            Sum of the training loss from the last validation.
         from_last_val_training_stat_scores (ClassificationStats):
-            Statistics of the training data from the last validation epoch.
+            Statistics of the training data from the last validation.
         validation_samples_count (int):
             Number of validation samples.
         sum_validation_epoch_loss (float):
-            Sum of the validation loss in the current epoch.
+            Sum of the validation loss.
         validation_stat_scores (ClassificationStats):
             Statistics of the validation data.
         test_samples_count (int):
             Number of test samples.
         sum_test_epoch_loss (float):
-            Sum of the test loss in the current epoch.
+            Sum of the test loss.
         test_stat_scores (ClassificationStats):
             Statistics of the test data.
         model_dtype (str):
             Data type to use.
     """
-
-    weights_to_exclude = [
-        "lora",
-        "vera"
-    ]
-
-    # TODO log also the norm of the adapters
-    # TODO Increase the regularization
 
     def __init__(
             self,
@@ -122,11 +109,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             label2id: dict,
             optimizers_settings: list[dict] = None,
             max_steps: int = 1,
-            kfc_training: bool = False,
-            initial_regularization_weight: float = 0.01,
-            max_regularization_weight: float = 10.0,
-            start_step_regularization: int = 0,
-            steps_regularization_weight_resets: int = 1000,
             dtype: str = "float32",
             **kwargs
     ) -> None:
@@ -141,20 +123,6 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         self.optimizers_settings = optimizers_settings
         self.max_steps = max_steps
-
-        self.kfc_training = kfc_training
-        self.initial_regularization_weight = initial_regularization_weight
-        self.fixed_regularization_weight = None
-        self.adaptive_regularization_weight = torch.tensor(
-            initial_regularization_weight,
-            requires_grad=False
-        )
-        self.max_regularization_weight = torch.tensor(
-            max_regularization_weight,
-            requires_grad=False
-        )
-        self.start_step_regularization = start_step_regularization
-        self.steps_regularization_weight_resets = steps_regularization_weight_resets
 
         self.training_step_index = 0
 
@@ -213,7 +181,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             print("No optimizer settings provided, using default settings")
             self.optimizers_settings = [
                 {
-                    "optimizer": "adamw",
+                    "optimizer": "AdamW",
                     "parameters_group": [
                         name
                         for name, param in self.model.named_parameters()
@@ -234,25 +202,12 @@ class ClassifierModelWrapper(pl.LightningModule):
                 name
                 for name, param in self.model.named_parameters()
             ]
-        if self.kfc_training:
-            self.optimizers_settings[0]["parameters_group"] = [
-                name
-                for name, _ in self.model.named_parameters()
-                if any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
-            ]
-            self.optimizers_settings[1]["parameters_group"] = [
-                name
-                for name, _ in self.model.named_parameters()
-                if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
-            ]
         if len(self.optimizers_settings) > 1 and any(len(optimizer_settings["parameters_group"]) == 0 for optimizer_settings in self.optimizers_settings):
             raise ValueError("The parameters group of the optimizers' settings should not be empty")
 
         # Defining the optimizers
         optimizers = []
         for optimizer_settings in self.optimizers_settings:
-            a = [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]]
-            b = optimizer_settings["parameters_group"]
             optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
                 [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]],
                 lr=optimizer_settings["learning_rate"],
@@ -260,8 +215,6 @@ class ClassifierModelWrapper(pl.LightningModule):
             )
 
             if "lr_scheduler" in optimizer_settings:
-                # TODO: Add the possibility to use different learning rate schedulers
-                # TODO: Pass to optimizer and lr_scheduler a dictionary of parameters
                 new_optimizer = {
                     "optimizer": optimizer,
                     "lr_scheduler": {
@@ -310,94 +263,70 @@ class ClassifierModelWrapper(pl.LightningModule):
             **kwargs
         ).logits
 
-    def get_unweighted_penalization(
+    def _common_step(
             self,
-            layers_to_penalize: list[str]
-    ) -> torch.Tensor:
+            batch: dict[str, torch.Tensor],
+            batch_idx: int
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Computes the unweighted penalization term as the L1 norm of the model weights.
+        Performs the common operations that training, validation and test step
+        have to do.
 
         Args:
-            layers_to_penalize (list[str]):
-                List of the names of the model parameters that are penalized.
+            batch (dict[str, torch.Tensor]):
+                Batch of input data.
+            batch_idx (int):
+                Index of the batch.
 
         Returns:
             torch.Tensor:
-                Unweighted penalization term.
-        """
-
-        if not self.kfc_training:
-            return torch.tensor(0.0, device=self.device)
-
-        original_params = []
-        for name, param in self.model.named_parameters():
-            if name in layers_to_penalize:
-                original_params.append(param)
-
-        sum_l1_norms = torch.tensor(0.0, device=self.device)
-        for i, param in enumerate(original_params):
-            sum_l1_norms += torch.sum(torch.abs(param.flatten()))
-
-        return sum_l1_norms
-
-    def get_weighted_penalization(
-            self,
-            penalization: torch.Tensor,
-            loss: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Computes the weighted penalization term.
-
-        Args:
-            penalization (torch.Tensor):
-                Unweighted penalization term.
-            loss (torch.Tensor):
                 Loss of the model computed for the current batch.
-
-        Returns:
             torch.Tensor:
-                Weighted penalization term.
+                Output computed by the model.
+            torch.Tensor:
+                Target labels for the current batch.
         """
 
-        if self.fixed_regularization_weight is None:
-            self.fixed_regularization_weight = torch.tensor(
-                (loss / penalization).clone().detach().item(),
-                requires_grad=False
-            )
-        elif (self.steps_regularization_weight_resets > 0 and
-              self.training_step_index % self.steps_regularization_weight_resets == 0):
-            self.fixed_regularization_weight = torch.tensor(
-                (loss / penalization).clone().detach().item(),
-                requires_grad=False
-            )
-            self.adaptive_regularization_weight = torch.tensor(
-                self.initial_regularization_weight,
-                requires_grad=False
-            )
-            print("Fixed regularization weight reset to", self.fixed_regularization_weight.item(), "and adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
-            print("Adaptive regularization weight reset to", self.adaptive_regularization_weight.item())
+        input_ids = batch["input_ids"]
+        attention_mask = batch["attention_mask"]
+        labels = batch["label"]
 
-        self.log(
-            "fixed_regularization_weight",
-            self.fixed_regularization_weight,
-            on_step=True,
-            on_epoch=False
+        logits = self.forward(
+            input_ids,
+            **{"attention_mask": attention_mask}
+        )
+        loss = torch.nn.functional.cross_entropy(
+            logits.view(-1, 2),
+            labels.view(-1)
         )
 
-        return penalization * self.fixed_regularization_weight
+        return loss, logits, labels
 
-    def regularization_scheduler_step(
-            self
-    ):
+    def _regularization_step(
+            self,
+            loss: torch.Tensor,
+    ) -> torch.Tensor:
         """
-        Updates the regularization weight.
+        Performs a regularization step.
+
+        Returns:
+            torch.Tensor:
+                Regularization loss.
         """
 
-        self.adaptive_regularization_weight = torch.tensor(self.initial_regularization_weight).to(self.device) + (
-                self.max_regularization_weight - self.initial_regularization_weight
-        ) * (
-                self.training_step_index % self.steps_regularization_weight_resets + 1
-        ) / self.steps_regularization_weight_resets
+        # Computation of the regularization loss
+        regularization_loss = self.model.get_training_penalization_loss(
+                loss,
+                self.training_step_index,
+                self.device
+        )
+
+        # Logging
+        logs_dicts = self.model.get_logging_info()
+        for log_element in logs_dicts:
+            self.log(**log_element)
+
+        return regularization_loss
 
     def training_step(
             self,
@@ -420,92 +349,35 @@ class ClassifierModelWrapper(pl.LightningModule):
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 
-        if self.kfc_training and self.training_step_index >= self.start_step_regularization:
-            self.log(
-                "task_loss",
-                loss,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True
-            )
-
-            self.log(
-                "adaptive_regularization_weight",
-                self.adaptive_regularization_weight,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True
-            )
-
-            unweighted_penalization = self.get_unweighted_penalization(
-                [
-                    name
-                    for name, param in self.model.named_parameters()
-                    if not any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
-                ]
-            )
-
-            self.log(
-                "unweighted_penalization",
-                unweighted_penalization,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True
-            )
-
-            self.log(
-                "norm of non-regularized weights",
-                self.get_unweighted_penalization(
-                    [
-                        name
-                        for name, param in self.model.named_parameters()
-                        if any(substring in name for substring in ClassifierModelWrapper.weights_to_exclude)
-                    ]
-                ),
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True
-            )
-
-            weighted_penalization = self.get_weighted_penalization(unweighted_penalization, loss)
-            self.log(
-                "weighted_penalization",
-                weighted_penalization,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True
-            )
-
-            weighted_penalization = weighted_penalization.to(loss.device)
-            self.adaptive_regularization_weight = self.adaptive_regularization_weight.to(loss.device)
-
-            total_loss = loss + self.adaptive_regularization_weight * weighted_penalization
+        # Computation of the regularization loss
+        if isinstance(self.model, RegularizedTrainingInterface):
+            regularization_loss = self._regularization_step(loss)
         else:
-            total_loss = loss
+            regularization_loss = 0.0
 
+        # Computation of the total loss
+        total_loss = loss + regularization_loss
+
+        # Manual optimization in case of multiple optimizers
         optimizers = self.optimizers()
-        for optimizer in optimizers:
-            optimizer.zero_grad()
+        if isinstance(optimizers, list):
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
-        self.manual_backward(total_loss, retain_graph=True)
+            self.manual_backward(total_loss, retain_graph=True)
 
-        for optimizer in optimizers:
-            optimizer.step()
+            for optimizer in optimizers:
+                optimizer.step()
 
         lr_schedulers = self.lr_schedulers()
+        if isinstance(lr_schedulers, list):
+            for lr_scheduler in lr_schedulers:
+                lr_scheduler.step()
+        else:
+            lr_schedulers.step()
 
-        for lr_scheduler in lr_schedulers:
-            lr_scheduler.step()
-
-        self.regularization_scheduler_step()
-
-        self.log(
-            "loss",
-            total_loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True
-        )
+        # Logging
+        self.log("loss", total_loss, on_step=True, on_epoch=True, prog_bar=True)
 
         self.from_last_val_training_samples_count += logits.shape[0]
         self.sum_from_last_val_training_loss += loss.item() * logits.shape[0]
@@ -515,9 +387,10 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.sum_training_epoch_loss += loss.item() * logits.shape[0]
         self.training_stat_scores.update(logits.argmax(-1), labels)
 
+        # Increasing the training step
         self.training_step_index += 1
 
-        return loss
+        return total_loss
 
     def validation_step(
             self,
@@ -576,7 +449,8 @@ class ClassifierModelWrapper(pl.LightningModule):
     def predict_step(
             self,
             batch: dict[str, torch.Tensor],
-            batch_idx: int
+            batch_idx: int,
+            **kwargs
     ) -> torch.Tensor:
         """
         Performs a prediction step.
@@ -586,6 +460,8 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Batch of input data.
             batch_idx (int):
                 Index of the batch.
+            **kwargs:
+                Additional keyword arguments.
 
         Returns:
             torch.Tensor:
@@ -597,45 +473,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         predicted_class_id = logits.argmax().item()
 
         return predicted_class_id
-
-    def _common_step(
-            self,
-            batch: dict[str, torch.Tensor],
-            batch_idx: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Performs the common operations that training, validation and test step
-        have to do.
-
-        Args:
-            batch (dict[str, torch.Tensor]):
-                Batch of input data.
-            batch_idx (int):
-                Index of the batch.
-
-        Returns:
-            torch.Tensor:
-                Loss of the model computed for the current batch.
-            torch.Tensor:
-                Output computed by the model.
-            torch.Tensor:
-                Target labels for the current batch.
-        """
-
-        input_ids = batch["input_ids"]
-        attention_mask = batch["attention_mask"]
-        labels = batch["label"]
-
-        logits = self.forward(
-            input_ids,
-            **{"attention_mask": attention_mask}
-        )
-        loss = torch.nn.functional.cross_entropy(
-            logits.view(-1, 2),
-            labels.view(-1)
-        )
-
-        return loss, logits, labels
 
     def on_train_epoch_end(
             self

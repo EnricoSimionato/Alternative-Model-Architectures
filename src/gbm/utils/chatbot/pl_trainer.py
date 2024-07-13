@@ -4,7 +4,7 @@ from pytorch_lightning.loggers.csv_logs import CSVLogger
 from pytorch_lightning.loggers.comet import CometLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from gbm.utils.pipeline.config import Config
+from gbm.utils.experiment_pipeline.config import Config
 from gbm.utils.device_utils import get_available_device
 
 
