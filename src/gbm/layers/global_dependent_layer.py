@@ -608,6 +608,39 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
 
         return post_processed_key
 
+    def change_key(
+            self,
+            scope: str,
+            previous_key: str,
+            new_key: str,
+            **kwargs
+    ) -> None:
+        """
+        Changes the key of a layer given the previous key and the new one.
+
+        Args:
+            scope (str):
+                Scope of the layer.
+            previous_key (str):
+                Previous key of the layer.
+            new_key (str):
+                New key of the layer.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        changed = False
+        for idx, layer in enumerate(self.structure):
+            if layer["scope"] == scope and layer["key"] == previous_key:
+                self.structure[idx]["key"] = self.get_post_processed_key(new_key, **kwargs)
+                changed = True
+                break
+
+        if not changed:
+            print(f"The layer with the scope '{scope}' and key '{previous_key}' does not exist.")
+        else:
+            print(f"The layer with the scope '{scope}' and key '{previous_key}' has now key '{new_key}'.")
+
     def get_layer(
             self,
             scope: str,

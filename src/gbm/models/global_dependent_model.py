@@ -5,7 +5,8 @@ import pickle
 from copy import deepcopy
 
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Union
+from enum import Enum
+from typing import Optional, Callable, Union, Any
 
 import torch
 import torch.nn as nn
@@ -13,7 +14,7 @@ from peft import PeftModel
 from torch import device
 
 from gbm.layers.global_dependent_layer import (
-    MergeableLayer
+    MergeableLayer, StructureSpecificGlobalDependent
 )
 from gbm.layers.gdl_linear import (
     LocalSVDLinear,
@@ -120,6 +121,11 @@ class RegularizedTrainingInterface(ABC):
         if training_step < self.start_step_regularization:
             return torch.tensor(0.0).to(model_device)
 
+        self.regularization_pre_processing(
+            training_step,
+            **kwargs
+        )
+
         self.task_loss = loss
         self.unweighted_penalization = self.get_unweighted_penalization(**kwargs)
         self.weighted_penalization = self.get_weighted_penalization(
@@ -130,6 +136,11 @@ class RegularizedTrainingInterface(ABC):
         )
         self.regularization_loss = self.weighted_penalization * self.adaptive_regularization_weight
         self.regularization_scheduler_step(
+            training_step,
+            **kwargs
+        )
+
+        self.regularization_post_processing(
             training_step,
             **kwargs
         )
@@ -246,6 +257,40 @@ class RegularizedTrainingInterface(ABC):
             {"name": "adaptive_regularization_weight", "value": self.adaptive_regularization_weight, "on_step": True, "on_epoch": False, "prog_bar": False},
             {"name": "fixed_regularization_weight", "value": self.fixed_regularization_weight, "on_step": True, "on_epoch": False, "prog_bar": False}
         ]
+
+    def regularization_pre_processing(
+            self,
+            training_step: int,
+            **kwargs
+    ) -> None:
+        """
+        Pre-processes the model after the computation of the regularization term.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        pass
+
+    def regularization_post_processing(
+            self,
+            training_step: int,
+            **kwargs
+    ) -> None:
+        """
+        Post-processes the model after the computation of the regularization term.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        pass
 
 
 class GlobalDependentModel(ABC, nn.Module):
@@ -399,6 +444,48 @@ class GlobalDependentModel(ABC, nn.Module):
         Returns:
             Dictionary mapping layer types to corresponding global-dependent layer classes.
         """
+
+    def change_key(
+            self,
+            model_tree: nn.Module,
+            scope: str,
+            previous_key: str,
+            new_key: str,
+            **kwargs
+    ) -> None:
+        """
+        Changes the key of the global layers.
+
+        Args:
+            model_tree (nn.Module):
+                Model or module containing layers.
+            scope (str):
+                Scope of the layer which key has to be changed.
+            previous_key (str):
+                Previous key of the layer.
+            new_key (str):
+                New key of the layer.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        for layer_name in model_tree._modules.keys():
+            child = model_tree._modules[layer_name]
+            if issubclass(type(child), StructureSpecificGlobalDependent):
+                child.change_key(
+                    scope,
+                    previous_key,
+                    new_key,
+                    **kwargs
+                )
+            else:
+                self.change_key(
+                    child,
+                    scope,
+                    previous_key,
+                    new_key,
+                    **kwargs
+                )
 
     def _collect_matrices_per_name(
             self,
@@ -1182,6 +1269,12 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         return conversions
 
 
+class PruningStrategy(Enum):
+    AVERAGE = "average"
+    FIRST = "first"
+    SECOND = "second"
+
+
 class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     """
     Model with GLAMSVDLinear layers replacing linear layers and GLAMSVDEmbedding layers
@@ -1240,6 +1333,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             start_step_regularization=0,
             steps_regularization_weight_resets=0,
             pruning_interval: [float | int] = 0,
+            pruning_threshold: float = 0.1,
+            pruning_strategy: PruningStrategy = PruningStrategy.AVERAGE,
             **kwargs
     ) -> None:
         # Ensure use_names_as_keys is set to True
@@ -1263,6 +1358,9 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         )
 
         self.pruning_interval = pruning_interval
+        self.pruning_threshold = pruning_threshold
+        self.pruning_strategy = pruning_strategy
+
     def define_conversion(
             self,
             **kwargs
@@ -1330,6 +1428,138 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         plt.show()
         """
         return penalization_term
+
+    def prune_global_layers(
+            self
+    ) -> None:
+        """
+        Computes the L1-norm of the differences between the global layers and prunes the layers that are similar.
+        """
+
+        layers_keys = list(self.global_layers.keys())
+        norm_differences = {}
+        for index1, key1 in enumerate(layers_keys):
+            layer1 = self.global_layers[key1]
+            norm_1 = torch.sum(torch.abs(layer1.weight.flatten()))
+            for index2, key2 in enumerate(layers_keys[index1+1:]):
+                layer2 = self.global_layers[key2]
+                norm_2 = torch.sum(torch.abs(layer2.weight.flatten()))
+                if layer1.weight.shape == layer2.weight.shape:
+                    norm_difference = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
+
+                    """
+                    # Thresholding based on the absolute difference
+                    if norm_difference < self.pruning_threshold:
+                        self.apply_pruning(
+                            key1,
+                            layer1,
+                            key2,
+                            layer2
+                        )
+                    """
+
+                    # Thresholding based on the relative difference
+                    relative_norm_difference = norm_difference / torch.sqrt(norm_1) / torch.sqrt(norm_2)
+                    norm_differences[(key1, key2)] = relative_norm_difference
+
+        min_key = min(norm_differences, key=norm_differences.get)
+
+        if norm_differences[min_key] < self.pruning_threshold:
+            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {relative_norm_difference}.")
+            self.apply_pruning(
+                min_key[0],
+                self.global_layers[min_key[0]],
+                min_key[1],
+                self.global_layers[min_key[1]]
+            )
+
+    def apply_pruning(
+            self,
+            key1,
+            layer1,
+            key2,
+            layer2,
+            **kwargs
+    ) -> None:
+        """
+        Sets the global layer of the model.
+
+        Args:
+            key1:
+                Key of the first layer.
+            layer1:
+                First layer.
+            key2:
+                Key of the second layer.
+            layer2:
+                Second layer.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if self.pruning_strategy == PruningStrategy.AVERAGE or self.pruning_strategy == PruningStrategy.FIRST:
+            new_key = key1
+            previous_key = key2
+        elif self.pruning_strategy == PruningStrategy.SECOND:
+            new_key = key2
+            previous_key = key1
+        else:
+            raise ValueError("Invalid pruning strategy.")
+
+        self.change_key(
+            self.model,
+            scope="global",
+            previous_key=previous_key,
+            new_key=new_key,
+            **kwargs
+        )
+
+        if self.pruning_strategy == PruningStrategy.AVERAGE:
+            with torch.no_grad():
+                self.global_layers[key1].weight.data = (layer1.weight + layer2.weight) / 2
+            del self.global_layers[key2]
+        elif self.pruning_strategy == PruningStrategy.FIRST:
+            del self.global_layers[key2]
+        elif self.pruning_strategy == PruningStrategy.SECOND:
+            del self.global_layers[key1]
+        else:
+            raise ValueError("Invalid pruning strategy.")
+
+    def regularization_post_processing(
+            self,
+            training_step: int,
+            **kwargs
+    ) -> None:
+        """
+        Post-processing of the regularization term.
+
+        Args:
+            training_step (int):
+                Training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if self.pruning_interval > 0 and training_step % self.pruning_interval == 0:
+            self.prune_global_layers()
+
+
+def provide_hyperparameters_for_glam_training(
+) -> dict:
+    """
+    Provides the best hyperparameters for the training of a GLAM model and obtain a model given a budget and some
+    features of the training.
+
+    Args:
+        None.
+
+    Returns:
+        dict:
+            Dictionary containing the hyperparameters.
+    """
+
+    # TODO write
+    pass
 
 
 class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
