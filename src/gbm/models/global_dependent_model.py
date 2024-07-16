@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, List, Dict, Any
 
 import torch
 import torch.nn as nn
@@ -95,9 +95,9 @@ class RegularizedTrainingInterface(ABC):
 
     def adjust_optimizers_settings(
             self,
-            optimizer_settings: dict,
+            optimizer_settings: list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]],
             **kwargs
-    ) -> dict:
+    ) -> list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
         """
         Adjusts the optimizer and the learning rate scheduler settings for the training.
 
@@ -108,9 +108,10 @@ class RegularizedTrainingInterface(ABC):
                 Additional keyword arguments.
 
         Returns:
-            dict:
-                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
+                Adjusted optimizer and learning rate scheduler settings for the training.
         """
+
         return optimizer_settings
 
     def get_training_penalization_loss(
@@ -1424,9 +1425,9 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
 
     def adjust_optimizers_settings(
             self,
-            optimizer_settings: dict,
+            optimizer_settings: list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]],
             **kwargs
-    ) -> dict:
+    ) -> list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
         """
         Adjusts the optimizer and the learning rate scheduler settings for the training.
 
@@ -1437,8 +1438,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 Additional keyword arguments.
 
         Returns:
-            dict:
-                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
+                Adjusted optimizer and learning rate scheduler settings for the training.
         """
 
         if len(optimizer_settings) != 2:
@@ -1730,9 +1731,9 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
 
     def adjust_optimizers_settings(
             self,
-            optimizer_settings: dict,
+            optimizer_settings: list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]],
             **kwargs
-    ) -> dict:
+    ) -> list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
         """
         Adjusts the optimizer and the learning rate scheduler settings for the training.
 
@@ -1743,8 +1744,8 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
                 Additional keyword arguments.
 
         Returns:
-            dict:
-                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            list[dict[str, list[str] | Any] | dict[str, str | list[str] | Any]]:
+                Adjusted optimizer and learning rate scheduler settings for the training.
         """
 
         if len(optimizer_settings) != 2:
