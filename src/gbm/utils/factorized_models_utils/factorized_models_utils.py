@@ -28,6 +28,12 @@ alternative_architectures_keys = [
     "verbose"
 ]
 
+glam_svd_keys = [
+    "pruning_interval",
+    "pruning_threshold",
+    "pruning_strategy"
+]
+
 
 def get_factorized_model(
         model: transformers.AutoModel,
@@ -73,11 +79,12 @@ def get_factorized_model(
         )
     elif factorization_method == "glamsvd":
         regularized_training_arguments = config.get_dict(regularized_training_keys)
-        print(regularized_training_arguments)
+        glam_svd_training_arguments = config.get_dict(glam_svd_keys)
         return GLAMSVDModel(
             model,
             **alternative_architectures_arguments,
-            **regularized_training_arguments
+            **regularized_training_arguments,
+            **glam_svd_training_arguments
         )
     else:
         raise ValueError("Factorization method not recognized")

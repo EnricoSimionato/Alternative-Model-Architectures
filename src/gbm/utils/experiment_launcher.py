@@ -39,6 +39,8 @@ def launch_aa_class_experiment(
             The configuration parameters for the experiment.
     """
 
+    # Multiple optimizers for GLAM-SVD???
+
     original_model = load_original_model_for_sequence_classification(config)
     tokenizer = load_tokenizer_for_sequence_classification(config)
 
@@ -196,7 +198,7 @@ def launch_kfc_chat_experiment(
 
 
 if __name__ == "__main__":
-    config_file_name = "CONFIG_AA_BERT_CLASS.json"
+    config_file_name = "CONFIG_AA_BERT_CLASS_GLAM.json"
     #path_to_config = os.path.join("/home/enricosimionato/thesis", config_file_name)
     path_to_config = os.path.join("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local", config_file_name)
     configuration = Config(path_to_config)

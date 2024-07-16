@@ -177,6 +177,9 @@ class ClassifierModelWrapper(pl.LightningModule):
                 List of dictionaries containing the optimizer and the learning rate scheduler.
         """
 
+        if issubclass(type(self.model), RegularizedTrainingInterface):
+            self.optimizers_settings = self.model.adjust_optimizers_settings(self.optimizers_settings)
+
         if self.optimizers_settings is None or self.optimizers_settings == []:
             print("No optimizer settings provided, using default settings")
             self.optimizers_settings = [
@@ -205,11 +208,15 @@ class ClassifierModelWrapper(pl.LightningModule):
         if len(self.optimizers_settings) > 1 and any(len(optimizer_settings["parameters_group"]) == 0 for optimizer_settings in self.optimizers_settings):
             raise ValueError("The parameters group of the optimizers' settings should not be empty")
 
+        print(self.optimizers_settings)
         # Defining the optimizers
         optimizers = []
         for optimizer_settings in self.optimizers_settings:
+            print([name for name, param in self.model.named_parameters()])
+            print(optimizer_settings["parameters_group"])
+            print(len([1 for name, param in self.model.named_parameters() if name[6:] in optimizer_settings["parameters_group"]]))
             optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
-                [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]],
+                [param for name, param in self.model.named_parameters() if name[6:] in optimizer_settings["parameters_group"]],
                 lr=optimizer_settings["learning_rate"],
                 eps=1e-7 if self.model_dtype == "float16" else 1e-8
             )
@@ -346,6 +353,9 @@ class ClassifierModelWrapper(pl.LightningModule):
             torch.Tensor:
                 Loss of the model computed for the current batch.
         """
+
+        if hasattr(self.model, 'before_training_step') and callable(getattr(self.model, 'before_training_step')):
+            self.model.before_training_step(self.training_step_index)
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 

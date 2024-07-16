@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Callable, Union, Any
+from typing import Optional, Callable, Union
 
 import torch
 import torch.nn as nn
@@ -92,6 +92,26 @@ class RegularizedTrainingInterface(ABC):
         self.unweighted_penalization = 0.0
         self.weighted_penalization = 0.0
         self.regularization_loss = 0.0
+
+    def adjust_optimizers_settings(
+            self,
+            optimizer_settings: dict,
+            **kwargs
+    ) -> dict:
+        """
+        Adjusts the optimizer and the learning rate scheduler settings for the training.
+
+        Args:
+            optimizer_settings (dict):
+                Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+        """
+        return optimizer_settings
 
     def get_training_penalization_loss(
             self,
@@ -188,6 +208,8 @@ class RegularizedTrainingInterface(ABC):
             torch.Tensor:
                 Weighted penalization term.
         """
+
+        # TODO Weight using the mean of the losses in the previous step
 
         if self.fixed_regularization_weight is None:
             self.fixed_regularization_weight = torch.tensor(
@@ -1025,6 +1047,23 @@ class GlobalDependentModel(ABC, nn.Module):
 
         return next(self.parameters()).device
 
+    def before_training_step(
+            self,
+            training_step: int,
+            **kwargs
+    ):
+        """
+        Method to call before the training step to take some operations.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        pass
+
 
 class LocalSVDModel(GlobalDependentModel):
     """
@@ -1359,7 +1398,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
 
         self.pruning_interval = pruning_interval
         self.pruning_threshold = pruning_threshold
-        self.pruning_strategy = pruning_strategy
+        self.pruning_strategy = PruningStrategy(pruning_strategy)
 
     def define_conversion(
             self,
@@ -1382,6 +1421,58 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         }
 
         return conversions
+
+    def adjust_optimizers_settings(
+            self,
+            optimizer_settings: dict,
+            **kwargs
+    ) -> dict:
+        """
+        Adjusts the optimizer and the learning rate scheduler settings for the training.
+
+        Args:
+            optimizer_settings (dict):
+                Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+        """
+
+        if len(optimizer_settings) != 2:
+            raise ValueError("The model must have two optimizers.")
+
+        optimizers_settings = [
+            {
+                "optimizer": optimizer_settings[0]["optimizer"],
+                "parameters_group": [
+                    name
+                    for name, _ in self.model.named_parameters() if 'global_layers' not in name
+                ],
+                "learning_rate": optimizer_settings[0]["learning_rate"],
+                "weight_decay": optimizer_settings[0]["learning_rate"],
+                "lr_scheduler": optimizer_settings[0]["lr_scheduler"],
+                "warmup_steps": optimizer_settings[0]["warmup_steps"],
+                "monitored_metric": optimizer_settings[0]["monitored_metric"]
+            },
+            {
+                "optimizer": "Adam",
+                "parameters_group": [
+                    name
+                    for name, _ in self.model.named_parameters() if 'global_layers' in name
+                ],
+                "learning_rate": optimizer_settings[1]["learning_rate"],
+                "weight_decay": optimizer_settings[1]["learning_rate"],
+                "lr_scheduler": optimizer_settings[1]["lr_scheduler"],
+                "warmup_steps": optimizer_settings[1]["warmup_steps"],
+                "monitored_metric": optimizer_settings[1]["monitored_metric"]
+            }
+
+        ]
+
+        return optimizers_settings
 
     def get_unweighted_penalization(
             self,
@@ -1430,10 +1521,16 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         return penalization_term
 
     def prune_global_layers(
-            self
+            self,
+            **kwargs
     ) -> None:
         """
         Computes the L1-norm of the differences between the global layers and prunes the layers that are similar.
+
+        Args:
+
+            **kwargs:
+                Additional keyword arguments.
         """
 
         layers_keys = list(self.global_layers.keys())
@@ -1543,6 +1640,26 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         if self.pruning_interval > 0 and training_step % self.pruning_interval == 0:
             self.prune_global_layers()
 
+    def before_training_step(
+            self,
+            training_step: int,
+            **kwargs
+    ):
+        """
+        Method to call before the training step to take some operations.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if self.pruning_interval > 0 and training_step % self.pruning_interval == 0:
+            self.prune_global_layers(
+                **kwargs
+            )
+
 
 def provide_hyperparameters_for_glam_training(
 ) -> dict:
@@ -1610,6 +1727,52 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
             for name, param in self.model.named_parameters()
             if any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
         ]
+
+    def adjust_optimizers_settings(
+            self,
+            optimizer_settings: dict,
+            **kwargs
+    ) -> dict:
+        """
+        Adjusts the optimizer and the learning rate scheduler settings for the training.
+
+        Args:
+            optimizer_settings (dict):
+                Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                 Dictionary containing the optimizer and the learning rate scheduler settings for the training.
+        """
+
+        if len(optimizer_settings) != 2:
+            raise ValueError("The model must have two optimizers.")
+
+        optimizers_settings = [
+            {
+                "optimizer": optimizer_settings[0]["optimizer"],
+                "parameters_group": self.layers_to_exclude,
+                "learning_rate": optimizer_settings[0]["learning_rate"],
+                "weight_decay": optimizer_settings[0]["learning_rate"],
+                "lr_scheduler": optimizer_settings[0]["lr_scheduler"],
+                "warmup_steps": optimizer_settings[0]["warmup_steps"],
+                "monitored_metric": optimizer_settings[0]["monitored_metric"]
+            },
+            {
+                "optimizer": "Adam",
+                "parameters_group": self.layers_to_penalize,
+                "learning_rate": optimizer_settings[1]["learning_rate"],
+                "weight_decay": optimizer_settings[1]["learning_rate"],
+                "lr_scheduler": optimizer_settings[1]["lr_scheduler"],
+                "warmup_steps": optimizer_settings[1]["warmup_steps"],
+                "monitored_metric": optimizer_settings[1]["monitored_metric"]
+            }
+
+        ]
+
+        return optimizers_settings
 
     def forward(
             self,
