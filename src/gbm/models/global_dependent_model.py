@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, Callable, Union, List, Dict, Any
 
+import peft
 import torch
 import torch.nn as nn
 from peft import PeftModel
@@ -1861,3 +1862,77 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         )
 
         return logging_info
+
+
+class KFCAlphaTrainedModel(nn.Module):
+    """
+    Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
+    the output computation as the training goes on.
+
+    Args:
+        model (peft.PeftModel)
+            Model with adapters to wrap.
+        initial_alpha (float):
+            Initial value of the alpha parameter.
+        horizon (int):
+            Number of steps before the alpha parameter reaches the maximum.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        model (peft.PeftModel):
+            Model with adapters to wrap.
+        alpha (float):
+            Alpha parameter.
+        horizon (int):
+            Number of steps before the alpha parameter reaches the maximum.
+    """
+
+    def __init__(
+            self,
+            model: peft.PeftModel,
+            initial_alpha: float = 1.0,
+            horizon: int = 10000,
+            **kwargs
+    ) -> None:
+
+        super().__init__(**kwargs)
+
+        self.model = model
+        self.alpha = initial_alpha
+        self.horizon = horizon
+
+    def before_training_step(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Method to call before the training step to take some operations.
+        In the case of KFC-alpha training, it updates the alpha parameter of the underlying model.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        self.model.set_alpha(
+            self.alpha,
+            **kwargs
+        )
+
+    def update_alpha(
+            self,
+            training_step: int,
+            **kwargs
+    ) -> None:
+        """
+        Updates the alpha parameter.
+
+        Args:
+            training_step (int):
+                Current training step.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        self.alpha = max(0.0, 1.0 - training_step / self.horizon)
