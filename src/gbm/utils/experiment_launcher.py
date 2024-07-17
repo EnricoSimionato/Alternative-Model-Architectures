@@ -305,7 +305,7 @@ def main():
     if environment == "local":
         base_path = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local"
     elif environment == "server":
-        base_path = "/home/enricosimionato/thesis"
+        base_path = "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/configurations/server"
     else:
         raise ValueError("Invalid environment. Choose either 'server' or 'local'.")
 
