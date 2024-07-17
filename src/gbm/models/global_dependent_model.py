@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pickle
+import time
 from copy import deepcopy
 
 from abc import ABC, abstractmethod
@@ -1573,6 +1574,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 min_key[1],
                 self.global_layers[min_key[1]]
             )
+            time.sleep(100)
         else:
             print("No layers to prune.\n")
 
