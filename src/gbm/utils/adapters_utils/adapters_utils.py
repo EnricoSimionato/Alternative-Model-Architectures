@@ -1,36 +1,40 @@
+from typing import Union
+
 import transformers
 
-from peft import (
+from peft import PeftModel, PeftMixedModel
+from src.peft import (
     LoraConfig,
     VeraConfig,
     prepare_model_for_kbit_training,
     get_peft_model
 )
+from src.peft.tuners.kfc.config import KFCLoraConfig
 
 from gbm.utils.experiment_pipeline.config import Config
 
 
 def get_adapted_model(
-        model: transformers.AutoModel,
+        model: transformers.PreTrainedModel,
         config: Config
-) -> transformers.AutoModel:
+) -> Union[PeftModel, PeftMixedModel]:
     """
     Returns the adapted model to be used in the task.
 
     Args:
-        model (transformers.AutoModel):
+        model (transformers.PreTrainedModel):
             The original model to be adapted.
         config (dict):
             The configuration parameters to use in the adaptation.
 
     Returns:
-        peft.PeftModel
+        Union[PeftModel, PeftMixedModel]:
             The adapted model.
     """
 
     if config.contains("adapter_method"):
         if config.get("adapter_method").lower() == "lora":
-            lora_config = LoraConfig(
+            peft_config = LoraConfig(
                 r=config.get("lora_rank"),
                 lora_alpha=config.get("lora_alpha"),
                 target_modules=config.get("target_modules"),
@@ -39,15 +43,12 @@ def get_adapted_model(
                 task_type=config.get("task_type")
             )
             model = prepare_model_for_kbit_training(model)
-
             adapted_model = get_peft_model(
                 model,
-                lora_config
+                peft_config
             )
-
-            return adapted_model
         elif config.get("adapter_method").lower() == "vera":
-            lora_config = VeraConfig(
+            peft_config = VeraConfig(
                 r=config.get("lora_rank"),
                 target_modules=config.get("target_modules"),
                 projection_prng_key=config.get("projection_prng_key"),
@@ -56,12 +57,25 @@ def get_adapted_model(
                 task_type=config.get("task_type")
             )
             model = prepare_model_for_kbit_training(model)
-
             adapted_model = get_peft_model(
                 model,
-                lora_config
+                peft_config
             )
-
-            return adapted_model
+        elif config.get("adapter_method").lower().replace("_", "") == "kfcalphalora":
+            peft_config = KFCLoraConfig(
+                r=config.get("lora_rank"),
+                lora_alpha=config.get("lora_alpha"),
+                target_modules=config.get("target_modules"),
+                lora_dropout=config.get("lora_dropout"),
+                bias=config.get("bias"),
+                task_type=config.get("task_type")
+            )
+            model = prepare_model_for_kbit_training(model)
+            adapted_model = get_peft_model(
+                model,
+                peft_config
+            )
         else:
             raise ValueError("Invalid adapter method")
+
+        return adapted_model

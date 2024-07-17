@@ -6,12 +6,12 @@ from copy import deepcopy
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Callable, Union, List, Dict, Any
+from typing import Optional, Callable, Union, Any
 
-import peft
+import src.peft as peft
 import torch
 import torch.nn as nn
-from peft import PeftModel
+from src.peft import PeftModel
 from torch import device
 
 from gbm.layers.global_dependent_layer import (
@@ -1707,7 +1707,8 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
             start_step_regularization: int = 0,
             steps_regularization_weight_resets: int = 0,
     ):
-        if not isinstance(model, PeftModel):
+
+        if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
         super(KFCTrainedModel, self).__init__(
@@ -1721,12 +1722,12 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
 
         self.layers_to_penalize = [
             name
-            for name, param in self.model.named_parameters()
+            for name, param in self.named_parameters()
             if not any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
         ]
         self.layers_to_exclude = [
             name
-            for name, param in self.model.named_parameters()
+            for name, param in self.named_parameters()
             if any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
         ]
 
@@ -1863,6 +1864,17 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
 
         return logging_info
 
+    @property
+    def device(self) -> device:
+        """
+        Device where the model is located.
+
+        Returns:
+            Device.
+        """
+
+        return next(self.parameters()).device
+
 
 class KFCAlphaTrainedModel(nn.Module):
     """
@@ -1936,3 +1948,14 @@ class KFCAlphaTrainedModel(nn.Module):
         """
 
         self.alpha = max(0.0, 1.0 - training_step / self.horizon)
+
+    @property
+    def device(self) -> device:
+        """
+        Device where the model is located.
+
+        Returns:
+            Device.
+        """
+
+        return next(self.parameters()).device

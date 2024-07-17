@@ -212,11 +212,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         # Defining the optimizers
         optimizers = []
         for optimizer_settings in self.optimizers_settings:
-            print([name for name, param in self.model.named_parameters()])
-            print(optimizer_settings["parameters_group"])
-            print(len([1 for name, param in self.model.named_parameters() if name[6:] in optimizer_settings["parameters_group"]]))
             optimizer = optimizers_mapping[optimizer_settings["optimizer"].lower()](
-                [param for name, param in self.model.named_parameters() if name[6:] in optimizer_settings["parameters_group"]],
+                [param for name, param in self.model.named_parameters() if name in optimizer_settings["parameters_group"]],
                 lr=optimizer_settings["learning_rate"],
                 eps=1e-7 if self.model_dtype == "float16" else 1e-8
             )

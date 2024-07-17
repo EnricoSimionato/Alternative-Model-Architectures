@@ -143,6 +143,8 @@ class CausalLMModelWrapper(pl.LightningModule):
                 List of dictionaries containing the optimizer and the learning rate scheduler.
         """
 
+        # TODO TO FIX THE method
+
         if self.optimizers_settings is None or self.optimizers_settings == []:
             self.optimizers_settings = [
                 {
