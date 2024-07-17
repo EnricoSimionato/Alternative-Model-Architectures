@@ -1451,7 +1451,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 "optimizer": optimizer_settings[0]["optimizer"],
                 "parameters_group": [
                     name
-                    for name, _ in self.model.named_parameters() if 'global_layers' not in name
+                    for name, _ in self.named_parameters() if 'global_layers' not in name
                 ],
                 "learning_rate": optimizer_settings[0]["learning_rate"],
                 "weight_decay": optimizer_settings[0]["learning_rate"],
@@ -1463,7 +1463,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 "optimizer": "Adam",
                 "parameters_group": [
                     name
-                    for name, _ in self.model.named_parameters() if 'global_layers' in name
+                    for name, _ in self.named_parameters() if 'global_layers' in name
                 ],
                 "learning_rate": optimizer_settings[1]["learning_rate"],
                 "weight_decay": optimizer_settings[1]["learning_rate"],
