@@ -1567,7 +1567,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         min_key = min(norm_differences, key=norm_differences.get)
 
         if norm_differences[min_key] < self.pruning_threshold:
-            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {relative_norm_difference[min_key]}.")
+            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {norm_differences[min_key]}.")
             self.apply_pruning(
                 min_key[0],
                 self.global_layers[min_key[0]],
