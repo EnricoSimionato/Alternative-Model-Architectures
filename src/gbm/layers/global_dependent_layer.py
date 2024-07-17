@@ -613,6 +613,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             scope: str,
             previous_key: str,
             new_key: str,
+            verbose: bool = False,
             **kwargs
     ) -> None:
         """
@@ -625,6 +626,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Previous key of the layer.
             new_key (str):
                 New key of the layer.
+            verbose (bool):
+                Flag to print the change of the key.
             **kwargs:
                 Additional keyword arguments.
         """
@@ -636,10 +639,11 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 changed = True
                 break
 
-        if not changed:
-            print(f"The layer with the scope '{scope}' and key '{previous_key}' does not exist.")
-        else:
-            print(f"The layer with the scope '{scope}' and key '{previous_key}' has now key '{new_key}'.")
+        if verbose:
+            if not changed:
+                print(f"The layer with the scope '{scope}' and key '{previous_key}' does not exist.")
+            else:
+                print(f"The layer with the scope '{scope}' and key '{previous_key}' has now key '{new_key}'.")
 
     def get_layer(
             self,
