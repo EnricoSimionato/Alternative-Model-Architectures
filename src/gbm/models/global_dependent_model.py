@@ -1535,6 +1535,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 Additional keyword arguments.
         """
 
+        print("\nChecking if there are global layers to prune...\n")
+
         layers_keys = list(self.global_layers.keys())
         norm_differences = {}
         for index1, key1 in enumerate(layers_keys):
@@ -1571,26 +1573,28 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 min_key[1],
                 self.global_layers[min_key[1]]
             )
+        else:
+            print("No layers to prune.\n")
 
     def apply_pruning(
             self,
-            key1,
-            layer1,
-            key2,
-            layer2,
+            key1: str,
+            layer1: str,
+            key2: str,
+            layer2: str,
             **kwargs
     ) -> None:
         """
         Sets the global layer of the model.
 
         Args:
-            key1:
+            key1 (str):
                 Key of the first layer.
-            layer1:
+            layer1 (nn.Module):
                 First layer.
-            key2:
+            key2 (str):
                 Key of the second layer.
-            layer2:
+            layer2 (nn.Module):
                 Second layer.
             **kwargs:
                 Additional keyword arguments.
