@@ -208,7 +208,6 @@ class ClassifierModelWrapper(pl.LightningModule):
         if len(self.optimizers_settings) > 1 and any(len(optimizer_settings["parameters_group"]) == 0 for optimizer_settings in self.optimizers_settings):
             raise ValueError("The parameters group of the optimizers' settings should not be empty")
 
-        print(self.optimizers_settings)
         # Defining the optimizers
         optimizers = []
         for optimizer_settings in self.optimizers_settings:

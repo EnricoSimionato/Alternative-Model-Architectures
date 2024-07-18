@@ -8,6 +8,7 @@
     "original_model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
+
     "dataset_id": "stanfordnlp/imdb",
     "max_len_samples": 16384,
     "split": [
