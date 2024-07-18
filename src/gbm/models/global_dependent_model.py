@@ -1734,7 +1734,7 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
             start_step_regularization: int = 0,
             steps_regularization_weight_resets: int = 0,
             **kwargs
-    ):
+    ) -> None:
 
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
@@ -1852,7 +1852,7 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         """
 
         sum_l1_norms = torch.tensor(0.0, device=self.device)
-        for i, param in enumerate([parameter for name, parameter in self.model.named_parameters() if name in layers]):
+        for i, param in enumerate([parameter for name, parameter in self.named_parameters() if name in layers]):
             sum_l1_norms += torch.sum(torch.abs(param.flatten()))
 
         return sum_l1_norms
