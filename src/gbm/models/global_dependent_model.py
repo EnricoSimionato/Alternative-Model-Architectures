@@ -1544,7 +1544,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 Additional keyword arguments.
         """
 
-        print("\nChecking if there are global layers to prune...")
+        print("\n\nChecking if there are global layers to prune...")
 
         layers_keys = list(self.global_layers.keys())
         norm_differences = {}
