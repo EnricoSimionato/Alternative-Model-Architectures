@@ -1633,24 +1633,6 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         else:
             raise ValueError("Invalid pruning strategy.")
 
-    def regularization_post_processing(
-            self,
-            training_step: int,
-            **kwargs
-    ) -> None:
-        """
-        Post-processing of the regularization term.
-
-        Args:
-            training_step (int):
-                Training step.
-            **kwargs:
-                Additional keyword arguments.
-        """
-
-        if self.pruning_interval > 0 and training_step % self.pruning_interval == 0:
-            self.prune_global_layers()
-
     def before_training_step(
             self,
             training_step: int,
@@ -1667,7 +1649,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         """
 
         if (self.pruning_interval > 0
-                and training_step > 0
+                #and training_step > 0
                 and training_step % self.pruning_interval == 0):
             self.prune_global_layers(
                 **kwargs
