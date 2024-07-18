@@ -1708,7 +1708,7 @@ def provide_hyperparameters_for_glam_training(
     pass
 
 
-class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
+class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
     """
     Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
 
@@ -1728,21 +1728,23 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
 
     def __init__(
             self,
-            model: nn.Module,
+            model: peft.PeftModel,
             initial_regularization_weight: [float, torch.Tensor] = 0.0,
             max_regularization_weight: [float, torch.Tensor] = 0.0,
             start_step_regularization: int = 0,
             steps_regularization_weight_resets: int = 0,
+            **kwargs
     ):
 
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
         super(KFCTrainedModel, self).__init__(
-            initial_regularization_weight,
-            max_regularization_weight,
-            start_step_regularization,
-            steps_regularization_weight_resets
+            initial_regularization_weight=initial_regularization_weight,
+            max_regularization_weight=max_regularization_weight,
+            start_step_regularization=start_step_regularization,
+            steps_regularization_weight_resets=steps_regularization_weight_resets,
+            **kwargs
         )
 
         self.model = model
@@ -1988,10 +1990,12 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             self.alpha,
             **kwargs
         )
+        """
         self.update_alpha(
             training_step,
             **kwargs
         )
+        """
 
     def update_alpha(
             self,
