@@ -2028,7 +2028,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
         """
 
         return [
-            {"name": "alpha", "value": self.alpha, "on_step": True, "on_epoch": False, "prog_bar": False},
+            {"name": "alpha", "value": self.alpha, "on_step": True, "on_epoch": False, "prog_bar": True},
         ]
 
     @property
