@@ -21,7 +21,7 @@
     "max_epochs": 10,
     "optimizers_settings": [
         {
-            "optimizer": "Adam",
+            "optimizer": "AdamW",
             "parameters_group": [],
             "learning_rate": 1e-05,
             "lr_scheduler": "cosine_with_warmup",
