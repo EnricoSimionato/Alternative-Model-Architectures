@@ -61,10 +61,10 @@
     "task_type": "SEQ_CLS",
 
     "kfc_label": "kfc",
-    "initial_regularization_weight": 0.1,
-    "max_regularization_weight": 10,
+    "initial_regularization_weight": 10.0,
+    "max_regularization_weight": 100.0,
     "start_step_regularization": 0,
-    "steps_regularization_weight_resets": 300,
+    "steps_regularization_weight_resets": 500,
 
     "original_model_parameters": 0,
     "model_parameters": 0,
