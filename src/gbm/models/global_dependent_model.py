@@ -1941,9 +1941,17 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             **kwargs
     ) -> None:
 
+        if not issubclass(type(model), PeftModel):
+            raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
+
         super().__init__(**kwargs)
 
         self.model = model
+        # just for now making the adapters trainable
+        for name, param in self.named_parameters():
+            if "lora" in name:
+                param.requires_grad = True
+
         self.alpha = initial_alpha
         self.horizon = horizon
 
@@ -1994,12 +2002,11 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             self.alpha,
             **kwargs
         )
-        """
+
         self.update_alpha(
             training_step,
             **kwargs
         )
-        """
 
     def update_alpha(
             self,
