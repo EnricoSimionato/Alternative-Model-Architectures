@@ -31,7 +31,9 @@ alternative_architectures_keys = [
 glam_svd_keys = [
     "pruning_interval",
     "pruning_threshold",
-    "pruning_strategy"
+    "thresholding_strategy",
+    "pruning_strategy",
+    "minimum_number_of_global_layers"
 ]
 
 

@@ -35,7 +35,38 @@ from transformers import AutoModel
 from gbm.utils.parameters_count import count_parameters
 
 
-class RegularizedTrainingInterface(ABC):
+class LoggingInterface(ABC):
+    """
+    Interface for logging information during the training.
+
+    Args:
+        **kwargs:
+            Additional keyword arguments.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        pass
+
+    @abstractmethod
+    @torch.no_grad()
+    def get_logging_info(
+            self,
+            **kwargs
+    ) -> list:
+        """
+        Returns additional information to log.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Additional information to log.
+        """
+
+
+class RegularizedTrainingInterface(LoggingInterface, ABC):
     """
     Model with regularization for the training.
 
@@ -1579,7 +1610,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 )
             else:
                 print(f"No layers to prune, the minimum norm difference is {norm_differences[min_key]} and the threshold is {self.pruning_threshold}.")
-                print(f"The number of global layers is {len(self.global_layers)} and the minimum number of global layers is {self.minimum_number_of_global_layers}\n")
+
+            print(f"The number of global layers is {len(self.global_layers)} and the minimum number of global layers is {self.minimum_number_of_global_layers}\n")
         else:
             print(f"No layers to prune, the number of global layers is {len(self.global_layers)}, that is the chosen minimum\n")
 
@@ -1871,7 +1903,7 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         return next(self.parameters()).device
 
 
-class KFCAlphaTrainedModel(nn.Module):
+class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
     """
     Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
     the output computation as the training goes on.
@@ -1938,6 +1970,7 @@ class KFCAlphaTrainedModel(nn.Module):
 
     def before_training_step(
             self,
+            training_step: int,
             **kwargs
     ) -> None:
         """
@@ -1945,12 +1978,18 @@ class KFCAlphaTrainedModel(nn.Module):
         In the case of KFC-alpha training, it updates the alpha parameter of the underlying model.
 
         Args:
+            training_step (int):
+                Current training step.
             **kwargs:
                 Additional keyword arguments.
         """
 
         self.model.set_alpha(
             self.alpha,
+            **kwargs
+        )
+        self.update_alpha(
+            training_step,
             **kwargs
         )
 
@@ -1970,6 +2009,27 @@ class KFCAlphaTrainedModel(nn.Module):
         """
 
         self.alpha = max(0.0, 1.0 - training_step / self.horizon)
+
+    @torch.no_grad()
+    def get_logging_info(
+            self,
+            **kwargs
+    ) -> list:
+        """
+        Returns additional information to log.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Additional information to log.
+        """
+
+        return [
+            {"name": "alpha", "value": self.alpha, "on_step": True, "on_epoch": False, "prog_bar": False},
+        ]
 
     @property
     def device(self) -> device:

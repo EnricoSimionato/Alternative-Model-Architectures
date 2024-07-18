@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 
 import transformers
 
-from gbm.models.global_dependent_model import RegularizedTrainingInterface
+from gbm.models.global_dependent_model import RegularizedTrainingInterface, LoggingInterface
 from gbm.utils.classification.pl_metrics import ClassificationStats
 from gbm.utils.pl_utils.utility_mappings import optimizers_mapping
 
@@ -324,11 +324,6 @@ class ClassifierModelWrapper(pl.LightningModule):
                 self.device
         )
 
-        # Logging
-        logs_dicts = self.model.get_logging_info()
-        for log_element in logs_dicts:
-            self.log(**log_element)
-
         return regularization_loss
 
     def training_step(
@@ -383,6 +378,11 @@ class ClassifierModelWrapper(pl.LightningModule):
             lr_schedulers.step()
 
         # Logging
+        if issubclass(type(self.model), LoggingInterface):
+            logs_dicts = self.model.get_logging_info()
+            for log_element in logs_dicts:
+                self.log(**log_element)
+
         self.log("loss", total_loss, on_step=True, on_epoch=True, prog_bar=True)
 
         self.from_last_val_training_samples_count += logits.shape[0]
