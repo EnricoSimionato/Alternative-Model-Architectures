@@ -240,8 +240,6 @@ class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, A
             Name of the target layer.
         global_dependent_layer (GlobalDependentLinear):
             Linear layer with dependencies on global matrices.
-        average_matrices_layer (nn.ModuleDict):
-            Dictionary containing the average matrices.
     """
 
     def __init__(
@@ -742,7 +740,9 @@ class GLAMSVDLinear(StructureSpecificGlobalDependentLinear):
     - a global matrix of shape (in_features, rank);
     - a local matrix of shape (rank, out_features).
 
-    The global matrix is fixed and not trainable.
+    The matrices are initialized with the SVD decomposition of the target layer.
+    Global matrices will be trained trying to minimize their absolute difference in order to be able to prune some of
+    them.
 
     Args:
         target_layer (nn.Module):
@@ -829,6 +829,7 @@ class GLAMSVDLinear(StructureSpecificGlobalDependentLinear):
         target_layer = kwargs["target_layer"]
         dtype = target_layer.weight.data.numpy().dtype
         rank = kwargs["rank"]
+
         global_key = self.global_dependent_layer.structure[0]["key"]
         local_key = self.global_dependent_layer.structure[1]["key"]
 
@@ -1038,7 +1039,7 @@ class DiagonalLinearLayer(nn.Module):
         if return_diag:
             return self._weight
         else:
-            return self._weight.diag()
+            return torch.Parameter(self._weight.diag())
 
     @weight.setter
     def weight(
@@ -1179,55 +1180,3 @@ class GlobalBaseDiagonalLinear(StructureSpecificGlobalDependentLinear):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-
-if __name__ == "__main__":
-    import time
-
-    linear_layer = nn.Linear(1000, 1000, bias=True, dtype=torch.float16)
-    rank = 10
-
-    linear_layer.weight.data = torch.ones(1000, 1000, dtype=torch.float16)
-
-    init_time = time.time()
-
-    global_matrices_dict = nn.ModuleDict()
-    average_matrices_dict = nn.ModuleDict()
-    gbl = GlobalBaseLinear(
-        linear_layer,
-        global_matrices_dict,
-        average_matrices_dict,
-        target_name="query",
-        rank=rank
-    )
-
-    print(f"Time taken: {(time.time() - init_time)}")
-
-    print(gbl.weight.dtype)
-    print(gbl.weight)
-
-    """
-    print("Weights")
-    print("Weights of the original layer")
-    print(linear_layer.weight.shape)
-    print()
-    print("Weights of the global dependent layer")
-    print(gbl_merged.weight)
-    print()
-    """
-    """
-    print(gbl)
-    print(gbl_merged)
-    print(gbl_merged.weight.data - linear_layer.weight.data)
-    tolerance = 1e-7
-    assert torch.allclose(gbl_merged.weight.data, linear_layer.weight.data, atol=tolerance)
-    """
-    """
-    print("Output example")
-    x = torch.ones(100, 100)
-    print("Output of the original layer")
-    print(linear_layer(x))
-    print()
-    print("Output of the global dependent layer")
-    print(gbl(x))
-    """

@@ -351,7 +351,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         """
 
         if hasattr(self.model, 'before_training_step') and callable(getattr(self.model, 'before_training_step')):
-            self.model.before_training_step(self.training_step_index)
+            pass
+            #self.model.before_training_step(self.training_step_index)
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 

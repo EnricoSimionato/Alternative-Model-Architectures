@@ -26,3 +26,53 @@ class TestLocalSVDLinear:
             gbl.get_layer("local", "US").weight.data @ gbl.get_layer("local", "VT").weight.data,
             atol=tolerance
         )
+
+"""
+if __name__ == "__main__":
+    import time
+
+    linear_layer = nn.Linear(1000, 1000, bias=True, dtype=torch.float16)
+    rank = 10
+
+    linear_layer.weight.data = torch.ones(1000, 1000, dtype=torch.float16)
+
+    init_time = time.time()
+
+    global_matrices_dict = nn.ModuleDict()
+    average_matrices_dict = nn.ModuleDict()
+    gbl = GlobalBaseLinear(
+        linear_layer,
+        global_matrices_dict,
+        average_matrices_dict,
+        target_name="query",
+        rank=rank
+    )
+
+    print(f"Time taken: {(time.time() - init_time)}")
+
+    print(gbl.weight.dtype)
+    print(gbl.weight)
+
+    print("Weights")
+    print("Weights of the original layer")
+    print(linear_layer.weight.shape)
+    print()
+    print("Weights of the global dependent layer")
+    print(gbl_merged.weight)
+    print()
+
+    print(gbl)
+    print(gbl_merged)
+    print(gbl_merged.weight.data - linear_layer.weight.data)
+    tolerance = 1e-7
+    assert torch.allclose(gbl_merged.weight.data, linear_layer.weight.data, atol=tolerance)
+   
+    print("Output example")
+    x = torch.ones(100, 100)
+    print("Output of the original layer")
+    print(linear_layer(x))
+    print()
+    print("Output of the global dependent layer")
+    print(gbl(x))
+
+"""
