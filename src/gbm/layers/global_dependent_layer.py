@@ -585,7 +585,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
 
     def get_post_processed_key(
             self,
-            key,
+            key: str,
+            post_processing: bool = True,
             **kwargs
     ) -> str:
         """
@@ -594,6 +595,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         Args:
             key (str):
                 Key of the layer without post-processing.
+            post_processing (bool):
+                Flag to post-process the key.
             **kwargs:
                 Additional keyword arguments.
 
@@ -603,7 +606,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         """
 
         post_processed_key = key
-        if self.target_name is not None and not key.startswith(self.target_name):
+        if post_processing and self.target_name is not None and not key.startswith(self.target_name):
             post_processed_key = f"{self.target_name}_{key}"
 
         return post_processed_key
@@ -635,7 +638,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         changed = False
         for idx, layer in enumerate(self.structure):
             if layer["scope"] == scope and layer["key"] == previous_key:
-                self.structure[idx]["key"] = self.get_post_processed_key(new_key, **kwargs)
+                self.structure[idx]["key"] = new_key
                 changed = True
                 break
 

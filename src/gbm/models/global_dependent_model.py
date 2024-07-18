@@ -1377,6 +1377,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             pruning_interval: [float | int] = 0,
             pruning_threshold: float = 0.1,
             pruning_strategy: PruningStrategy = PruningStrategy.AVERAGE,
+            minimum_number_of_global_layers: int = 1,
             **kwargs
     ) -> None:
         # Ensure use_names_as_keys is set to True
@@ -1402,6 +1403,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         self.pruning_interval = pruning_interval
         self.pruning_threshold = pruning_threshold
         self.pruning_strategy = PruningStrategy(pruning_strategy)
+        self.minimum_number_of_global_layers = minimum_number_of_global_layers
 
     def define_conversion(
             self,
@@ -1536,7 +1538,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 Additional keyword arguments.
         """
 
-        print("\nChecking if there are global layers to prune...\n")
+        print("\nChecking if there are global layers to prune...")
 
         layers_keys = list(self.global_layers.keys())
         norm_differences = {}
@@ -1566,8 +1568,9 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
 
         min_key = min(norm_differences, key=norm_differences.get)
 
-        if norm_differences[min_key] < self.pruning_threshold:
-            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {norm_differences[min_key]}.")
+        if (norm_differences[min_key] < self.pruning_threshold
+                and len(self.global_layers) > max(1, self.minimum_number_of_global_layers)):
+            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {norm_differences[min_key]}.\n")
             self.apply_pruning(
                 min_key[0],
                 self.global_layers[min_key[0]],
@@ -1575,14 +1578,14 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 self.global_layers[min_key[1]]
             )
         else:
-            print("No layers to prune.\n")
+            print(f"No layers to prune. The number of global layers is {len(self.global_layers)}\n")
 
     def apply_pruning(
             self,
             key1: str,
-            layer1: str,
+            layer1: nn.Module,
             key2: str,
-            layer2: str,
+            layer2: nn.Module,
             **kwargs
     ) -> None:
         """

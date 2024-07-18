@@ -78,8 +78,8 @@
     "steps_regularization_weight_resets": 500,
 
 
-    "pruning_interval": 250,
-    "pruning_threshold": 0.1,
+    "pruning_interval": 1,
+    "pruning_threshold": 10.0,
     "pruning_strategy": "average",
 
     "device": "mps",
