@@ -571,10 +571,10 @@ class Linear(nn.Module, KFCLoraLayer):
                 x = x.to(lora_A.weight.dtype)
 
                 if not self.use_dora[active_adapter]:
-                    result = self.kfc_alpha * result + (1 - self.kfc_alpha) * lora_B(lora_A(dropout(x))) * scaling
+                    result = self.kfc_alpha * result + lora_B(lora_A(dropout(x))) * scaling
                 else:
                     x = dropout(x)
-                    result = self.kfc_alpha * result + (1 - self.kfc_alpha) * self.lora_magnitude_vector[active_adapter](
+                    result = self.kfc_alpha * result + self.lora_magnitude_vector[active_adapter](
                         x,
                         lora_A=lora_A,
                         lora_B=lora_B,
@@ -800,7 +800,7 @@ class Embedding(nn.Module, KFCLoraLayer):
                 embedding_B = self.lora_embedding_B[active_adapter].T
                 scaling = self.scaling[active_adapter]
                 after_A = self._embed(x, embedding_A)
-                result = self.kfc_alpha * result + (1 - self.kfc_alpha) * (after_A @ embedding_B) * scaling
+                result = self.kfc_alpha * result + (after_A @ embedding_B) * scaling
             result = result.to(torch_result_dtype)
 
         return result
@@ -1055,7 +1055,7 @@ class Conv2d(nn.Module, KFCLoraLayer):
                 x = x.to(lora_A.weight.dtype)
 
                 if not self.use_dora[active_adapter]:
-                    result = self.kfc_alpha * result + (1 - self.kfc_alpha) * lora_B(lora_A(dropout(x))) * scaling
+                    result = self.kfc_alpha * result + lora_B(lora_A(dropout(x))) * scaling
                 else:
                     x = dropout(x)
                     result = result + self.lora_magnitude_vector[active_adapter](
