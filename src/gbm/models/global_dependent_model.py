@@ -1666,7 +1666,9 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 Additional keyword arguments.
         """
 
-        if self.pruning_interval > 0 and training_step % self.pruning_interval == 0:
+        if (self.pruning_interval > 0
+                and training_step > 0
+                and training_step % self.pruning_interval == 0):
             self.prune_global_layers(
                 **kwargs
             )
