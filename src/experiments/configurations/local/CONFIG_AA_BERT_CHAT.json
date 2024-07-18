@@ -17,48 +17,46 @@
         0.1
     ],
     "tokenizer_id": "bert-base-uncased",
-    "tokenizer_id_for_chat_template": "mistralai/Mistral-7B-Instruct-v0.2",
+    "tokenizer_id_for_chat_template": "meta-llama/Llama-2-70b-chat-hf",
     "stop_tokens": [
         "[INST]",
         "[SEP]"
     ],
     "max_len_tokenizer": 512,
     "max_epochs": 1,
-    "learning_rate": 1e-05,
-    "warmup_steps": 0,
-    "batch_size": 1,
-    "num_workers": 2,
+        "optimizers_settings": [
+        {
+            "optimizer": "AdamW",
+            "parameters_group": [],
+            "learning_rate": 1e-05,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        }
+    ],
+    "batch_size": 8,
+    "num_workers": 1,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
-    "factorization_method": "",
+    "factorization_method": "LocalSVD",
+    "regularized_training": true,
     "target_layers": {
-        "embed_tokens": {
-            "rank": 512
+        "query": {
+            "rank": 256
         },
-        "q_proj": {
-            "rank": 512
+        "key": {
+            "rank": 256
         },
-        "k_proj": {
-            "rank": 128
+        "value": {
+            "rank": 256
         },
-        "v_proj": {
-            "rank": 128
-        },
-        "o_proj": {
-            "rank": 512
-        },
-        "gate_proj": {
-            "rank": 512
-        },
-        "up_proj": {
-            "rank": 512
-        },
-        "down_proj": {
-            "rank": 512
+        "dense": {
+            "rank": 256
         }
     },
-    
+    "verbose": true,
+
     "original_model_parameters": 0,
     "model_parameters": 0,
     "percentage_parameters": 0,

@@ -9,6 +9,16 @@
     "quantization": null,
     "dtype": "float32",
 
+    "num_classes": 2,
+    "id2label": {
+        "0": "negative",
+        "1": "positive"
+    },
+    "label2id": {
+        "negative": 0,
+        "positive": 1
+    },
+
     "dataset_id": "stanfordnlp/imdb",
     "max_len_samples": 16384,
     "split": [
@@ -34,17 +44,7 @@
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
-    "num_classes": 2,
-    "id2label": {
-        "0": "negative",
-        "1": "positive"
-    },
-    "label2id": {
-        "negative": 0,
-        "positive": 1
-    },
-
-    "factorization_method": "GlobalBase",
+    "factorization_method": "LocalSVD",
     "regularized_training": true,
     "target_layers": {
         "query": {
@@ -54,6 +54,9 @@
             "rank": 256
         },
         "value": {
+            "rank": 256
+        },
+        "dense": {
             "rank": 256
         }
     },
