@@ -1708,7 +1708,7 @@ def provide_hyperparameters_for_glam_training(
     pass
 
 
-class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
+class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
     """
     Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
 
@@ -1739,7 +1739,9 @@ class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        super(KFCTrainedModel, self).__init__(
+        nn.Module.__init__(self)
+        RegularizedTrainingInterface.__init__(
+            self,
             initial_regularization_weight=initial_regularization_weight,
             max_regularization_weight=max_regularization_weight,
             start_step_regularization=start_step_regularization,
