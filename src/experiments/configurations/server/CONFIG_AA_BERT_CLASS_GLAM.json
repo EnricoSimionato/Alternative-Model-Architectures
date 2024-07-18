@@ -37,7 +37,7 @@
             "monitored_metric": "loss"
         }
     ],
-    "batch_size": 8,
+    "batch_size": 16,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
@@ -56,13 +56,13 @@
     "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 128
+            "rank": 256
         },
         "key": {
-            "rank": 128
+            "rank": 256
         },
         "value": {
-            "rank": 128
+            "rank": 256
         }
     },
     "verbose": true,
@@ -79,7 +79,7 @@
 
 
     "pruning_interval": 250,
-    "pruning_threshold": 0.1,
+    "pruning_threshold": 0.01,
     "pruning_strategy": "average",
 
     "device": "cuda",
