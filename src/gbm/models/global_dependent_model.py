@@ -1310,6 +1310,11 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         return conversions
 
 
+class ThresholdingStrategy(Enum):
+    ABSOLUTE = "absolute"
+    RELATIVE = "relative"
+
+
 class PruningStrategy(Enum):
     AVERAGE = "average"
     FIRST = "first"
@@ -1375,7 +1380,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             steps_regularization_weight_resets=0,
             pruning_interval: [float | int] = 0,
             pruning_threshold: float = 0.1,
-            pruning_strategy: PruningStrategy = PruningStrategy.AVERAGE,
+            thresholding_strategy: ThresholdingStrategy = "relative",
+            pruning_strategy: PruningStrategy = "average",
             minimum_number_of_global_layers: int = 1,
             **kwargs
     ) -> None:
@@ -1401,6 +1407,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
 
         self.pruning_interval = pruning_interval
         self.pruning_threshold = pruning_threshold
+        self.thresholding_strategy = ThresholdingStrategy(thresholding_strategy)
         self.pruning_strategy = PruningStrategy(pruning_strategy)
         self.minimum_number_of_global_layers = minimum_number_of_global_layers
 
@@ -1550,20 +1557,14 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 if layer1.weight.shape == layer2.weight.shape:
                     norm_difference = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
 
-                    """
-                    # Thresholding based on the absolute difference
-                    if norm_difference < self.pruning_threshold:
-                        self.apply_pruning(
-                            key1,
-                            layer1,
-                            key2,
-                            layer2
-                        )
-                    """
-
-                    # Thresholding based on the relative difference
-                    relative_norm_difference = norm_difference / torch.sqrt(norm_1) / torch.sqrt(norm_2)
-                    norm_differences[(key1, key2)] = relative_norm_difference
+                    if self.thresholding_strategy == ThresholdingStrategy.ABSOLUTE:
+                        # Thresholding based on the absolute difference
+                        norm_differences[(key1, key2)] = norm_difference
+                    elif self.thresholding_strategy == ThresholdingStrategy.RELATIVE:
+                        # Thresholding based on the relative difference
+                        norm_differences[(key1, key2)] = norm_difference / torch.sqrt(norm_1) / torch.sqrt(norm_2)
+                    else:
+                        raise ValueError("Invalid thresholding strategy.")
 
         min_key = min(norm_differences, key=norm_differences.get)
 
@@ -1577,7 +1578,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 self.global_layers[min_key[1]]
             )
         else:
-            print(f"No layers to prune. The number of global layers is {len(self.global_layers)}\n")
+            print(f"No layers to prune, the minimum norm difference is {norm_differences[min_key]} and the threshold is {self.pruning_threshold}.")
+            print(f"The number of global layers is {len(self.global_layers)}\n")
 
     def apply_pruning(
             self,
