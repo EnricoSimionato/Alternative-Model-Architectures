@@ -1546,40 +1546,42 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
 
         print("\n\nChecking if there are global layers to prune...")
 
-        layers_keys = list(self.global_layers.keys())
-        norm_differences = {}
-        for index1, key1 in enumerate(layers_keys):
-            layer1 = self.global_layers[key1]
-            norm_1 = torch.sum(torch.abs(layer1.weight.flatten()))
-            for index2, key2 in enumerate(layers_keys[index1+1:]):
-                layer2 = self.global_layers[key2]
-                norm_2 = torch.sum(torch.abs(layer2.weight.flatten()))
-                if layer1.weight.shape == layer2.weight.shape:
-                    norm_difference = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
+        if len(self.global_layers) > max(1, self.minimum_number_of_global_layers):
+            layers_keys = list(self.global_layers.keys())
+            norm_differences = {}
+            for index1, key1 in enumerate(layers_keys):
+                layer1 = self.global_layers[key1]
+                norm_1 = torch.sum(torch.abs(layer1.weight.flatten()))
+                for index2, key2 in enumerate(layers_keys[index1+1:]):
+                    layer2 = self.global_layers[key2]
+                    norm_2 = torch.sum(torch.abs(layer2.weight.flatten()))
+                    if layer1.weight.shape == layer2.weight.shape:
+                        norm_difference = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
 
-                    if self.thresholding_strategy == ThresholdingStrategy.ABSOLUTE:
-                        # Thresholding based on the absolute difference
-                        norm_differences[(key1, key2)] = norm_difference
-                    elif self.thresholding_strategy == ThresholdingStrategy.RELATIVE:
-                        # Thresholding based on the relative difference
-                        norm_differences[(key1, key2)] = norm_difference / torch.sqrt(norm_1) / torch.sqrt(norm_2)
-                    else:
-                        raise ValueError("Invalid thresholding strategy.")
+                        if self.thresholding_strategy == ThresholdingStrategy.ABSOLUTE:
+                            # Thresholding based on the absolute difference
+                            norm_differences[(key1, key2)] = norm_difference
+                        elif self.thresholding_strategy == ThresholdingStrategy.RELATIVE:
+                            # Thresholding based on the relative difference
+                            norm_differences[(key1, key2)] = norm_difference / torch.sqrt(norm_1) / torch.sqrt(norm_2)
+                        else:
+                            raise ValueError("Invalid thresholding strategy.")
 
-        min_key = min(norm_differences, key=norm_differences.get)
+            min_key = min(norm_differences, key=norm_differences.get)
 
-        if (norm_differences[min_key] < self.pruning_threshold
-                and len(self.global_layers) > max(1, self.minimum_number_of_global_layers)):
-            print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {norm_differences[min_key]}.\n")
-            self.apply_pruning(
-                min_key[0],
-                self.global_layers[min_key[0]],
-                min_key[1],
-                self.global_layers[min_key[1]]
-            )
+            if norm_differences[min_key] < self.pruning_threshold:
+                print(f"Pruning layers {min_key[0]} and {min_key[1]} with relative norm difference {norm_differences[min_key]}.\n")
+                self.apply_pruning(
+                    min_key[0],
+                    self.global_layers[min_key[0]],
+                    min_key[1],
+                    self.global_layers[min_key[1]]
+                )
+            else:
+                print(f"No layers to prune, the minimum norm difference is {norm_differences[min_key]} and the threshold is {self.pruning_threshold}.")
+                print(f"The number of global layers is {len(self.global_layers)} and the minimum number of global layers is {self.minimum_number_of_global_layers}\n")
         else:
-            print(f"No layers to prune, the minimum norm difference is {norm_differences[min_key]} and the threshold is {self.pruning_threshold}.")
-            print(f"The number of global layers is {len(self.global_layers)}\n")
+            print(f"No layers to prune, the number of global layers is {len(self.global_layers)}, that is the chosen minimum\n")
 
     def apply_pruning(
             self,
@@ -1649,7 +1651,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         """
 
         if (self.pruning_interval > 0
-                #and training_step > 0
+                and training_step > 0
                 and training_step % self.pruning_interval == 0):
             self.prune_global_layers(
                 **kwargs
@@ -1906,6 +1908,33 @@ class KFCAlphaTrainedModel(nn.Module):
         self.model = model
         self.alpha = initial_alpha
         self.horizon = horizon
+
+    def forward(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor = None,
+            **kwargs
+    ) -> None:
+        """
+        Forward pass of the model.
+
+        Args:
+            input_ids:
+                Input IDs.
+            attention_mask:
+                Attention mask.
+
+        Returns:
+            Output tensor.
+        """
+
+        output = self.model.forward(
+            input_ids,
+            attention_mask=attention_mask,
+            **kwargs
+        )
+
+        return output
 
     def before_training_step(
             self,

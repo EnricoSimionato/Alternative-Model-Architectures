@@ -19,10 +19,21 @@
     "tokenizer_id": "bert-base-uncased",
     "max_len_tokenizer": 512,
     "max_epochs": 10,
-    "batch_size": 8,
+    "optimizers_settings": [
+        {
+            "optimizer": "AdamW",
+            "parameters_group": [],
+            "learning_rate": 1e-05,
+            "lr_scheduler": "cosine_with_warmup",
+            "warmup_steps": 100,
+            "monitored_metric": "loss"
+        }
+    ],
+    "batch_size": 32,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
+
     "num_classes": 2,
     "id2label": {
         "0": "negative",
@@ -32,6 +43,7 @@
         "negative": 0,
         "positive": 1
     },
+
     "original_model_parameters": 0,
     "model_parameters": 0,
     "percentage_parameters": 0,
@@ -45,7 +57,7 @@
     "bias": "none",
     "task_type": "SEQ_CLS",
 
-    "kfc_label": "kfc",
+    "kfc_label": "kfc_alpha",
     "initial_alpha": 1.0,
     "horizon": 20000,
 
