@@ -1750,6 +1750,8 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         )
 
         self.model = model
+        for name, param in self.named_parameters():
+            param.requires_grad = True
 
         self.layers_to_penalize = [
             name
