@@ -1909,6 +1909,11 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         return next(self.parameters()).device
 
 
+class AlphaStrategy(Enum):
+    LINEAR = "linear"
+    EXPONENTIAL = "exponential"
+
+
 class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
     """
     Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
@@ -1921,6 +1926,8 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             Initial value of the alpha parameter.
         horizon (int):
             Number of steps before the alpha parameter reaches the maximum.
+        strategy (AlphaStrategy):
+            Strategy to update the alpha parameter.
         **kwargs:
             Additional keyword arguments.
 
@@ -1931,6 +1938,8 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             Alpha parameter.
         horizon (int):
             Number of steps before the alpha parameter reaches the maximum.
+        alpha_strategy (AlphaStrategy):
+            Strategy to update the alpha parameter.
     """
 
     def __init__(
@@ -1938,6 +1947,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             model: peft.PeftModel,
             initial_alpha: float = 1.0,
             horizon: int = 10000,
+            alpha_strategy: str = "exponential",
             **kwargs
     ) -> None:
 
@@ -1954,6 +1964,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
 
         self.alpha = initial_alpha
         self.horizon = horizon
+        self.alpha_strategy = AlphaStrategy(alpha_strategy)
 
     def forward(
             self,
@@ -2023,7 +2034,12 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
                 Additional keyword arguments.
         """
 
-        self.alpha = max(0.0, 1.0 - training_step / self.horizon)
+        if self.alpha_strategy == AlphaStrategy.LINEAR:
+            self.alpha = max(0.0, 1.0 - training_step / self.horizon)
+        elif self.alpha_strategy == AlphaStrategy.EXPONENTIAL:
+            self.alpha = max(0.0, 2 ** -training_step)
+        else:
+            raise ValueError("Invalid alpha strategy.")
 
     @torch.no_grad()
     def get_logging_info(

@@ -55,6 +55,7 @@
     "kfc_label": "kfc_alpha",
     "initial_alpha": 1.0,
     "horizon": 10000,
+    "alpha_strategy": "exponential",
 
     "original_model_parameters": 0,
     "model_parameters": 0,
