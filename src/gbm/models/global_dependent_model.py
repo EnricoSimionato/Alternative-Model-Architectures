@@ -402,7 +402,10 @@ class GlobalDependentModel(ABC, nn.Module):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        super(GlobalDependentModel, self).__init__(**kwargs)
+        nn.Module.__init__(
+            self,
+            **kwargs
+        )
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
@@ -1419,8 +1422,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         # Ensure use_names_as_keys is set to True
         use_names_as_keys = True
 
-        # Initialize the first base class (GlobalDependentModel)
-        super(GLAMSVDModel, self).__init__(
+        GlobalDependentModel.__init__(
+            self,
             pretrained_model,
             target_layers,
             use_names_as_keys=use_names_as_keys,
@@ -1429,6 +1432,11 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             from_pretrained=from_pretrained,
             preserve_original_model=preserve_original_model,
             verbose=verbose,
+            **kwargs
+        )
+
+        RegularizedTrainingInterface.__init__(
+            self,
             initial_regularization_weight=initial_regularization_weight,
             max_regularization_weight=max_regularization_weight,
             start_step_regularization=start_step_regularization,
@@ -1739,7 +1747,6 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        nn.Module.__init__(self)
         RegularizedTrainingInterface.__init__(
             self,
             initial_regularization_weight=initial_regularization_weight,
@@ -1748,6 +1755,7 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
             steps_regularization_weight_resets=steps_regularization_weight_resets,
             **kwargs
         )
+        nn.Module.__init__(self)
 
         self.model = model
         for name, param in self.named_parameters():
