@@ -163,7 +163,6 @@ cython_debug/
 *.iml
 
 src/experiments/performed experiments/*
-!src/experiments/performed experiments/
 !src/experiments/performed experiments/.gitkeep
 
 src/experiments/rank analysis/
