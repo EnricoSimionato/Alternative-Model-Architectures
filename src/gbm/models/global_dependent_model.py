@@ -111,7 +111,7 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
             steps_regularization_weight_resets: int,
             **kwargs
     ) -> None:
-        super(RegularizedTrainingInterface, self).__init__(**kwargs)
+        LoggingInterface.__init__(self, **kwargs)
 
         self.initial_regularization_weight = initial_regularization_weight
         self.fixed_regularization_weight = None
@@ -402,10 +402,7 @@ class GlobalDependentModel(ABC, nn.Module):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        nn.Module.__init__(
-            self,
-            **kwargs
-        )
+        nn.Module.__init__(self, **kwargs)
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
@@ -1147,7 +1144,8 @@ class LocalSVDModel(GlobalDependentModel):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        super(LocalSVDModel, self).__init__(
+        GlobalDependentModel.__init__(
+            self,
             pretrained_model,
             target_layers,
             use_names_as_keys=use_names_as_keys,
@@ -1228,7 +1226,8 @@ class GlobalBaseModel(GlobalDependentModel):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        super(GlobalBaseModel, self).__init__(
+        GlobalDependentModel.__init__(
+            self,
             pretrained_model,
             target_layers,
             use_names_as_keys=use_names_as_keys,
@@ -1309,7 +1308,8 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             verbose: bool = False,
             **kwargs
     ) -> None:
-        super(GlobalFixedBaseModel, self).__init__(
+        GlobalDependentModel.__init__(
+            self,
             pretrained_model,
             target_layers,
             use_names_as_keys=use_names_as_keys,
@@ -1414,7 +1414,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             steps_regularization_weight_resets=0,
             pruning_interval: [float | int] = 0,
             pruning_threshold: float = 0.1,
-            thresholding_strategy: ThresholdingStrategy = "relative",
+            thresholding_strategy: ThresholdingStrategy = "averageaverage",
             pruning_strategy: PruningStrategy = "average",
             minimum_number_of_global_layers: int = 1,
             **kwargs
@@ -1716,7 +1716,7 @@ def provide_hyperparameters_for_glam_training(
     pass
 
 
-class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
+class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
     """
     Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
 
@@ -1747,6 +1747,7 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
+        nn.Module.__init__(self, **kwargs)
         RegularizedTrainingInterface.__init__(
             self,
             initial_regularization_weight=initial_regularization_weight,
@@ -1755,7 +1756,6 @@ class KFCTrainedModel(RegularizedTrainingInterface, nn.Module):
             steps_regularization_weight_resets=steps_regularization_weight_resets,
             **kwargs
         )
-        nn.Module.__init__(self)
 
         self.model = model
         for name, param in self.named_parameters():
@@ -1962,7 +1962,8 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        super().__init__(**kwargs)
+        nn.Module.__init__(self, **kwargs)
+        LoggingInterface.__init__(self, **kwargs)
 
         self.model = model
         # just for now making the adapters trainable
