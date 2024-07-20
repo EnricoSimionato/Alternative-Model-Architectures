@@ -77,10 +77,10 @@
 
     "pruning_interval": 250,
     "pruning_threshold": 0.1,
-    "thresholding_strategy": "average",
+    "thresholding_strategy": "linear",
     "pruning_strategy": "average",
     "minimum_number_of_global_layers": 4,
-
+    
     "original_model_parameters": 0,
     "model_parameters": 0,
     "percentage_parameters": 0,
