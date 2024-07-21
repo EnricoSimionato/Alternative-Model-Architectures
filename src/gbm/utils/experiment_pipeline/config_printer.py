@@ -2,8 +2,6 @@ import os
 import json
 import sys
 
-from gbm.utils.experiment_pipeline.config import Config
-
 
 def load_experiment_config(path_to_experiment):
     config_path = os.path.join(path_to_experiment, "configuration", "config.json")
@@ -22,7 +20,7 @@ def main():
         sys.exit(1)
 
     experiment_name = sys.argv[1]
-    path_to_experiment = os.path.join("src", "experiments", "performed_experiments", experiment_name)
+    path_to_experiment = os.path.join(os.getcwd().split("src")[0], "src", "experiments", "performed_experiments", experiment_name)
 
     if not os.path.exists(path_to_experiment):
         print(f"Experiment '{experiment_name}' not found.")
