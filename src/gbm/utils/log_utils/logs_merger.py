@@ -9,6 +9,9 @@ def main():
 
     if not os.path.exists(destination_directory):
         os.makedirs(destination_directory)
+    else:
+        shutil.rmtree(destination_directory)
+        os.makedirs(destination_directory)
 
     # Iterating through all items in the current directory
     for item in os.listdir(experiments_directory):
