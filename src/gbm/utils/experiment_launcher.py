@@ -43,6 +43,7 @@ def launch_aa_class_experiment(
 
     original_model = load_original_model_for_sequence_classification(config)
     tokenizer = load_tokenizer_for_sequence_classification(config)
+    print(original_model)
 
     factorized_model = get_factorized_model(
         original_model,
