@@ -48,16 +48,16 @@
     "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 128
+            "rank": 64
         },
         "key": {
-            "rank": 128
+            "rank": 64
         },
         "value": {
-            "rank": 128
+            "rank": 64
         },
         "dense": {
-            "rank": 128
+            "rank": 64
         }
     },
     "verbose": true,
