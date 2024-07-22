@@ -4,7 +4,7 @@ import shutil
 
 def main():
     # Directories are defined starting inside src
-    experiments_directory = os.path.join(os.getcwd(), 'experiments', 'performed_experiments')
+    experiments_directory = os.path.join(os.getcwd(), "src", "experiments", "performed_experiments")
     destination_directory = os.path.join(experiments_directory, 'all_logs')
 
     if not os.path.exists(destination_directory):
