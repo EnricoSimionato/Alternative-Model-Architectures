@@ -11,7 +11,7 @@ echo "Running Python script to copy logs..."
 python "$PYTHON_SCRIPT"
 
 # Define the destination directory for TensorBoard
-DEST_DIR="experiments/performed_experiments/all_logs"
+DEST_DIR="src/experiments/performed_experiments/all_logs"
 
 # Start TensorBoard on port 6006
 echo "Starting TensorBoard..."

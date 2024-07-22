@@ -16,7 +16,7 @@ def main():
     # Iterating through all items in the current directory
     for item in os.listdir(experiments_directory):
         item_path = os.path.join(experiments_directory, item)
-        logs_path = os.path.join(item_path, 'logs')
+        logs_path = os.path.join(item_path, "logs")
 
         # Checking if the item is a directory and contains a 'logs' directory
         if os.path.isdir(item_path) and os.path.exists(logs_path) and os.path.isdir(logs_path):
@@ -25,7 +25,7 @@ def main():
             os.makedirs(new_dir_path, exist_ok=True)
 
             # Moving the 'logs' directory to the new directory
-            shutil.copytree(logs_path, os.path.join(new_dir_path, 'logs'), dirs_exist_ok=True)
+            shutil.copytree(logs_path, os.path.join(new_dir_path, "logs"), dirs_exist_ok=True)
             print(f"Copied {logs_path} to {os.path.join(new_dir_path, 'logs')}")
 
 
