@@ -31,7 +31,7 @@
     "max_epochs": 10,
     "optimizers_settings": [
         {
-            "optimizer": "Adam",
+            "optimizer": "AdamW",
             "parameters_group": [],
             "learning_rate": 1e-05,
             "lr_scheduler": "cosine_with_warmup",
@@ -48,16 +48,16 @@
     "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 256
+            "rank": 128
         },
         "key": {
-            "rank": 256
+            "rank": 128
         },
         "value": {
-            "rank": 256
+            "rank": 128
         },
         "dense": {
-            "rank": 256
+            "rank": 128
         }
     },
     "verbose": true,
