@@ -56,19 +56,25 @@
     "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 64
+            "rank": 128
         },
         "key": {
-            "rank": 64
+            "rank": 128
         },
         "value": {
-            "rank": 64
+            "rank": 128
         },
-        "dense": {
-            "rank": 64
+        "attention_output": {
+            "rank": 128
+        },
+        "intermediate": {
+            "rank": 128
+        },
+        "output": {
+            "rank": 128
         }
     },
-    "verbose": true,
+    "verbose": 1,
 
     "initial_regularization_weight": 5.0,
     "max_regularization_weight": 6.0,

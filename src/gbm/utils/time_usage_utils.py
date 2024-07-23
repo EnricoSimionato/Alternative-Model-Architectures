@@ -56,12 +56,3 @@ def convert_seconds_in_other_units(
     conversion[list(units_of_measure_to_use.keys())[-1]] = current_number_of_bytes / (units_of_measure_to_use[list(units_of_measure_to_use.keys())[-1]])
 
     return conversion
-
-
-if __name__ == "__main__":
-    result = convert_seconds_in_other_units(3600*24, ["d", "h", "m", "s"])
-    string = ""
-    for key in result.keys():
-        string += f"{key}: {result[key]} "
-
-    print(string)

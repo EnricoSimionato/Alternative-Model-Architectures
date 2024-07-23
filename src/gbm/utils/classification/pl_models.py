@@ -110,6 +110,7 @@ class ClassifierModelWrapper(pl.LightningModule):
             optimizers_settings: list[dict] = None,
             max_steps: int = 1,
             dtype: str = "float32",
+            path_to_storage: str = None,
             **kwargs
     ) -> None:
         super(ClassifierModelWrapper, self).__init__()
@@ -158,6 +159,8 @@ class ClassifierModelWrapper(pl.LightningModule):
         self.test_samples_count = 0
         self.sum_test_epoch_loss = 0
         self.test_stat_scores = ClassificationStats(num_classes=self.num_classes, average=None)
+
+        self.path_to_storage = path_to_storage
 
         self.model_dtype = dtype
 
@@ -345,8 +348,12 @@ class ClassifierModelWrapper(pl.LightningModule):
                 Loss of the model computed for the current batch.
         """
 
-        if hasattr(self.model, 'before_training_step') and callable(getattr(self.model, 'before_training_step')):
-            self.model.before_training_step(self.training_step_index)
+        if hasattr(self.model, "before_training_step") and callable(getattr(self.model, "before_training_step")):
+            before_training_step_kwargs = {"path_to_storage": self.path_to_storage} if self.path_to_storage is not None else {"path_to_storage": ""}
+            self.model.before_training_step(
+                self.training_step_index,
+                **before_training_step_kwargs
+            )
 
         loss, logits, labels = self._common_step(batch, batch_idx)
 

@@ -11,6 +11,9 @@ from typing import Optional, Callable, Union, Any
 import src.peft as peft
 import torch
 import torch.nn as nn
+
+from gbm.utils.plotting_utils.heatmap import create_heatmap_global_layers
+from gbm.utils.printing_utils.printing_utils import Verbose
 from src.peft import PeftModel
 from torch import device
 
@@ -32,6 +35,7 @@ from gbm.layers.gdl_embedding import (
 
 from transformers import AutoModel
 
+import gbm
 from gbm.utils.parameters_count import count_parameters
 
 
@@ -370,8 +374,8 @@ class GlobalDependentModel(ABC, nn.Module):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
+        verbose (int):
+            Verbosity level.
         **kwargs:
             Additional keyword arguments.
 
@@ -388,6 +392,8 @@ class GlobalDependentModel(ABC, nn.Module):
             Mapping of layer types to global-dependent layer classes.
         info (dict):
             Information about the model.
+        verbose (Verbose):
+            Verbosity level.
     """
 
     def __init__(
@@ -399,10 +405,12 @@ class GlobalDependentModel(ABC, nn.Module):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: bool = False,
+            verbose: int = 0,
             **kwargs
     ) -> None:
         nn.Module.__init__(self, **kwargs)
+
+        self.verbose = Verbose(verbose)
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
@@ -435,13 +443,13 @@ class GlobalDependentModel(ABC, nn.Module):
                     self.model,
                     extracted_matrices,
                     path="",
-                    verbose=verbose,
+                    verbose=self.verbose,
                     **kwargs
                 )
 
                 average_matrices = self._compute_average_matrices(
                     extracted_matrices,
-                    verbose=verbose,
+                    verbose=self.verbose,
                     **kwargs
                 )
 
@@ -463,12 +471,30 @@ class GlobalDependentModel(ABC, nn.Module):
                 }
             )
 
-            if verbose:
+            if self.verbose > Verbose.SILENT:
                 print(f"Number of parameters original model: {self.info['original_model_parameters']}")
                 print(f"Number of parameters global model: {self.info['model_parameters']}")
                 print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
                 print()
                 print("Model converted")
+
+    def get_parameters_info(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Returns information about the parameters of the model.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Information about the parameters of the model.
+        """
+
+        return self.info
 
     def __post_init__(
             self,
@@ -547,7 +573,7 @@ class GlobalDependentModel(ABC, nn.Module):
             model_tree: nn.Module,
             average_matrices: dict,
             path: str = "",
-            verbose: bool = False,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         """
@@ -560,8 +586,8 @@ class GlobalDependentModel(ABC, nn.Module):
                 Dictionary containing the matrices to average per layer name.
             path (str):
                 Path to the current layer.
-            verbose (bool):
-                Whether to print information about the conversion.
+            verbose (Verbose):
+                Level of verbosity.
             **kwargs:
                 Additional keyword arguments.
         """
@@ -589,7 +615,7 @@ class GlobalDependentModel(ABC, nn.Module):
     def _compute_average_matrices(
             self,
             grouped_layers: dict,
-            verbose: bool = False,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> dict:
         """
@@ -599,8 +625,8 @@ class GlobalDependentModel(ABC, nn.Module):
         Args:
             grouped_layers (dict):
                 Dictionary containing the matrices to average per layer name.
-            verbose (bool):
-                Whether to print information about the conversion.
+            verbose (Verbose):
+                Level of verbosity.
             **kwargs:
                 Additional keyword arguments.
 
@@ -639,7 +665,7 @@ class GlobalDependentModel(ABC, nn.Module):
             model_tree: nn.Module,
             path: str = "",
             average_matrices: dict = {},
-            verbose: bool = False,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         """
@@ -652,39 +678,64 @@ class GlobalDependentModel(ABC, nn.Module):
                 Path to the current layer.
             average_matrices (dict):
                 Dictionary containing the average matrices per layer name.
-            verbose (bool):
-                Whether to print information about the conversion.
+            verbose (Verbose):
+                Level of verbosity.
             **kwargs:
                 Additional keyword arguments.
         """
 
         for layer_name in model_tree._modules.keys():
+            # Extracting the child from the current module
             child = model_tree._modules[layer_name]
+            # If the child has no children, it is a leaf layer and can be eligible for the conversion
             if len(child._modules) == 0:
-                if (type(child) in self.conversions.keys() and
-                        layer_name in self.target_layers.keys()):
-                    if verbose:
-                        print(f"Conversion of {layer_name} in {path}")
-                    kwargs_layer = kwargs.copy()
-                    kwargs_layer.update(self.target_layers[layer_name])
-                    target_name_for_average = self.mapping_layer_name_key[layer_name] if self.mapping_layer_name_key is not None else "entire_model_average"
-                    average_matrix_key = f"{target_name_for_average}_({child.weight.shape[0]},{child.weight.shape[1]})"
-                    kwargs_layer.update(
-                        {
-                            "average_matrix": None if average_matrix_key not in average_matrices.keys() else average_matrices[average_matrix_key],
-                            "path": path
-                        }
-                    )
+                # Checking if the layer has to be converted in the current subclass of the GlobalDependentModel.
+                # The checks are 3:
+                # 1. The layer is in the layers that the model has to convert;
+                # 2. The layer is in the target_layers keys that are the names of the layers to convert;
+                # 3. A target_layers key is contained in some part of the path of the currently considered layer.
+                if type(child) in self.conversions.keys():
+                    # Additional check to see allow to distinguish layers that have the same name but are in different
+                    # paths in the model, e.g. dense layers called 'dense' that are in both the attention component and
+                    # in the multi-layer perceptron
+                    targets_in_path = [layer_name_ for layer_name_ in self.target_layers.keys() if layer_name_ in path]
 
-                    model_tree._modules[layer_name] = self.conversions[type(child)](
-                        child,
-                        self.global_layers,
-                        self.average_layers,
-                        target_name=None if self.mapping_layer_name_key is None else self.mapping_layer_name_key[layer_name],
-                        **kwargs_layer
-                    )
+                    if layer_name in self.target_layers.keys() or len(targets_in_path) > 0:
+                        # Initializing the target name with the layer name, if the target name is contained in some part
+                        # of the path, we use that label as the target name.
+                        target_label = layer_name
+                        if len(targets_in_path) > 0:
+                            target_label = max(targets_in_path, key=len)
+                            if self.verbose > Verbose.INFO:
+                                print(f"Among {targets_in_path}, using label: {target_label}")
+                        if self.verbose > Verbose.SILENT:
+                            print(f"Conversion of {layer_name} in {path} with label {target_label}")
+
+                        # Setting the arguments to pass to the global-dependent layer constructor
+                        kwargs_layer = kwargs.copy()
+                        kwargs_layer.update(self.target_layers[target_label])
+
+                        # Setting the average matrix for the layer (if needed)
+                        target_name_for_average = self.mapping_layer_name_key[target_label] if self.mapping_layer_name_key is not None else "entire_model_average"
+                        average_matrix_key = f"{target_name_for_average}_({child.weight.shape[0]},{child.weight.shape[1]})"
+                        kwargs_layer.update(
+                            {
+                                "average_matrix": None if average_matrix_key not in average_matrices.keys() else average_matrices[average_matrix_key],
+                                "path": path
+                            }
+                        )
+
+                        # Creating the global-dependent layer
+                        model_tree._modules[layer_name] = self.conversions[type(child)](
+                            child,
+                            self.global_layers,
+                            self.average_layers,
+                            target_name=None if self.mapping_layer_name_key is None else self.mapping_layer_name_key[target_label],
+                            **kwargs_layer
+                        )
 
             else:
+                # Recursively calling the method on the child, if the child has children
                 self._convert_into_global_dependent_model(
                     child,
                     path + (f"{layer_name}" if path == "" else f"_{layer_name}"),
@@ -1126,8 +1177,8 @@ class LocalSVDModel(GlobalDependentModel):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
+        verbose (int):
+            Verbosity level.
         **kwargs:
             Additional keyword arguments.
     """
@@ -1141,7 +1192,7 @@ class LocalSVDModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: bool = False,
+            verbose: int = 0,
             **kwargs
     ) -> None:
         GlobalDependentModel.__init__(
@@ -1208,8 +1259,8 @@ class GlobalBaseModel(GlobalDependentModel):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
+        verbose (int):
+            Verbosity level.
         **kwargs:
             Additional keyword arguments.
     """
@@ -1223,7 +1274,7 @@ class GlobalBaseModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: bool = False,
+            verbose: int = 0,
             **kwargs
     ) -> None:
         GlobalDependentModel.__init__(
@@ -1290,8 +1341,8 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
+        verbose (int):
+            Verbosity level.
         **kwargs:
             Additional keyword arguments.
     """
@@ -1305,7 +1356,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: bool = False,
+            verbose: int = 0,
             **kwargs
     ) -> None:
         GlobalDependentModel.__init__(
@@ -1384,8 +1435,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (bool):
-            Whether to print information about the conversion.
+        verbose (int):
+            Verbosity level.
         initial_regularization_weight (float or torch.Tensor):
             Initial weight for regularization.
         max_regularization_weight (float or torch.Tensor):
@@ -1407,7 +1458,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: bool = False,
+            verbose: int = 0,
             initial_regularization_weight=0.0,
             max_regularization_weight=0.0,
             start_step_regularization=0,
@@ -1419,7 +1470,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             minimum_number_of_global_layers: int = 1,
             **kwargs
     ) -> None:
-        # Ensure use_names_as_keys is set to True
+        # Ensuring use_names_as_keys is set to True
         use_names_as_keys = True
 
         GlobalDependentModel.__init__(
@@ -1449,6 +1500,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         self.thresholding_strategy = ThresholdingStrategy(thresholding_strategy)
         self.pruning_strategy = PruningStrategy(pruning_strategy)
         self.minimum_number_of_global_layers = minimum_number_of_global_layers
+
+        self.label_to_index = None
 
     def define_conversion(
             self,
@@ -1549,25 +1602,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                     l1_norm = torch.sum(torch.abs((layer1.weight - layer2.weight).flatten()))
                     penalization_term += l1_norm
                     l1_norms_table[(index1, index2)] = l1_norm.item()
-        """
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import seaborn as sns
 
-        max_index = max(max(indices) for indices in l1_norms_table.keys()) + 1
-        heatmap_matrix = np.zeros((max_index, max_index))
-
-        for (i, j), value in l1_norms_table.items():
-            heatmap_matrix[i, j] = value
-            heatmap_matrix[j, i] = value  # To make the matrix symmetric
-
-        plt.figure(figsize=(30, 24))
-        sns.heatmap(heatmap_matrix, annot=True, fmt=".1f", cmap="viridis")
-        plt.title("L1 Norms Heatmap")
-        plt.xlabel("Layer Index")
-        plt.ylabel("Layer Index")
-        plt.show()
-        """
         return penalization_term
 
     def prune_global_layers(
@@ -1697,6 +1732,96 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
                 **kwargs
             )
 
+        if "path_to_storage" not in kwargs.keys():
+            raise ValueError("The path to the storage must be provided in order to store the heatmap of the global "
+                             "layers usage of the GlamSVD model.")
+
+        self.plot_heatmap_global_layers(
+            training_step,
+            os.path.join(kwargs["path_to_storage"], "images"),
+        )
+
+    def extract_global_keys_list(
+            self
+    ) -> list:
+        """
+        Extracts the keys of the global layers for each layer that is using global layers and returns them as a list.
+
+        Returns:
+            list:
+                List of keys of the global layers usage.
+        """
+
+        # Extracting the global keys in dictionary format
+        global_keys_dict = {}
+        for name, layer in self.model.named_modules():
+            for layer_types in self.define_conversion().values():
+                if issubclass(type(layer), StructureSpecificGlobalDependent) and issubclass(type(layer), layer_types):
+                    global_keys_dict[(layer.layer_index, layer.layer_type)] = layer.get_global_keys()[0]
+
+        # Extracting unique types and indices
+        layer_types = sorted(set(layer_type for _, layer_type in global_keys_dict.keys()))
+        layer_indices = sorted(set(layer_index for layer_index, _ in global_keys_dict.keys()))
+
+        # Create a dictionary to quickly lookup indices
+        type_index_map = {layer_type: index for index, layer_type in enumerate(layer_types)}
+        index_index_map = {layer_index: index for index, layer_index in enumerate(layer_indices)}
+
+        # Initialize the 2D list
+        num_types = len(layer_types)
+        num_indices = len(layer_indices)
+        bidimensional_list = [[None] * num_indices for _ in range(num_types)]
+
+        # Populate the 2D list
+        for (layer_index, layer_type), value in global_keys_dict.items():
+            row = type_index_map[layer_type]
+            col = index_index_map[layer_index]
+            bidimensional_list[row][col] = value
+
+        return bidimensional_list, layer_types, layer_indices
+
+    def plot_heatmap_global_layers(
+            self,
+            training_step: int,
+            path_to_storage: str,
+            **kwargs
+    ) -> None:
+        """
+        Creates the heatmap of the usage of the global layers in the model and appends it to the video of the previous
+        heatmaps.
+        
+        Args:
+            training_step (int):
+                Current training step.
+            path_to_storage (str):
+                Path to the storage the heatmaps.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        if not os.path.exists(path_to_storage) or not os.path.isdir(path_to_storage):
+            raise ValueError("The path to the storage does not exist.")
+
+        global_keys_list, sorted_layer_types, sorted_layer_indexes = self.extract_global_keys_list()
+
+        label_to_index = create_heatmap_global_layers(
+            data=global_keys_list,
+            title="Global layers used in different parts of the model",
+            x_title="Layer indexes",
+            y_title="Type of matrix",
+            columns_labels=sorted_layer_indexes,
+            rows_labels=sorted_layer_types,
+            figure_size=(25, 15),
+            save_path=path_to_storage,
+            heatmap_name=f"heatmap_{training_step}",
+            label_to_index=self.label_to_index,
+            verbose=self.verbose,
+            show=False
+        )
+
+        if self.label_to_index is None:
+            self.label_to_index = label_to_index
+
 
 def provide_hyperparameters_for_glam_training(
 ) -> dict:
@@ -1723,6 +1848,8 @@ class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
     Args:
         model (nn.Module):
             Model to wrap.
+        verbose (int):
+            Verbosity level.
 
     Attributes:
         weights_to_exclude (list):
@@ -1741,6 +1868,7 @@ class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
             max_regularization_weight: [float, torch.Tensor] = 0.0,
             start_step_regularization: int = 0,
             steps_regularization_weight_resets: int = 0,
+            verbose: int = 0,
             **kwargs
     ) -> None:
 
@@ -1771,6 +1899,7 @@ class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
             for name, param in self.named_parameters()
             if any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
         ]
+        self.verbose = Verbose(verbose)
 
     def adjust_optimizers_settings(
             self,
@@ -1956,6 +2085,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
             initial_alpha: float = 1.0,
             horizon: int = 10000,
             alpha_strategy: str = "exponential",
+            verbose: int = 0,
             **kwargs
     ) -> None:
 
@@ -1974,6 +2104,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
         self.alpha = initial_alpha
         self.horizon = horizon
         self.alpha_strategy = AlphaStrategy(alpha_strategy)
+        self.verbose = Verbose(verbose)
 
     def forward(
             self,
@@ -2081,3 +2212,21 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
         """
 
         return next(self.parameters()).device
+
+
+def update_config_with_model_parameters(
+        config: gbm.utils.experiment_pipeline.config.Config,
+        model: GlobalDependentModel
+) -> None:
+    """
+    Update the configuration with the number of parameters in the model.
+
+    Args:
+        config (Config):
+            The configuration to update.
+        model (gbm.GlobalDependentModel):
+            The model whose parameters are to be counted.
+    """
+
+    parameters_info = model.get_parameters_info()
+    config.update(parameters_info)

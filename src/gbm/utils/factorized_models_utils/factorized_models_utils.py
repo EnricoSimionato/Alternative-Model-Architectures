@@ -9,7 +9,7 @@ from gbm import (
 )
 
 from gbm.utils.experiment_pipeline.config import Config
-
+from gbm.models.global_dependent_model import update_config_with_model_parameters
 
 regularized_training_keys = [
     "initial_regularization_weight",
@@ -59,30 +59,30 @@ def get_factorized_model(
         raise ValueError("Factorization method not specified")
 
     alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)
-
     factorization_method = config.get("factorization_method").lower()
+
     if factorization_method.endswith("model"):
         factorization_method = factorization_method[:-5]
 
     if factorization_method == "localsvd":
-        return LocalSVDModel(
+        factorized_model = LocalSVDModel(
             model,
             **alternative_architectures_arguments
         )
     elif factorization_method == "globalbase":
-        return GlobalBaseModel(
+        factorized_model = GlobalBaseModel(
             model,
             **alternative_architectures_arguments
         )
     elif factorization_method == "globalfixedbase":
-        return GlobalFixedBaseModel(
+        factorized_model = GlobalFixedBaseModel(
             model,
             **alternative_architectures_arguments
         )
     elif factorization_method == "glamsvd":
         regularized_training_arguments = config.get_dict(regularized_training_keys)
         glam_svd_training_arguments = config.get_dict(glam_svd_keys)
-        return GLAMSVDModel(
+        factorized_model = GLAMSVDModel(
             model,
             **alternative_architectures_arguments,
             **regularized_training_arguments,
@@ -90,3 +90,10 @@ def get_factorized_model(
         )
     else:
         raise ValueError("Factorization method not recognized")
+
+    update_config_with_model_parameters(
+        config,
+        factorized_model
+    )
+
+    return factorized_model

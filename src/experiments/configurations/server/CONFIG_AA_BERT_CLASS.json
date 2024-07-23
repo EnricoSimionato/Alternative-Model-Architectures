@@ -60,7 +60,7 @@
             "rank": 64
         }
     },
-    "verbose": true,
+    "verbose": 1,
 
     "original_model_parameters": 0,
     "model_parameters": 0,

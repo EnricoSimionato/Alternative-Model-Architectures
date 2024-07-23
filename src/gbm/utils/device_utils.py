@@ -6,7 +6,7 @@ import torch
 def get_available_device(
     preferred_device: str = "cuda",
     just_string: bool = False
-) -> torch.device | str:
+) -> torch.Device | str:
     """
     Retrieves the available device.
 
@@ -17,7 +17,7 @@ def get_available_device(
             Whether to return the device as a string. Defaults to False.
 
     Returns:
-        torch.device | str:
+        torch.Device | str:
             The available device.
     """
 

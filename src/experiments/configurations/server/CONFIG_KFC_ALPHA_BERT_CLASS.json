@@ -44,6 +44,8 @@
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
+    "verbose": 1,
+
     "adapter_method": "KFCAlphaLoRA",
     "lora_rank": 64,
     "lora_alpha": 64,

@@ -208,6 +208,7 @@ class Experiment:
 
                 **training_args,
 
+                path_to_storage=self.config.get("path_to_experiment"),
                 dtype=dtype
             )
 
@@ -222,6 +223,7 @@ class Experiment:
 
                 stop_tokens=self.config.get("stop_tokens"),
 
+                path_to_storage=self.config.get("path_to_experiment"),
                 dtype=dtype
             )
 

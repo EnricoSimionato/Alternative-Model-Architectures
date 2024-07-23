@@ -30,6 +30,8 @@
     "num_checks_per_epoch": 2,
     "gradient_accumulation_steps": 4,
 
+    "verbose": 1,
+
     "adapter_method": "LoRA",
     "lora_alpha": 32,
     "target_modules": [

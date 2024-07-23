@@ -83,6 +83,7 @@ class CausalLMModelWrapper(pl.LightningModule):
         max_regularization_weight: float = 10.0,
         start_step_regularization: int = 0,
         steps_regularization_weight_resets: int = 1000,
+        path_to_storage: str = None,
         dtype: torch.dtype = torch.float32,
         **kwargs
     ) -> None:
@@ -125,6 +126,7 @@ class CausalLMModelWrapper(pl.LightningModule):
             "test": []
         }
 
+        self.path_to_storage = path_to_storage
         self.model_dtype = dtype
 
     def configure_optimizers(

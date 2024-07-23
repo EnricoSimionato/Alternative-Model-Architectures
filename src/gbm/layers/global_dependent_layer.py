@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
+from gbm.utils.printing_utils.printing_utils import Verbose
+
 
 class MergeableLayer:
     """
@@ -364,6 +366,11 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
 
         self.initialize_matrices(**{"target_layer": target_layer}, **kwargs)
 
+        self.path = kwargs["path"]
+        list_containing_layer_number = [subpath for subpath in kwargs["path"].split("_") if subpath.isdigit()]
+        self.layer_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
+        self.layer_type = target_name
+
     def _define_structure(
             self,
             **kwargs
@@ -611,12 +618,30 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
 
         return post_processed_key
 
+    def get_global_keys(
+            self,
+            **kwargs
+    ) -> list:
+        """
+        Returns the keys of the global layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            list:
+                Keys of the global layers.
+        """
+
+        return [layer["key"] for layer in self.structure if layer["scope"] == "global"]
+
     def change_key(
             self,
             scope: str,
             previous_key: str,
             new_key: str,
-            verbose: bool = False,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         """
@@ -629,8 +654,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Previous key of the layer.
             new_key (str):
                 New key of the layer.
-            verbose (bool):
-                Flag to print the change of the key.
+            verbose (Verbose):
+                Verbosity level.
             **kwargs:
                 Additional keyword arguments.
         """
@@ -642,7 +667,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 changed = True
                 break
 
-        if verbose:
+        if verbose > Verbose.INFO:
             if not changed:
                 print(f"The layer with the scope '{scope}' and key '{previous_key}' does not exist.")
             else:

@@ -74,7 +74,7 @@
             "rank": 128
         }
     },
-    "verbose": true,
+    "verbose": 1,
 
     "initial_regularization_weight": 5.0,
     "max_regularization_weight": 6.0,

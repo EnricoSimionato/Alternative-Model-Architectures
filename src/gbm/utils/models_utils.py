@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import torch
+import transformers
 
 
 def check_model_for_nan(
-        model: torch.nn.Module
+        model: [transformers.PreTrainedModel | transformers.AutoModel]
 ) -> bool:
     """
     Check if there are NaNs in the model parameters or gradients.
 
     Args:
-        model (torch.nn.Module):
+        model ([transformers.PreTrainedModel | transformers.AutoModel]):
             The model to check for NaNs.
 
     Returns:

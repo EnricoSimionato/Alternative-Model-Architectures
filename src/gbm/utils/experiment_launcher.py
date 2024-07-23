@@ -19,6 +19,7 @@ from gbm.utils.adapters_utils.adapters_utils import get_adapted_model
 from gbm.utils.factorized_models_utils.factorized_models_utils import get_factorized_model
 
 from gbm.models.global_dependent_model import KFCTrainedModel, KFCAlphaTrainedModel
+from gbm.utils.plotting_utils.heatmap import create_heatmap_global_layers
 
 keys_for_regularized_training = [
     "initial_regularization_weight",
@@ -39,8 +40,6 @@ def launch_aa_class_experiment(
             The configuration parameters for the experiment.
     """
 
-    # Multiple optimizers for GLAM-SVD???
-
     original_model = load_original_model_for_sequence_classification(config)
     tokenizer = load_tokenizer_for_sequence_classification(config)
     print(original_model)
@@ -49,8 +48,7 @@ def launch_aa_class_experiment(
         original_model,
         config
     )
-    print(factorized_model.__dict__)
-    print(factorized_model.model)
+    print(factorized_model)
 
     experiment = Experiment(
         task="classification",
@@ -83,14 +81,13 @@ def launch_aa_chat_experiment(
 
     original_model = load_original_model_for_causal_lm(config)
     tokenizer = load_tokenizer_for_causal_lm(config)
-
-    if not config.contains("factorization_method"):
-        raise ValueError("Factorization method not specified")
+    print(original_model)
 
     factorized_model = get_factorized_model(
         original_model,
         config
     )
+    print(factorized_model)
 
     experiment = Experiment(
         task="chatbot",
@@ -123,6 +120,7 @@ def launch_kfc_class_experiment(
 
     original_model = load_original_model_for_sequence_classification(config)
     tokenizer = load_tokenizer_for_sequence_classification(config)
+    print(original_model)
 
     if not config.contains("adapter_method"):
         raise ValueError("Adapter method needs to be specified to allow KFC training")
@@ -166,12 +164,12 @@ def launch_kfc_chat_experiment(
 
     original_model = load_original_model_for_causal_lm(config)
     tokenizer = load_tokenizer_for_causal_lm(config)
+    print
 
     if not config.contains("adapter_method"):
         raise ValueError("Adapter method needs to be specified to allow KFC training")
 
     model = get_adapted_model(original_model, config)
-    print(model)
     regularized_training_arguments = config.get_dict(keys_for_regularized_training)
     kfc_wrapped_model = KFCTrainedModel(
         model,

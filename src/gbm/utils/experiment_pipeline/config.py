@@ -254,7 +254,8 @@ class Config:
                 "path_to_logs": os.path.join(path_to_experiment, "logs"),
                 #"path_to_tensorboard_logs": os.path.join(path_to_experiment, "logs", "tensorboard_logs"),
                 #"path_to_csv_logs": os.path.join(path_to_experiment, "logs", "csv_logs"),
-                "path_to_checkpoints": os.path.join(path_to_experiment, "checkpoints")
+                "path_to_checkpoints": os.path.join(path_to_experiment, "checkpoints"),
+                "path_to_images": os.path.join(path_to_experiment, "images")
             }
             for _, path in paths.items():
                 os.makedirs(path, exist_ok=True)

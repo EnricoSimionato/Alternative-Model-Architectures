@@ -1,4 +1,6 @@
-import torch.nn as nn
+from __future__ import annotations
+
+import transformers
 
 
 def convert_bytes_in_other_units(
@@ -64,14 +66,14 @@ def convert_bytes_in_other_units(
 
 
 def compute_model_memory_usage(
-        model: nn.Module,
+        model: [transformers.PreTrainedModel | transformers.AutoModel],
         unit_of_measure: str = "B"
 ) -> float:
     """
     Computes the memory usage of a PyTorch model in the specified unit of measure.
 
     Args:
-        model (torch.nn.Module):
+        model ([transformers.PreTrainedModel | transformers.AutoModel]):
             The PyTorch model whose memory usage is to be computed.
         unit_of_measure (str, optional):
             The unit of measure for memory usage. Defaults to "B".
