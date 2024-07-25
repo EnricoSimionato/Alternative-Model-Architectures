@@ -53,7 +53,6 @@
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "GlamSVD",
-    "regularized_training": true,
     "target_layers": {
         "q_proj": {
             "rank": 128

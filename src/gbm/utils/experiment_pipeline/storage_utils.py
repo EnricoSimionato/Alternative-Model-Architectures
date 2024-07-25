@@ -10,6 +10,7 @@ import transformers
 import peft
 from peft import PeftModel
 
+from gbm.utils.printing_utils.printing_utils import Verbose
 from gbm.utils.experiment_pipeline.config import Config
 
 
@@ -18,7 +19,7 @@ def store_model_and_info(
         config: Config,
         tokenizer: transformers.AutoTokenizer = None,
         store_model_function: callable = None,
-        verbose: bool = True
+        verbose: Verbose = Verbose.INFO
 ) -> None:
     """
     Stores the model, tokenizer, hyperparameters and stats in the specified path.
@@ -81,13 +82,53 @@ def store_model_and_info(
     print()
 
 
-def load_model_and_info(
+def load_info(
+        path_to_experiment: str,
+        verbose: Verbose = Verbose.INFO
+) -> Config:
+    """
+    Loads the configuration of the experiment from the specified path.
+
+    Args:
+        path_to_experiment (str):
+            The path where the model and info are stored, the experiment directory has to contain at least the
+            configuration directory containing a dump of the configuration of the experiment.
+        verbose (Verbose, optional):
+            Verbosity level. Defaults to Verbose.INFO.
+
+    Returns:
+        Config:
+            The configuration of the experiment.
+    """
+
+    if not os.path.exists(path_to_experiment):
+        raise Exception(f"The specified path does not exist: '{path_to_experiment}'")
+
+    if verbose > Verbose.SILENT:
+        print(f"Loading configuration from: '{path_to_experiment}'...")
+
+    # Loading configuration parameters
+    config = Config(os.path.join(path_to_experiment, "configuration", "config.json"))
+
+    if verbose > Verbose.SILENT:
+        print(f"Configuration parameters loaded from: '{os.path.join(path_to_experiment, 'configuration')}'.")
+        print()
+
+    if verbose > Verbose.INFO:
+        print(config)
+        print()
+
+    return config
+
+
+def load_model(
         path_to_experiment: str,
         load_model_function: callable = None,
-        verbose: bool = True
-) -> tuple:
+        verbose: Verbose = Verbose.INFO,
+        config: Config = None
+) -> [nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
     """
-    Loads the model and info from the specified path.
+    Loads the model of the experiment from the specified path.
 
     Args:
         path_to_experiment (str):
@@ -95,9 +136,10 @@ def load_model_and_info(
             configuration directory containing a dump of the configuration of the experiment.
         load_model_function (callable, optional):
             The function to load the model. Defaults to None.
-        verbose (bool, optional):
-            Whether to print the paths from which the model, tokenizer and hyperparameters are loaded.
-            Defaults to True.
+        verbose (Verbose, optional):
+            Verbosity level. Defaults to Verbose.INFO.
+        config (Config, optional):
+            The configuration object. Defaults to None.
 
     Returns:
         tuple:
@@ -107,14 +149,15 @@ def load_model_and_info(
     if not os.path.exists(path_to_experiment):
         raise Exception(f"The specified path does not exist: '{path_to_experiment}'")
 
-    if verbose:
-        print(f"Loading model and info from: '{path_to_experiment}'")
-        print()
+    if config is None:
+        config = load_info(path_to_experiment, verbose)
 
-    # Loading configuration parameters
-    config = Config(os.path.join(path_to_experiment, "configuration", "config.json"))
-    if verbose:
-        print(f"Configuration parameters loaded from: '{os.path.join(path_to_experiment, 'configuration')}'")
+        # Sanity check
+        if config.get("begin_time") not in path_to_experiment:
+            raise Exception(f"The configuration file does not match the path: '{config.get('begin_time')}' not in '{path_to_experiment}'")
+
+    if verbose > Verbose.SILENT:
+        print(f"Loading model from: '{path_to_experiment}'")
 
     # Loading the model
     if load_model_function is not None:
@@ -129,16 +172,84 @@ def load_model_and_info(
             model = transformers.AutoModelForSequenceClassification.from_pretrained(config.get("path_to_model"))
         else:
             model = transformers.AutoModel.from_pretrained(config.get("path_to_model"))
-    if verbose:
+
+    if verbose > Verbose.SILENT:
         print(f"Model loaded from: '{config.get('path_to_model')}'")
+        print()
+
+    return model
+
+
+def load_tokenizer(
+        path_to_experiment: str,
+        verbose: Verbose = Verbose.INFO,
+        config: Config = None
+) -> transformers.AutoTokenizer:
+    """
+    Loads the tokenizer of the experiment from the specified path.
+
+    Args:
+        path_to_experiment (str):
+            The path where the model and info are stored, the experiment directory has to contain at least the
+            configuration directory containing a dump of the configuration of the experiment.
+        verbose (Verbose, optional):
+            Verbosity level. Defaults to Verbose.INFO.
+        config (Config, optional):
+            The configuration object. Defaults to None.
+
+    Returns:
+        transformers.AutoTokenizer:
+            The tokenizer.
+    """
+
+    if not os.path.exists(path_to_experiment):
+        raise Exception(f"The specified path does not exist: '{path_to_experiment}'")
+
+    if config is None:
+        config = load_info(path_to_experiment, verbose)
+
+        # Sanity check
+        if config.get("begin_time") not in path_to_experiment:
+            raise Exception(f"The configuration file does not match the path: '{config.get('begin_time')}' not in '{path_to_experiment}'")
+
+    if verbose > Verbose.SILENT:
+        print(f"Loading tokenizer from: '{path_to_experiment}'")
 
     # Loading the tokenizer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.get("path_to_tokenizer"))
-    if verbose:
-        print(f"Tokenizer loaded from: '{config.get('path_to_tokenizer')}'")
 
-    print("Loaded model and info")
-    print()
+    if verbose > Verbose.SILENT:
+        print(f"Tokenizer loaded from: '{config.get('path_to_tokenizer')}'")
+        print()
+
+    return tokenizer
+
+
+def load_model_and_info(
+        path_to_experiment: str,
+        load_model_function: callable = None,
+        verbose: Verbose = Verbose.INFO
+) -> tuple:
+    """
+    Loads the model and info from the specified path.
+
+    Args:
+        path_to_experiment (str):
+            The path where the model and info are stored, the experiment directory has to contain at least the
+            configuration directory containing a dump of the configuration of the experiment.
+        load_model_function (callable, optional):
+            The function to load the model. Defaults to None.
+        verbose (Verbose, optional):
+            Verbosity level. Defaults to Verbose.INFO.
+
+    Returns:
+        tuple:
+            The model, configuration parameters and tokenizer.
+    """
+
+    config = load_info(path_to_experiment, verbose)
+    model = load_model(path_to_experiment, load_model_function, verbose, config)
+    tokenizer = load_tokenizer(path_to_experiment, verbose, config)
 
     return model, config, tokenizer
 
@@ -167,3 +278,5 @@ def load_peft_model_function(
         original_model,
         path_to_adapters
     )
+
+

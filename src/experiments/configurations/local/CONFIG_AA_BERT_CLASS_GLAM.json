@@ -47,13 +47,12 @@
             "monitored_metric": "loss"
         }
     ],
-    "batch_size": 8,
+    "batch_size": 4,
     "num_workers": 1,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "GlamSVD",
-    "regularized_training": true,
     "target_layers": {
         "query": {
             "rank": 128
@@ -63,20 +62,29 @@
         },
         "value": {
             "rank": 128
+        },
+        "attention_output": {
+            "rank": 128
+        },
+        "intermediate": {
+            "rank": 128
+        },
+        "output": {
+            "rank": 128
         }
     },
     "verbose": 1,
 
-    "initial_regularization_weight": 0.01,
-    "max_regularization_weight": 0.01,
+    "initial_regularization_weight": 2.0,
+    "max_regularization_weight": 10.0,
     "start_step_regularization": 0,
-    "steps_regularization_weight_resets": 500,
+    "steps_regularization_weight_resets": 1000,
 
     "pruning_interval": 100,
     "pruning_threshold": 0.01,
     "thresholding_strategy": "relative",
     "pruning_strategy": "average",
-    "minimum_number_of_global_layers": 4,
+    "minimum_number_of_global_layers": 10,
 
     "original_model_parameters": 0,
     "model_parameters": 0,

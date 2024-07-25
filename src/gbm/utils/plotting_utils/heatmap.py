@@ -73,8 +73,6 @@ def create_heatmap_global_layers(
     # Generate colors using a gradient or another method
     base_colors = plt.cm.tab20.colors + plt.cm.tab20b.colors + plt.cm.tab20c.colors
     num_colors = len(label_to_index)
-    print(num_colors)
-    print(len(label_to_index))
     if num_colors <= len(base_colors):
         colors = base_colors[:num_colors]
     else:
@@ -139,7 +137,7 @@ def create_heatmap_global_layers(
                 heatmap_name
             )
         )
-        if verbose > Verbose.SILENT:
+        if verbose > Verbose.INFO:
             print("Heatmap stored to", os.path.join(save_path, heatmap_name))
 
     # Showing the heatmap

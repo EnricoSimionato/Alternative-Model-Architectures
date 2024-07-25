@@ -45,19 +45,24 @@
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "LocalSVD",
-    "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 256
+            "rank": 128
         },
         "key": {
-            "rank": 256
+            "rank": 128
         },
         "value": {
-            "rank": 256
+            "rank": 128
         },
-        "dense": {
-            "rank": 256
+        "attention_output": {
+            "rank": 128
+        },
+        "intermediate": {
+            "rank": 128
+        },
+        "output": {
+            "rank": 128
         }
     },
     "verbose": 1,

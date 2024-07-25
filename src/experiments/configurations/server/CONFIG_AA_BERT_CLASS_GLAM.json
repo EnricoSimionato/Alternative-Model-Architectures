@@ -48,13 +48,12 @@
             "monitored_metric": "loss"
         }
     ],
-    "batch_size": 32,
+    "batch_size": 16,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "GlamSVD",
-    "regularized_training": true,
     "target_layers": {
         "query": {
             "rank": 128

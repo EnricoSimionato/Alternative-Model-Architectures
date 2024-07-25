@@ -53,18 +53,23 @@
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "GlamSVD",
-    "regularized_training": true,
     "target_layers": {
-        "query": {
+        "q_proj": {
             "rank": 128
         },
-        "key": {
+        "k_proj": {
             "rank": 128
         },
-        "value": {
+        "v_proj": {
             "rank": 128
         },
-        "dense": {
+        "out_proj": {
+            "rank": 128
+        },
+        "c_fc": {
+            "rank": 128
+        },
+        "c_proj": {
             "rank": 128
         }
     },

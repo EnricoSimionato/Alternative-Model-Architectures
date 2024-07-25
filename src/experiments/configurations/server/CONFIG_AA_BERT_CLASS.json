@@ -39,25 +39,30 @@
             "monitored_metric": "loss"
         }
     ],
-    "batch_size": 32,
+    "batch_size": 16,
     "num_workers": 2,
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
     "factorization_method": "LocalSVD",
-    "regularized_training": true,
     "target_layers": {
         "query": {
-            "rank": 64
+            "rank": 128
         },
         "key": {
-            "rank": 64
+            "rank": 128
         },
         "value": {
-            "rank": 64
+            "rank": 128
         },
-        "dense": {
-            "rank": 64
+        "attention_output": {
+            "rank": 128
+        },
+        "intermediate": {
+            "rank": 128
+        },
+        "output": {
+            "rank": 128
         }
     },
     "verbose": 1,

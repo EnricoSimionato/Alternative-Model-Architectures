@@ -12,7 +12,7 @@ fi
 EXPERIMENT_NAME=$1
 
 # Defining the path to the Python script
-PYTHON_SCRIPT="src/gbm/utils/experiment_pipeline/config_printer.py"
+PYTHON_SCRIPT="src/gbm/utils/experiment_pipeline/experiment_printer.py"
 
 # Adding the src/ directory to the Python path
 export PYTHONPATH=$(pwd)/src:$PYTHONPATH
