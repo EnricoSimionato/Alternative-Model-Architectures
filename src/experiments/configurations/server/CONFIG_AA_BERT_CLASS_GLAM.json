@@ -66,12 +66,6 @@
         },
         "attention_output": {
             "rank": 128
-        },
-        "intermediate": {
-            "rank": 128
-        },
-        "output": {
-            "rank": 128
         }
     },
     "verbose": 1,
