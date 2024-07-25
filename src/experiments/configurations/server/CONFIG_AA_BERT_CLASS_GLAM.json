@@ -70,8 +70,8 @@
     },
     "verbose": 1,
 
-    "initial_regularization_weight": 10.0,
-    "max_regularization_weight": 15.0,
+    "initial_regularization_weight": 15.0,
+    "max_regularization_weight": 20.0,
     "start_step_regularization": 0,
     "steps_regularization_weight_resets": 1000,
 
