@@ -10,8 +10,6 @@ from transformers import (
     BitsAndBytesConfig, AutoTokenizer
 )
 
-from gbm.utils.experiment_pipeline.config import Config
-
 
 def get_conversation_example_1(
 ) -> list[str]:
@@ -238,14 +236,14 @@ def start_conversation_loop(
 
 
 def load_original_model_for_causal_lm(
-        config: Config,
+        config,
         verbose: bool = False
 ) -> transformers.AutoModelForCausalLM:
     """
     Loads the original model to be used in the causal language modeling.
 
     Args:
-        config (dict):
+        config:
             The configuration parameters to use in the loading.
         verbose (bool):
             Whether to print the model. Defaults to False.
@@ -293,7 +291,7 @@ def load_original_model_for_causal_lm(
 
 
 def load_tokenizer_for_causal_lm(
-        config: Config
+        config
 ) -> transformers.AutoModelForCausalLM:
     """
     Loads the tokenizer to be used in the causal language modeling task.

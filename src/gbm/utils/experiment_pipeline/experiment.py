@@ -28,6 +28,37 @@ from gbm.utils.chatbot import ChatbotModelWrapper
 from gbm.utils.chatbot.pl_trainer import get_causal_lm_trainer
 
 
+def get_path_to_experiments(
+        environment: str,
+        **kwargs
+) -> str:
+    """
+    Returns the path to the experiments.
+
+    Args:
+        environment (str):
+            The environment where to run the experiments.
+        kwargs:
+            Additional keyword arguments.
+
+    Returns:
+        str:
+            The path to the experiments.
+    """
+
+    if environment == "local":
+        base_path = ("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/"
+                     "performed_experiments/")
+    elif environment == "server":
+        base_path = "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments"
+    elif environment == "colab":
+        base_path = "/content/Alternative-Model-Architectures/src/experiments/performed_experiments"
+    else:
+        raise ValueError("Invalid environment. Choose either 'server' or 'local'.")
+
+    return base_path
+
+
 class Experiment:
     """
     Class to run an experiment in a standardized way.

@@ -7,19 +7,27 @@ import torch.nn as nn
 
 from transformers import AutoModelForCausalLM
 
+from gbm.utils.printing_utils.printing_utils import Verbose
+
+from gbm.utils.rank_analysis.utils import (
+    AnalysisTensorWrapper,
+)
+
 from gbm.utils.rank_analysis.utils import (
     compute_rank,
     extract,
     compute_max_possible_rank,
 
-    plot_heatmap, compute_singular_values
+    plot_heatmap,
+    compute_singular_values,
 )
 
 
 def compute_delta_matrices(
-        minuend_matrices: list,
-        subtrahend_matrices: list
-) -> list:
+        minuend_matrices: list[AnalysisTensorWrapper],
+        subtrahend_matrices: list[AnalysisTensorWrapper],
+        verbose: Verbose = Verbose.SILENT
+) -> list[AnalysisTensorWrapper]:
     """
     Computes the delta between two lists of matrices.
 
@@ -28,30 +36,38 @@ def compute_delta_matrices(
             List of minuend matrices.
         subtrahend_matrices (list):
             List of subtrahend matrices.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
 
     Returns:
-        list:
+        list[AnalysisTensorWrapper]:
             List of delta matrices.
     """
 
+    if verbose >= Verbose.DEBUG:
+        print("Computing delta matrices...")
+
     delta_matrices = []
+
     for i in range(len(minuend_matrices)):
-        minuend_matrix = minuend_matrices[i]["weight"]
-        subtrahend_matrix = subtrahend_matrices[i]["weight"]
+        minuend_matrix = minuend_matrices[i].get_tensor()
+        subtrahend_matrix = subtrahend_matrices[i].get_tensor()
 
         delta_matrix = minuend_matrix - subtrahend_matrix
         delta_matrices.append(
-            {
-                "matrix": delta_matrix,
-                "label": str(minuend_matrices[i]["label"]) + " - " + str(subtrahend_matrices[i]["label"])
-            }
+            AnalysisTensorWrapper(
+                delta_matrix,
+                label=str(minuend_matrices[i].get_label()) + " - " + str(subtrahend_matrices[i].get_label()),
+                block_index=minuend_matrices[i].get_block_index()
+            )
         )
 
     return delta_matrices
 
 
 def compute_delta_consecutive_matrices(
-        matrices: list
+        matrices: list,
+        verbose: Verbose = Verbose.SILENT
 ) -> list:
     """
     Compute the delta between consecutive matrices.
@@ -59,11 +75,16 @@ def compute_delta_consecutive_matrices(
     Args:
         matrices (list):
             List of matrices.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
 
     Returns:
         list:
             List of delta matrices.
     """
+
+    if verbose >= Verbose.DEBUG:
+        print("Computing delta consecutive matrices...")
 
     minuend_matrices = matrices[1:].copy()
     subtrahend_matrices = matrices[:-1].copy()
@@ -75,7 +96,8 @@ def compute_delta_consecutive_matrices(
 
 
 def compute_delta_wrt_average_matrices(
-        matrices: list
+        matrices: list,
+        verbose: Verbose = Verbose.SILENT
 ) -> list:
     """
     Compute the delta between the average matrix and the rest of the matrices.
@@ -83,11 +105,16 @@ def compute_delta_wrt_average_matrices(
     Args:
         matrices (list):
             List of matrices.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
 
     Returns:
         list:
             List of delta matrices.
     """
+
+    if verbose >= Verbose.DEBUG:
+        print("Computing delta matrices with respect to the average matrix...")
 
     minuend_matrices = matrices.copy()
     average_matrix = np.mean([el["weight"] for el in matrices], axis=0)
@@ -116,7 +143,7 @@ def start_original_layers_rank_analysis(
         model_name: str,
         layers_to_analyze: tuple,
         path_to_storage: str,
-        verbose: bool = False
+        verbose: Verbose = Verbose.SILENT
 ):
     """
     Computes and stores the singular values of the layers.
@@ -130,8 +157,8 @@ def start_original_layers_rank_analysis(
             The layers to analyze.
         path_to_storage (str):
             The path where to store the singular values of the layers.
-        verbose (bool):
-            Whether to print some additional information.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
     """
 
     if not os.path.exists(path_to_storage):
@@ -156,7 +183,7 @@ def start_original_layers_rank_analysis(
             )
             s_layers[layer_name]["s"].append(s)
             s_layers[layer_name]["labels"].append(extracted_matrix["label"])
-            if verbose:
+            if verbose >= Verbose.DEBUG:
                 print("Singular values for", layer_name, extracted_matrix["label"], "extracted")
 
     if not os.path.exists(os.path.join(path_to_storage, model_name)):
@@ -175,7 +202,7 @@ def start_layers_delta_rank_analysis(
         model_name: str,
         layers_to_analyze: tuple,
         path_to_storage: str,
-        verbose: bool = False
+        verbose: Verbose = Verbose.SILENT
 ):
     """
     Computes and stores the singular values of the deltas between consecutive layers.
@@ -220,7 +247,7 @@ def start_layers_delta_rank_analysis(
             )
             s_delta_layers[layer_name]["s"].append(s)
             s_delta_layers[layer_name]["labels"].append(delta_matrix["label"])
-            if verbose:
+            if verbose >= Verbose.DEBUG:
                 print("Singular values for", layer_name, delta_matrix['label'], "extracted")
 
     if not os.path.exists(os.path.join(path_to_storage, model_name)):
@@ -239,7 +266,7 @@ def start_layers_delta_average_rank_analysis(
         model_name: str,
         layers_to_analyze: tuple,
         path_to_storage: str,
-        verbose: bool = False
+        verbose: Verbose = Verbose.SILENT
 ):
     """
     Computes and stores the singular values of the deltas between layers and the average matrix of the layers.
@@ -253,8 +280,8 @@ def start_layers_delta_average_rank_analysis(
             The layers to analyze.
         path_to_storage (str):
             The path where to store the singular values of the layers.
-        verbose (bool):
-            Whether to print some additional information.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
     """
 
     if not os.path.exists(path_to_storage):
@@ -284,13 +311,17 @@ def start_layers_delta_average_rank_analysis(
             )
             s_delta_layers_wrt_average[layer_name]["s"].append(s)
             s_delta_layers_wrt_average[layer_name]["labels"].append(delta_matrix["label"])
-            if verbose:
+            if verbose >= Verbose.DEBUG:
                 print("Singular values for", layer_name, delta_matrix['label'], "extracted")
 
     if not os.path.exists(os.path.join(path_to_storage, model_name)):
         os.makedirs(os.path.join(path_to_storage, model_name))
     with open(
-            os.path.join(path_to_storage, model_name, "_".join(["delta_layers_wrt_average", "_".join(layers_to_analyze)])),
+            os.path.join(
+                path_to_storage,
+                model_name,
+                "_".join(["delta_layers_wrt_average", "_".join(layers_to_analyze)])
+            ),
             'wb'
     ) as f:
         pickle.dump(s_delta_layers_wrt_average, f)
@@ -368,7 +399,7 @@ def start_layers_analysis(
         relative_plot: bool = True,
         figure_size: tuple = (24, 5),
         path_to_storage: str = None,
-        verbose: bool = False,
+        verbose: Verbose = Verbose.SILENT,
         heatmap_save_path: str = None,
 ):
     """
@@ -391,8 +422,8 @@ def start_layers_analysis(
             The size of the figure. Defaults to (10, 8).
         path_to_storage (str, optional):
             The path to the storage. Defaults to None.
-        verbose (bool, optional):
-            Whether to print some additional information. Defaults to False.
+        verbose (Verbose):
+            The verbosity level. Defaults to Verbose.SILENT.
         heatmap_save_path (str, optional):
             The path where to save the heatmap. Defaults to None.
 
@@ -455,7 +486,8 @@ def start_layers_analysis(
             )
 
     elif type_of_analysis == "delta_consecutive_layers":
-        title = f"Ranks of delta matrices with respect to the matrix in the previous layer (expl. var.: {threshold}, min. sing. value: {s_threshold})"
+        title = (f"Ranks of delta matrices with respect to the matrix in the previous layer (expl. var.: {threshold}, "
+                 f"min. sing. value: {s_threshold})")
 
         if not file_available:
             s_dict = start_layers_delta_rank_analysis(
@@ -467,7 +499,8 @@ def start_layers_analysis(
             )
 
     elif type_of_analysis == "delta_layers_wrt_average":
-        title = f"Ranks of delta matrices with respect to the average matrix (expl. var.: {threshold}, min. sing. value: {s_threshold})"
+        title = (f"Ranks of delta matrices with respect to the average matrix (expl. var.: {threshold}, min. sing. "
+                 f"value: {s_threshold})")
 
         if not file_available:
             s_dict = start_layers_delta_average_rank_analysis(
@@ -499,8 +532,6 @@ def start_layers_analysis(
             "min": 0,
             "max": 1
         }
-
-
 
     plot_heatmap(
         np.array(
@@ -641,18 +672,3 @@ if __name__ == "__main__":
         thresholds=thresholds,
         s_thresholds=[0]*len(thresholds)
     )
-"""
-if __name__ == "__main__":
-    path = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/rank_analysis/Mistral-7B-v0.1/delta_layers_wrt_average_gate_proj_up_proj_down_proj"
-
-    with open(path, 'rb') as f:
-        s_dict = pickle.load(f)
-        print(f"Data loaded from '{path}'")
-
-    for key in s_dict.keys():
-        print(key)
-        print(len(s_dict[key]["s"]))
-        for s in s_dict[key]["s"]:
-            print(len(s))
-        print()
-"""

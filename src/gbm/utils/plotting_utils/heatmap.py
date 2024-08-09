@@ -1,8 +1,10 @@
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import numpy as np
 
 from gbm.utils.printing_utils.printing_utils import Verbose
 
@@ -47,6 +49,8 @@ def create_heatmap_global_layers(
             A dictionary that maps the labels to numerical values. Defaults to None.
         show (bool, optional):
             Whether to show the heatmap. Defaults to False.
+        verbose (Verbose, optional):
+            The verbosity level. Defaults to Verbose.SILENT.
 
     Returns:
         dict:

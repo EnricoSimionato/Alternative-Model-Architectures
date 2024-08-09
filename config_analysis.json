@@ -1,0 +1,6 @@
+{
+    "original_model_id": "bert-base-uncased",
+    "dtype": "float32",
+    "quantization": null,
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures"
+}
