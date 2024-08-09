@@ -164,8 +164,13 @@ cython_debug/
 
 src/experiments/performed_experiments/*
 !src/experiments/performed_experiments/.gitkeep
+!src/experiments/performed_experiments/rank_analysis
 
-src/experiments/rank_analysis/
+src/experiments/performed_experiments/rank_analysis/*
+!src/experiments/performed_experiments/rank_analysis/.gitkeep
+
+src/experiments/rank_analysis/*
+!src/experiments/rank_analysis/.gitkeep
 
 
 

@@ -1,0 +1,16 @@
+{
+  "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
+  "original_model_id": "bert-base-uncased",
+  "targets": [
+    "output_dense",
+    "intermediate_dense"
+  ],
+  "black_list": [
+    "attention"
+  ],
+  "similarity_guide_name": "output_dense",
+  "explained_variance_threshold": 0.99,
+  "relative_plot": true,
+  "figure_size": [24, 20],
+  "verbose": 1
+}
