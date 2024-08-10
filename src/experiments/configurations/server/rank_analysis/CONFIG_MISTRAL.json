@@ -10,6 +10,7 @@
   "similarity_guide_name": "down_proj",
   "explained_variance_threshold": 0.99,
   "relative_plot": true,
-  "figure_size": [24, 20],
+  "figure_size": [34, 40],
+  "precision": 2,
   "verbose": 1
 }
