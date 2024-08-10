@@ -292,7 +292,7 @@ class AnalysisTensorWrapper:
                 rank = rank_analysis_result.get_rank()
                 if relative:
                     shape = self.get_shape()
-                    rank = round(rank / (torch.sqrt(torch.tensor(shape[0]) * torch.tensor(shape[1]))), self.precision)
+                    rank = round(rank / (torch.sqrt(torch.tensor(shape[0]) * torch.tensor(shape[1]))).item(), self.precision)
                 return rank
 
         self._perform_rank_analysis(
@@ -300,10 +300,12 @@ class AnalysisTensorWrapper:
             singular_values_threshold=singular_values_threshold
         )
 
-        return self.get_rank(
+        rank = self.get_rank(
             explained_variance_threshold=explained_variance_threshold,
             singular_values_threshold=singular_values_threshold
         )
+
+        return rank
 
     def get_shape(
             self
@@ -492,7 +494,7 @@ class AnalysisTensorDict:
     Dictionary of tensors for the analysis.
 
     Args:
-        keys (list[tuple[Any]], optional):
+        keys (list[tuple[Any, ...]], optional):
             The keys of the tensors. Defaults to None.
         tensors ([list[list[AnalysisTensorWrapper]] | list[AnalysisTensorWrapper]], optional):
             The tensors to add to the dictionary.
@@ -508,7 +510,7 @@ class AnalysisTensorDict:
 
     def __init__(
             self,
-            keys: list[tuple[Any]] = (),
+            keys: list[tuple[Any, ...]] = (),
             tensors: [list[list[AnalysisTensorWrapper]] | list[AnalysisTensorWrapper]] = (),
             verbose: Verbose = Verbose.INFO
     ) -> None:
@@ -532,14 +534,14 @@ class AnalysisTensorDict:
 
     def get_tensor(
             self,
-            key: tuple[Any],
+            key: tuple[Any, ...],
             index: int = 0
     ) -> AnalysisTensorWrapper:
         """
         Returns the tensor given the key.
 
         Args:
-            key (tuple[Any]):
+            key (tuple[Any, ...]):
                 The key of the tensor.
             index (int, optional):
                 The index of the tensor in the list. Defaults to 0.
@@ -553,13 +555,13 @@ class AnalysisTensorDict:
 
     def get_tensor_list(
             self,
-            key: tuple[Any]
+            key: tuple[Any, ...]
     ) -> list[AnalysisTensorWrapper]:
         """
         Returns the list of tensors given the key.
 
         Args:
-            key (tuple[Any]):
+            key (tuple[Any, ...]):
                 The key of the tensors.
 
         Returns:
@@ -600,14 +602,14 @@ class AnalysisTensorDict:
 
     def set_tensor(
             self,
-            key: tuple[Any],
+            key: tuple[Any, ...],
             tensor: [list[AnalysisTensorWrapper] | AnalysisTensorWrapper]
     ) -> None:
         """
         Sets a tensor or a list of tensors to the dictionary.
 
         Args:
-            key (tuple[Any]):
+            key (tuple[Any, ...]):
                 The key of the tensor.
             tensor ([list[AnalysisTensorWrapper] | AnalysisTensorWrapper]):
                 The tensor or list of tensors to set.
@@ -620,14 +622,14 @@ class AnalysisTensorDict:
 
     def append_tensor(
             self,
-            key: tuple[Any],
+            key: tuple[Any, ...],
             tensor: [list[AnalysisTensorWrapper] | AnalysisTensorWrapper]
     ) -> None:
         """
         Appends a tensor to the dictionary.
 
         Args:
-            key (tuple[Any]):
+            key (tuple[Any, ...]):
                 The key of the tensor.
             tensor (AnalysisTensorWrapper):
                 The tensor or list of tensors to append.
@@ -637,7 +639,7 @@ class AnalysisTensorDict:
         else:
             self.set_tensor(key, tensor)
 
-    def filter_tensors_given_position(
+    def filter_by_positional_key(
             self,
             key: Any,
             position: int

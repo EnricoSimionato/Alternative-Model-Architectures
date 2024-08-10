@@ -5,7 +5,7 @@
         "original_model_id"
     ],
 
-    "original_model_id": "google/gemma-2b",
+    "original_model_id": "mistralai/Mistral-7B-v0.1",
     "quantization": "8bit",
 
     "dataset_id": "timdettmers/openassistant-guanaco",
@@ -15,7 +15,7 @@
         0.1,
         0.1
     ],
-    "tokenizer_id": "google/gemma-2b-it",
+    "tokenizer_id": "mistralai/Mistral-7B-v0.1",
     "tokenizer_id_for_chat_template": "mistralai/Mistral-7B-Instruct-v0.2",
     "stop_tokens": [
         "[INST]",

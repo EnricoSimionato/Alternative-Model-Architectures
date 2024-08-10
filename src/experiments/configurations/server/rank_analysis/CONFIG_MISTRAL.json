@@ -1,17 +1,15 @@
 {
   "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
-  "original_model_id": "bert-base-uncased",
+  "original_model_id": "mistralai/Mistral-7B-v0.1",
   "targets": [
-    "output_dense",
-    "intermediate_dense"
+    "gate_proj",
+    "up_proj",
+    "down_proj"
   ],
-  "black_list": [
-    "attention"
-  ],
-  "similarity_guide_name": "output_dense",
+  "black_list": [],
+  "similarity_guide_name": "down_proj",
   "explained_variance_threshold": 0.99,
   "relative_plot": true,
-  "figure_size": [24, 30],
-  "precision": 2,
+  "figure_size": [24, 20],
   "verbose": 1
 }

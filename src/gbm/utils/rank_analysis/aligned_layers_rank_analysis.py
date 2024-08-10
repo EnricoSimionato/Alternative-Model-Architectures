@@ -3,6 +3,8 @@ import pickle
 import sys
 from tqdm import tqdm
 
+import numpy as np
+
 import torch
 
 from gbm.utils.experiment_pipeline.experiment import get_path_to_experiments
@@ -297,6 +299,7 @@ def perform_aligned_layers_rank_analysis(
         explained_variance_threshold: float = 0.9,
         singular_values_threshold: float = 0,
         relative_plot: bool = True,
+        precision: int = 2,
         figure_size: tuple = (24, 5),
         path_to_storage: str = None,
         verbose: Verbose = Verbose.INFO
@@ -307,23 +310,25 @@ def perform_aligned_layers_rank_analysis(
     Args:
         configuration (Config):
             The configuration of the experiment.
-        paths_layers_to_analyze (list):
+        paths_layers_to_analyze (list, optional):
             The paths to the layers to analyze.
-        black_list (list):
+        black_list (list, optional):
             The list of layers to exclude from the analysis.
-        similarity_guide_name (str):
+        similarity_guide_name (str, optional):
             The name of the layer to use as a guide for the similarity.
-        explained_variance_threshold (float):
+        explained_variance_threshold (float, optional):
             The threshold to consider the rank of the layers.
-        singular_values_threshold (float):
+        singular_values_threshold (float, optional):
             The threshold to consider the singular values.
-        relative_plot (bool):
+        relative_plot (bool, optional):
             Whether to plot the relative plot.
-        figure_size (tuple):
+        precision (int, optional):
+            The precision of the plot.
+        figure_size (tuple, optional):
             The size of the figure.
-        path_to_storage (str):
+        path_to_storage (str, optional):
             The path to the storage.
-        verbose (Verbose):
+        verbose (Verbose, optional):
             The verbosity level.
     """
 
@@ -332,12 +337,13 @@ def perform_aligned_layers_rank_analysis(
     words_to_be_in_the_file_name = (["paths"] + paths_layers_to_analyze +
                                     ["black_list"] + black_list +
                                     ["guide"] + [similarity_guide_name])
-    file_available, file_path = check_path_to_storage(
+    file_available, directory_path, file_name = check_path_to_storage(
         path_to_storage,
         "aligned_layers_rank_analysis",
         model_name,
         tuple(words_to_be_in_the_file_name)
     )
+    file_path = os.path.join(directory_path, file_name)
 
     print(f"{'File to load data available' if file_available else 'No file to load data'}")
     print(f"File path: {file_path}")
@@ -423,7 +429,7 @@ def perform_aligned_layers_rank_analysis(
                               ],
                         verbose=verbose
                     )
-                    if verbose > Verbose.SILENT:
+                    if verbose > Verbose.INFO:
                         print(f"\nLayers sorted based on similarity")
 
                     # Computing the delta matrices between the layers in block 1 and the sorted layers in block 2
@@ -445,26 +451,23 @@ def perform_aligned_layers_rank_analysis(
 
     # Retrieving the indices of the blocks of the model
     blocks_indexes_1 = dictionary_all_delta_matrices.get_unique_positional_keys(position=0, sort=True)
-    ranks = torch.zeros(
-        len(blocks_indexes_1),
-        len(blocks_indexes_1)
-    )
+    ranks = np.zeros((len(blocks_indexes_1), len(blocks_indexes_1)))
 
     # Performing the rank analysis of the difference between the matrices of the model aligned based on the similarity
     dictionary_all_analyzed_matrices = AnalysisTensorDict()
     for block_index_1 in tqdm(blocks_indexes_1):
         filtered_dictionary_all_delta_matrices = dictionary_all_delta_matrices.filter_by_positional_key(
-            position=0,
-            value=block_index_1
+            key=block_index_1,
+            position=0
         )
         blocks_indexes_2 = filtered_dictionary_all_delta_matrices.get_unique_positional_keys(position=1, sort=True)
         for block_index_2 in blocks_indexes_2:
             key = (block_index_1, block_index_2)
-            delta_matrices = filtered_dictionary_all_delta_matrices.get_tensor(key)
+            delta_matrices = filtered_dictionary_all_delta_matrices.get_tensor_list(key)
 
             for delta_matrix in delta_matrices:
-                # Computing the rank of the difference matrix given the explained variance threshold and the singular
-                # values threshold
+                # Computing the rank of the difference matrix given the explained variance threshold and the
+                # singular values threshold
                 rank = delta_matrix.get_rank(
                     explained_variance_threshold=explained_variance_threshold,
                     singular_values_threshold=singular_values_threshold,
@@ -491,18 +494,15 @@ def perform_aligned_layers_rank_analysis(
         )
 
     plot_heatmap(
-        ranks.numpy(),
-        interval={
-            "min": 0,
-            "max": 1
-        },
+        ranks,
+        interval={"min": 0, "max": 1},
         title="Average rank analysis of the difference between matrices of the model aligned based on the similarity",
         x_title="Block indexes",
         y_title="Block indexes",
         columns_labels=blocks_indexes_1,
         rows_labels=blocks_indexes_1,
         figure_size=figure_size,
-        save_path=file_path,
+        save_path=directory_path,
         heatmap_name="heatmap",
         show=True
     )
@@ -513,7 +513,7 @@ def check_path_to_storage(
         type_of_analysis: str,
         model_name: str,
         strings_to_be_in_the_name: tuple
-) -> tuple[bool, str]:
+) -> tuple[bool, str, str]:
     """
     Checks if the path to the storage exists.
     If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
@@ -532,9 +532,11 @@ def check_path_to_storage(
 
     Returns:
         bool:
-            Whether the path to the storage exists.
+            A flag indicating if the path to the storage of the specific experiment already exists.
         str:
-            The path to the storage.
+            The path to the storage of the specific experiment.
+        str:
+            The name of the file to store the data.
 
     Raises:
         Exception:
@@ -564,13 +566,14 @@ def check_path_to_storage(
     )
 
     exists_file = False
-    file_path = None
+    directory_path = os.path.join(
+        path_to_storage, model_name, type_of_analysis
+    )
+    file_name = None
     if exists_directory_path:
         try:
             files_and_dirs = os.listdir(
-                os.path.join(
-                    path_to_storage, model_name, type_of_analysis
-                )
+                directory_path
             )
 
             # Extracting the files
@@ -581,32 +584,28 @@ def check_path_to_storage(
             ]
 
             # Checking if some file ame contains the required strings
-            for file_name in files:
-                names_contained = all(string in file_name for string in strings_to_be_in_the_name)
+            for f_name in files:
+                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
                 if names_contained:
                     exists_file = True
-                    file_path = os.path.join(
-                        path_to_storage, model_name, type_of_analysis, file_name
-                    )
+                    file_name = f_name
                     break
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            return False, ""
+            return False, "", ""
 
     else:
         os.makedirs(
             os.path.join(
-                path_to_storage, model_name, type_of_analysis
+                directory_path
             )
         )
 
     if not exists_file:
-        file_path = os.path.join(
-            path_to_storage, model_name, type_of_analysis, "_".join(strings_to_be_in_the_name)
-        )
+        file_name = "_".join(strings_to_be_in_the_name)
 
-    return exists_file, file_path
+    return exists_file, directory_path, str(file_name)
 
 
 def main():
@@ -640,6 +639,7 @@ def main():
             else 0
         ),
         relative_plot=config.get("relative_plot") if config.contains("relative_plot") else True,
+        precision=config.get("precision") if config.contains("precision") else 2,
         figure_size=config.get("figure_size") if config.contains("figure_size") else (24, 5),
         path_to_storage=os.path.join(get_path_to_experiments(environment), "rank_analysis"),
         verbose=Verbose(config.get("verbose")) if config.contains("verbose") else Verbose.INFO
