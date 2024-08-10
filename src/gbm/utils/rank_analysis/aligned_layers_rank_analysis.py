@@ -293,9 +293,9 @@ def align_elements_in_layers(
 
 def perform_aligned_layers_rank_analysis(
         configuration: Config,
-        paths_layers_to_analyze: list = (),
+        paths_layers_to_analyze: list,
+        similarity_guide_name: str,
         black_list: list = (),
-        similarity_guide_name: int = "output_dense",
         explained_variance_threshold: float = 0.9,
         singular_values_threshold: float = 0,
         relative_plot: bool = True,
@@ -422,14 +422,13 @@ def perform_aligned_layers_rank_analysis(
                     sorted_layers_in_block_2 = align_elements_in_layers(
                         layers_in_block_2,
                         ordering,
-                        axes=[1
-                              if index == len(layers_in_block_2) - 1
-                              else 0
-                              for index in range(len(layers_in_block_2))
-                              ],
+                        axes=[
+                            1 if index == len(layers_in_block_2) - 1 else 0
+                            for index in range(len(layers_in_block_2))
+                        ],
                         verbose=verbose
                     )
-                    if verbose > Verbose.INFO:
+                    if verbose >= Verbose.DEBUG:
                         print(f"\nLayers sorted based on similarity")
 
                     # Computing the delta matrices between the layers in block 1 and the sorted layers in block 2
@@ -632,6 +631,7 @@ def main():
         configuration=config,
         paths_layers_to_analyze=config.get("targets"),
         black_list=config.get("black_list"),
+        similarity_guide_name=config.get("similarity_guide_name"),
         explained_variance_threshold=config.get("explained_variance_threshold"),
         singular_values_threshold=(
             config.get("singular_values_threshold")
