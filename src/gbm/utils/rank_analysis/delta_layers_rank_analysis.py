@@ -9,13 +9,13 @@ import torch.nn as nn
 
 from transformers import AutoModelForCausalLM
 
-from gbm.utils.experiment_pipeline import Config
-from gbm.utils.experiment_pipeline.config import get_path_to_configurations
-from gbm.utils.experiment_pipeline.experiment import get_path_to_experiments
 from gbm.utils.printing_utils.printing_utils import Verbose
 
+from gbm.utils.experiment_pipeline import Config
+
 from gbm.utils.rank_analysis.utils import (
-    AnalysisTensorWrapper, check_path_to_storage,
+    AnalysisTensorWrapper,
+    AnalysisTensorDict
 )
 
 from gbm.utils.rank_analysis.utils import (
@@ -25,8 +25,11 @@ from gbm.utils.rank_analysis.utils import (
 
     plot_heatmap,
     compute_singular_values,
+    check_path_to_storage
 )
 
+
+# Definition of the functions to compute the delta between layers
 
 def compute_delta_matrices(
         minuend_matrices: list[AnalysisTensorWrapper],
@@ -147,64 +150,7 @@ def compute_delta_wrt_average_matrices(
     )
 
 
-def start_original_layers_rank_analysis(
-        model: nn.Module,
-        model_name: str,
-        layers_to_analyze: tuple,
-        path_to_storage: str,
-        verbose: Verbose = Verbose.SILENT
-):
-    """
-    Computes and stores the singular values of the layers.
-
-    Args:
-        model (nn.Module):
-            The model to analyze.
-        model_name (str):
-            The name of the model.
-        layers_to_analyze (tuple):
-            The layers to analyze.
-        path_to_storage (str):
-            The path where to store the singular values of the layers.
-        verbose (Verbose):
-            The verbosity level. Defaults to Verbose.SILENT.
-    """
-
-    if not os.path.exists(path_to_storage):
-        raise Exception(f"The path '{path_to_storage}' does not exist.")
-
-    s_layers = {}
-    for layer_name in layers_to_analyze:
-        extracted_matrices = []
-        extract(
-            model,
-            [layer_name],
-            extracted_matrices
-        )
-        s_layers[layer_name] = {
-            "s": [],
-            "labels": []
-        }
-
-        for extracted_matrix in extracted_matrices:
-            s = compute_singular_values(
-                extracted_matrix["weight"]
-            )
-            s_layers[layer_name]["s"].append(s)
-            s_layers[layer_name]["labels"].append(extracted_matrix["label"])
-            if verbose >= Verbose.DEBUG:
-                print("Singular values for", layer_name, extracted_matrix["label"], "extracted")
-
-    if not os.path.exists(os.path.join(path_to_storage, model_name)):
-        os.makedirs(os.path.join(path_to_storage, model_name))
-    with open(
-            os.path.join(path_to_storage, model_name, "_".join(["original_layers", "_".join(layers_to_analyze)])),
-            'wb'
-    ) as f:
-        pickle.dump(s_layers, f)
-
-    return s_layers
-
+# Definition of the functions to start the layers analysis of the delta matrices between consecutive layers
 
 def start_layers_delta_rank_analysis(
         model: nn.Module,
@@ -269,6 +215,24 @@ def start_layers_delta_rank_analysis(
 
     return s_delta_layers
 
+
+def perform_delta_consecutive_layers_rank_analysis(
+        configuration: Config,
+        verbose: Verbose = Verbose.SILENT
+):
+    """
+    Performs the rank analysis of the difference between consecutive layers of the model.
+
+    Args:
+        configuration:
+            The configuration object containing the necessary information.
+        verbose:
+            The verbosity level. Default is Verbose.SILENT.
+    """
+
+    pass
+
+# Definition of the functions to start the layers analysis of the delta matrices between layers and the average matrix
 
 def start_layers_delta_average_rank_analysis(
         model: nn.Module,
@@ -336,6 +300,23 @@ def start_layers_delta_average_rank_analysis(
         pickle.dump(s_delta_layers_wrt_average, f)
 
     return s_delta_layers_wrt_average
+
+
+def perform_delta_layers_wrt_average_rank_analysis(
+        configuration: Config,
+        verbose: Verbose = Verbose.SILENT
+):
+    """
+    Performs the rank analysis of the difference between matrices of the model and the average matrix.
+
+    Args:
+        configuration:
+            The configuration object containing the necessary information.
+        verbose:
+            The verbosity level. Default is Verbose.SILENT.
+    """
+
+    pass
 
 
 def start_layers_analysis(
@@ -621,73 +602,3 @@ if __name__ == "__main__":
         thresholds=thresholds,
         s_thresholds=[0]*len(thresholds)
     )
-
-def perform_original_layers_rank_analysis(
-        configuration: Config,
-        paths_layers_to_analyze: list,
-        black_list: list = (),
-        explained_variance_threshold: float = 0.9,
-        singular_values_threshold: float = 0,
-        relative_plot: bool = True,
-        precision: int = 2,
-        figure_size: tuple = (24, 5),
-        path_to_storage: str = None,
-        verbose: Verbose = Verbose.INFO
-):
-
-    # Checking if the path to the storage exists
-    model_name = configuration.get("original_model_id").split("/")[-1]
-    words_to_be_in_the_file_name = (["paths"] + paths_layers_to_analyze +
-                                    ["black_list"] + black_list)
-    file_available, directory_path, file_name = check_path_to_storage(
-        path_to_storage,
-        "original_layers_rank_analysis",
-        model_name,
-        tuple(words_to_be_in_the_file_name)
-    )
-    file_path = os.path.join(directory_path, file_name)
-
-    print(f"{'File to load data available' if file_available else 'No file to load data'}")
-    print(f"File path: {file_path}")
-
-    if file_available:
-def main():
-    """
-    Main method to start the aligned layers rank analysis
-    """
-
-    if len(sys.argv) < 3:
-        raise Exception("Please provide the name of the configuration file and the environment.\n"
-                        "Example: python aligned_layers_rank_analysis.py config_name environment"
-                        "'environment' can be 'local' or 'server' or 'colab'.")
-
-    # Extracting the configuration name and the environment
-    config_name = sys.argv[1]
-    environment = sys.argv[2]
-
-    # Loading the configuration
-    config = Config(
-        os.path.join(get_path_to_configurations(environment), "rank_analysis", config_name)
-    )
-
-    # Starting the aligned layers rank analysis
-    perform_original_layers_rank_analysis(
-        configuration=config,
-        paths_layers_to_analyze=config.get("targets"),
-        black_list=config.get("black_list"),
-        explained_variance_threshold=config.get("explained_variance_threshold"),
-        singular_values_threshold=(
-            config.get("singular_values_threshold")
-            if config.contains("singular_values_threshold")
-            else 0
-        ),
-        relative_plot=config.get("relative_plot") if config.contains("relative_plot") else True,
-        precision=config.get("precision") if config.contains("precision") else 2,
-        figure_size=config.get("figure_size") if config.contains("figure_size") else (24, 5),
-        path_to_storage=os.path.join(get_path_to_experiments(environment), "rank_analysis"),
-        verbose=Verbose(config.get("verbose")) if config.contains("verbose") else Verbose.INFO
-    )
-
-
-if __name__ == "__main__":
-    main()

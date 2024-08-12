@@ -10,8 +10,7 @@
     "attention"
   ],
   "similarity_guide_name": "output_dense",
-  "explained_variance_threshold": 0.99,
-  "relative_plot": true,
-  "figure_size": [24, 20],
+  "explained_variance_threshold": 0.8,
+  "figure_size": [26, 26],
   "verbose": 1
 }

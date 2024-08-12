@@ -9,7 +9,7 @@
   "black_list": [
     "attention"
   ],
-  "explained_variance_threshold": 0.99,
+  "explained_variance_threshold": 0.8,
   "figure_size": [24, 8],
   "precision": 2,
   "verbose": 1

@@ -460,11 +460,11 @@ def perform_sorted_layers_rank_analysis(
 
     # Plotting the results
     heatmap_name = configuration.get("heatmap_name") if configuration.contains("heatmap_name") else "heatmap"
-    heatmap_name += "_expvar_" + str(explained_variance_threshold).replace('.', '_') + "_sinval_" + str(singular_values_threshold).replace('.', '_')
+    heatmap_name += "_expvar_" + str(explained_variance_threshold).replace('.', '_')
     plot_heatmap(
         ranks,
         interval={"min": 0, "max": compute_max_possible_rank(analyzed_tensors)},
-        title="Average rank analysis of the difference between matrices of the model aligned based on the similarity",
+        title="Average rank analysis of the difference between matrices of the model aligned based on the similarity" + f" (explained variance threshold: {explained_variance_threshold})",
         x_title="Block indexes",
         y_title="Block indexes",
         columns_labels=blocks_indexes_1,
@@ -479,7 +479,7 @@ def perform_sorted_layers_rank_analysis(
     plot_heatmap(
         relative_ranks,
         interval={"min": 0, "max": 1},
-        title="Average relative rank analysis of the difference between matrices of the model aligned based on the similarity",
+        title="Average relative rank analysis of the difference between matrices of the model aligned based on the similarity" + f" (explained variance threshold: {explained_variance_threshold})",
         x_title="Block indexes",
         y_title="Block indexes",
         columns_labels=blocks_indexes_1,

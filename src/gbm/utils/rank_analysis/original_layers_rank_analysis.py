@@ -121,11 +121,11 @@ def perform_original_layers_rank_analysis(
         print(f"Data saved")
 
     heatmap_name = configuration.get("heatmap_name") if configuration.contains("heatmap_name") else "heatmap"
-    heatmap_name += "_expvar_" + str(explained_variance_threshold).replace('.', '_') + "_sinval_" + str(singular_values_threshold).replace('.', '_')
+    heatmap_name += "_expvar_" + str(explained_variance_threshold).replace('.', '_')
     plot_heatmap(
         ranks,
         interval={"min": 0, "max": compute_max_possible_rank(analyzed_tensors)},
-        title="Rank analysis of the matrices of the model",
+        title="Rank analysis of the matrices of the model" + f" (explained variance threshold: {explained_variance_threshold})",
         x_title="Block indexes",
         y_title="Layer type",
         columns_labels=list(range(number_of_blocks)),
@@ -140,7 +140,7 @@ def perform_original_layers_rank_analysis(
     plot_heatmap(
         relative_ranks,
         interval={"min": 0, "max": 1},
-        title="Relative rank analysis of the matrices of the model",
+        title="Relative rank analysis of the matrices of the model" + f" (explained variance threshold: {explained_variance_threshold})",
         x_title="Block indexes",
         y_title="Layer type",
         columns_labels=list(range(number_of_blocks)),
