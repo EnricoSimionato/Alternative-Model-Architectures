@@ -5,11 +5,10 @@ import sys
 import transformers
 
 from gbm.utils.printing_utils.printing_utils import Verbose
-from gbm.utils.experiment_pipeline.config import Config
 
 from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
 
-from gbm.utils.rank_analysis.utils import extract_based_on_path, load_model_for_analysis
+from gbm.utils.rank_analysis.utils import extract_based_on_path
 
 
 def analyze_layers(
@@ -86,7 +85,7 @@ def analyze_model(
             The verbosity level. Defaults to Verbose.INFO.
     """
 
-    model = load_model_for_analysis(model_id, dtype, quantization)
+    model = load_original_model_for_causal_lm(model_id, dtype, quantization)
 
     print(model)
 

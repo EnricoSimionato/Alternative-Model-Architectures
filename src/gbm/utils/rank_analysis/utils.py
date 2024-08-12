@@ -16,6 +16,8 @@ import re
 from gbm.utils.printing_utils.printing_utils import Verbose
 
 
+# Definition of the classes to perform the rank analysis
+
 class RankAnalysisResult:
     """
     Class to store the result of the rank analysis. It stores the rank of the tensor and the thresholds used to compute
@@ -113,7 +115,7 @@ class AnalysisTensorWrapper:
             The label of the tensor. Defaults to None.
         path (str, optional):
             The path of the tensor. Defaults to None.
-        block_index (str, optional):
+        block_index (int, optional):
             The block index of the tensor. Defaults to None.
         layer (nn.Module, optional):
             The layer of the tensor. Defaults to None.
@@ -131,7 +133,7 @@ class AnalysisTensorWrapper:
             The label of the tensor.
         path (str):
             The path of the tensor.
-        block_index (str):
+        block_index (int):
             The block index of the tensor.
         layer (nn.Module):
             The layer of the tensor.
@@ -147,7 +149,7 @@ class AnalysisTensorWrapper:
             name: str = None,
             label: str = None,
             path: str = None,
-            block_index: str = None,
+            block_index: int = None,
             layer: nn.Module = None,
             precision: int = 2,
             verbose: Verbose = Verbose.INFO
@@ -225,12 +227,12 @@ class AnalysisTensorWrapper:
 
     def get_block_index(
             self
-    ) -> str:
+    ) -> int:
         """
         Returns the block index of the tensor.
 
         Returns:
-            str:
+            int:
                 The block index of the tensor.
         """
 
@@ -264,20 +266,20 @@ class AnalysisTensorWrapper:
 
     def get_rank(
             self,
-            singular_values_threshold: float = 0,
             explained_variance_threshold: float = 0,
+            singular_values_threshold: float = 0,
             relative: bool = True
     ) -> [int | float]:
         """
         Returns the rank of the tensor.
 
         Args:
-            singular_values_threshold (float, optional):
-                The threshold to use to compute the rank based on singular values. Rank is computed as the number of
-                singular values that are greater than the threshold. Defaults to 0.
             explained_variance_threshold (float, optional):
                 The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
                 singular values that explain the threshold fraction of the total variance. Defaults to 0.
+            singular_values_threshold (float, optional):
+                The threshold to use to compute the rank based on singular values. Rank is computed as the number of
+                singular values that are greater than the threshold. Defaults to 0.
             relative (bool, optional):
                 Whether to return the relative rank. Defaults to True.
 
@@ -295,15 +297,9 @@ class AnalysisTensorWrapper:
                     rank = round(rank / (torch.sqrt(torch.tensor(shape[0]) * torch.tensor(shape[1]))).item(), self.precision)
                 return rank
 
-        self._perform_rank_analysis(
-            explained_variance_threshold=explained_variance_threshold,
-            singular_values_threshold=singular_values_threshold
-        )
+        self._perform_rank_analysis(explained_variance_threshold, singular_values_threshold)
 
-        rank = self.get_rank(
-            explained_variance_threshold=explained_variance_threshold,
-            singular_values_threshold=singular_values_threshold
-        )
+        rank = self.get_rank(explained_variance_threshold, singular_values_threshold, relative)
 
         return rank
 
@@ -378,13 +374,13 @@ class AnalysisTensorWrapper:
 
     def set_block_index(
             self,
-            block_index: str
+            block_index: int
     ) -> None:
         """
         Sets the block index of the tensor.
 
         Args:
-            block_index (str):
+            block_index (int):
                 The block index of the tensor.
         """
 
@@ -431,6 +427,37 @@ class AnalysisTensorWrapper:
         """
 
         self.rank_analysis_results.append(rank_analysis_result)
+
+    def delete_rank_analysis_result(
+            self,
+            explained_variance_threshold: float = 0,
+            singular_values_threshold: float = 0
+    ) -> None:
+        """
+        Deletes a rank analysis result.
+
+        Args:
+            explained_variance_threshold (float, optional):
+                The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
+                singular values that explain the threshold fraction of the total variance. Defaults to 0.
+            singular_values_threshold (float, optional):
+                The threshold to use to compute the rank based on singular values. Rank is computed as the number of
+                singular values that are greater than the threshold. Defaults to 0.
+        """
+
+        for rank_analysis_result in self.rank_analysis_results:
+            if rank_analysis_result.get_explained_variance_threshold() == explained_variance_threshold and \
+                    rank_analysis_result.get_singular_values_threshold() == singular_values_threshold:
+                self.rank_analysis_results.remove(rank_analysis_result)
+
+    def delete_rank_analyses(
+            self
+    ) -> None:
+        """
+        Deletes all rank analyses.
+        """
+
+        self.rank_analysis_results = []
 
     def compute_singular_values(
             self
@@ -494,12 +521,18 @@ class AnalysisTensorDict:
     Dictionary of tensors for the analysis.
 
     Args:
-        keys (list[tuple[Any, ...]], optional):
+        keys ([list[tuple[Any, ...]] | list[Any]], optional):
             The keys of the tensors. Defaults to None.
         tensors ([list[list[AnalysisTensorWrapper]] | list[AnalysisTensorWrapper]], optional):
             The tensors to add to the dictionary.
         verbose (Verbose, optional):
             The verbosity level. Defaults to Verbose.INFO.
+
+    Raises:
+        ValueError:
+            If the number of keys is different from the number of tensors.
+        ValueError:
+            If all keys do not have the same length.
 
     Attributes:
         tensors (dict):
@@ -510,7 +543,7 @@ class AnalysisTensorDict:
 
     def __init__(
             self,
-            keys: list[tuple[Any, ...]] = (),
+            keys: [list[tuple[Any, ...]] | list[Any]] = (),
             tensors: [list[list[AnalysisTensorWrapper]] | list[AnalysisTensorWrapper]] = (),
             verbose: Verbose = Verbose.INFO
     ) -> None:
@@ -518,6 +551,9 @@ class AnalysisTensorDict:
         if len(tensors) != len(keys):
             raise ValueError("The number of keys must be equal to the number of tensors.")
         if len(keys) > 0:
+            for index in range(len(keys)):
+                if not isinstance(keys[index], tuple):
+                    keys[index] = (keys[index],)
             keys_length = len(keys[0])
             for key in keys:
                 if len(key) != keys_length:
@@ -534,14 +570,14 @@ class AnalysisTensorDict:
 
     def get_tensor(
             self,
-            key: tuple[Any, ...],
+            key: [tuple[Any, ...] | Any],
             index: int = 0
     ) -> AnalysisTensorWrapper:
         """
         Returns the tensor given the key.
 
         Args:
-            key (tuple[Any, ...]):
+            key ([tuple[Any, ...] | Any]):
                 The key of the tensor.
             index (int, optional):
                 The index of the tensor in the list. Defaults to 0.
@@ -551,17 +587,20 @@ class AnalysisTensorDict:
                 The tensor.
         """
 
+        if not isinstance(key, tuple):
+            key = (key,)
+
         return self.tensors[key][index]
 
     def get_tensor_list(
             self,
-            key: tuple[Any, ...]
+            key: [tuple[Any, ...] | Any]
     ) -> list[AnalysisTensorWrapper]:
         """
         Returns the list of tensors given the key.
 
         Args:
-            key (tuple[Any, ...]):
+            key ([tuple[Any, ...] | Any]):
                 The key of the tensors.
 
         Returns:
@@ -569,7 +608,23 @@ class AnalysisTensorDict:
                 The list of tensors.
         """
 
+        if not isinstance(key, tuple):
+            key = (key,)
+
         return self.tensors[key]
+
+    def get_keys(
+            self
+    ) -> list[tuple[Any, ...]]:
+        """
+        Returns the keys of the dictionary.
+
+        Returns:
+            list[tuple[Any, ...]]:
+                The keys of the dictionary.
+        """
+
+        return list(self.tensors.keys())
 
     def get_unique_positional_keys(
             self,
@@ -602,18 +657,25 @@ class AnalysisTensorDict:
 
     def set_tensor(
             self,
-            key: tuple[Any, ...],
+            key: [tuple[Any, ...] | Any],
             tensor: [list[AnalysisTensorWrapper] | AnalysisTensorWrapper]
     ) -> None:
         """
         Sets a tensor or a list of tensors to the dictionary.
 
         Args:
-            key (tuple[Any, ...]):
+            key ([tuple[Any, ...] | Any]):
                 The key of the tensor.
             tensor ([list[AnalysisTensorWrapper] | AnalysisTensorWrapper]):
                 The tensor or list of tensors to set.
+
+        Raises:
+            ValueError:
+                If the key is not a tuple.
         """
+
+        if not isinstance(key, tuple):
+            key = (key,)
 
         if isinstance(tensor, list):
             self.tensors[key] = tensor
@@ -622,20 +684,27 @@ class AnalysisTensorDict:
 
     def append_tensor(
             self,
-            key: tuple[Any, ...],
+            key: [tuple[Any, ...] | Any],
             tensor: [list[AnalysisTensorWrapper] | AnalysisTensorWrapper]
     ) -> None:
         """
         Appends a tensor to the dictionary.
 
         Args:
-            key (tuple[Any, ...]):
+            key ([tuple[Any, ...] | Any]):
                 The key of the tensor.
             tensor (AnalysisTensorWrapper):
                 The tensor or list of tensors to append.
         """
+
+        if not isinstance(key, tuple):
+            key = (key,)
+
         if key in self.tensors.keys():
-            self.tensors[key] = self.tensors[key] + tensor
+            if isinstance(tensor, list):
+                self.tensors[key] = self.tensors[key] + tensor
+            else:
+                self.tensors[key] = self.tensors[key] + [tensor]
         else:
             self.set_tensor(key, tensor)
 
@@ -668,6 +737,8 @@ class AnalysisTensorDict:
 
         return filtered_tensors
 
+
+# Definition of the mathematical functions to perform the rank analysis
 
 def compute_singular_values(
         matrix: np.ndarray
@@ -764,27 +835,30 @@ def compute_rank(
 
 
 def compute_max_possible_rank(
-        singular_values: dict
+        analyzed_matrices: AnalysisTensorDict
 ) -> int:
     """
-    Computes the maximum possible rank for a list of delta matrices.
+    Computes the maximum possible rank of the matrices of the model.
 
     Args:
-        singular_values (dict):
-            The singular values of the matrices of the model.
+        analyzed_matrices (AnalysisTensorDict):
+            The analyzed matrices of the model.
 
     Returns:
         int:
-            The maximum possible rank.
+            The maximum possible rank of the matrices of the model.
     """
 
     max_possible_rank = 0
-    for layer_name in singular_values.keys():
-        for singular_values_one_matrix in singular_values[layer_name]["s"]:
-            max_possible_rank = max(max_possible_rank, len(singular_values_one_matrix))
+    for key in analyzed_matrices.get_keys():
+        for analyzed_matrix in analyzed_matrices.get_tensor_list(key):
+            singular_values = analyzed_matrix.get_singular_values()
+            max_possible_rank = max(max_possible_rank, len(singular_values))
 
     return max_possible_rank
 
+
+# Definition of the functions to extract the matrices from the model tree
 
 def extract(
         model_tree: nn.Module,
@@ -900,7 +974,7 @@ def extract_based_on_path(
                             name=layer_name,
                             label=layer_path,
                             path=path,
-                            block_index=block_index,
+                            block_index=int(block_index),
                             layer=child
                         )
                     )
@@ -916,6 +990,8 @@ def extract_based_on_path(
                 **kwargs
             )
 
+
+# Definition of the functions to plot the results of the rank analysis
 
 def plot_heatmap(
         data: np.ndarray,
@@ -1030,3 +1106,105 @@ def plot_heatmap(
         plt.show()
 
     plt.close()
+
+
+# Definition of the functions to manage and check the storage
+
+def check_path_to_storage(
+        path_to_storage: str,
+        type_of_analysis: str,
+        model_name: str,
+        strings_to_be_in_the_name: tuple
+) -> tuple[bool, str, str]:
+    """
+    Checks if the path to the storage exists.
+    If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
+    If the path does not exist, the method returns a negative flag and creates the path for the experiment returning it.
+
+    Args:
+        path_to_storage (str):
+            The path to the storage where the experiments data have been stored or will be stored.
+        type_of_analysis (str):
+            The type of analysis to be performed on the model.
+        model_name (str):
+            The name of the model to analyze.
+        strings_to_be_in_the_name (tuple):
+            The strings to be used to create the name or to find in the name of the stored data of the considered
+            experiment.
+
+    Returns:
+        bool:
+            A flag indicating if the path to the storage of the specific experiment already exists.
+        str:
+            The path to the storage of the specific experiment.
+        str:
+            The name of the file to store the data.
+
+    Raises:
+        Exception:
+            If the path to the storage does not exist.
+    """
+
+    if not os.path.exists(path_to_storage):
+        raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
+
+    # Checking if the path to the storage of the specific experiment already exists
+    exists_directory_path = os.path.exists(
+        os.path.join(
+            path_to_storage, model_name
+        )
+    ) & os.path.isdir(
+        os.path.join(
+            path_to_storage, model_name
+        )
+    ) & os.path.exists(
+        os.path.join(
+            path_to_storage, model_name, type_of_analysis
+        )
+    ) & os.path.isdir(
+        os.path.join(
+            path_to_storage, model_name, type_of_analysis
+        )
+    )
+
+    exists_file = False
+    directory_path = os.path.join(
+        path_to_storage, model_name, type_of_analysis
+    )
+    file_name = None
+    if exists_directory_path:
+        try:
+            files_and_dirs = os.listdir(
+                directory_path
+            )
+
+            # Extracting the files
+            files = [
+                f
+                for f in files_and_dirs
+                if os.path.isfile(os.path.join(path_to_storage, model_name, type_of_analysis, f))
+            ]
+
+            # Checking if some file ame contains the required strings
+            for f_name in files:
+                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
+                if names_contained:
+                    exists_file = True
+                    file_name = f_name
+                    break
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False, "", ""
+
+    else:
+        os.makedirs(
+            os.path.join(
+                directory_path
+            )
+        )
+
+    if not exists_file:
+        file_name = "_".join(strings_to_be_in_the_name)
+
+    return exists_file, directory_path, str(file_name)

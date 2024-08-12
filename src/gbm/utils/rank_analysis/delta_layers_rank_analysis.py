@@ -1,16 +1,21 @@
 import os
 import pickle
+import sys
 
 import numpy as np
+import torch
 
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM
 
+from gbm.utils.experiment_pipeline import Config
+from gbm.utils.experiment_pipeline.config import get_path_to_configurations
+from gbm.utils.experiment_pipeline.experiment import get_path_to_experiments
 from gbm.utils.printing_utils.printing_utils import Verbose
 
 from gbm.utils.rank_analysis.utils import (
-    AnalysisTensorWrapper,
+    AnalysisTensorWrapper, check_path_to_storage,
 )
 
 from gbm.utils.rank_analysis.utils import (
@@ -57,6 +62,7 @@ def compute_delta_matrices(
         delta_matrices.append(
             AnalysisTensorWrapper(
                 delta_matrix,
+                name=minuend_matrices[i].get_name(),
                 label=str(minuend_matrices[i].get_label()) + " - " + str(subtrahend_matrices[i].get_label()),
                 block_index=minuend_matrices[i].get_block_index()
             )
@@ -66,14 +72,14 @@ def compute_delta_matrices(
 
 
 def compute_delta_consecutive_matrices(
-        matrices: list,
+        matrices: list[AnalysisTensorWrapper],
         verbose: Verbose = Verbose.SILENT
-) -> list:
+) -> list[AnalysisTensorWrapper]:
     """
     Compute the delta between consecutive matrices.
 
     Args:
-        matrices (list):
+        matrices (list[AnalysisTensorWrapper]):
             List of matrices.
         verbose (Verbose):
             The verbosity level. Defaults to Verbose.SILENT.
@@ -96,20 +102,20 @@ def compute_delta_consecutive_matrices(
 
 
 def compute_delta_wrt_average_matrices(
-        matrices: list,
+        matrices: list[AnalysisTensorWrapper],
         verbose: Verbose = Verbose.SILENT
-) -> list:
+) -> list[AnalysisTensorWrapper]:
     """
     Compute the delta between the average matrix and the rest of the matrices.
 
     Args:
-        matrices (list):
+        matrices (list[AnalysisTensorWrapper]):
             List of matrices.
         verbose (Verbose):
             The verbosity level. Defaults to Verbose.SILENT.
 
     Returns:
-        list:
+        list[AnalysisTensorWrapper]:
             List of delta matrices.
     """
 
@@ -117,18 +123,21 @@ def compute_delta_wrt_average_matrices(
         print("Computing delta matrices with respect to the average matrix...")
 
     minuend_matrices = matrices.copy()
-    average_matrix = np.mean([el["weight"] for el in matrices], axis=0)
-    layer_name = f"{matrices[0]['layer_name']}"
+    stacked_tensors = torch.stack([matrix.get_tensor() for matrix in matrices])
+    average_tensor = torch.mean(stacked_tensors, dim=0)
+    layer_name = f"{matrices[0].get_name()}"
+
     for i in range(len(matrices)):
         layer_name += "_"
-        layer_name += matrices[i]["layer_name"]
+        layer_name += matrices[i].get_name()
 
-    average_matrix = {
-        "weight": average_matrix,
-        "layer_name": layer_name,
-        "label": "avg",
-        "path": []
-    }
+    average_matrix = AnalysisTensorWrapper(
+        average_tensor,
+        name=layer_name,
+        label="avg",
+        block_index=matrices[0].get_block_index(),
+        path=matrices[0].get_path()
+    )
 
     subtrahend_matrices = [average_matrix] * len(minuend_matrices)
 
@@ -327,66 +336,6 @@ def start_layers_delta_average_rank_analysis(
         pickle.dump(s_delta_layers_wrt_average, f)
 
     return s_delta_layers_wrt_average
-
-
-def check_path_to_storage(
-        path_to_storage: str,
-        model_name: str,
-        type_of_analysis: str,
-        layers_to_analyze: tuple
-) -> tuple[bool, str]:
-    """
-    Checks if the path to the storage exists.
-
-    Args:
-        path_to_storage (str):
-            The path to the storage.
-        model_name (str):
-            The name of the model.
-        type_of_analysis (str):
-            The type of analysis.
-        layers_to_analyze (tuple):
-            The layers to analyze.
-
-    Returns:
-        bool:
-            Whether the path to the storage exists.
-    """
-
-    exists_directory_path = os.path.exists(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    )
-
-    if exists_directory_path:
-        names_to_be_contained = [
-            type_of_analysis
-        ]
-        for layer_name in layers_to_analyze:
-            names_to_be_contained.append(layer_name)
-
-        try:
-            files_and_dirs = os.listdir(
-                os.path.join(
-                    path_to_storage, model_name
-                )
-            )
-
-            files = [f for f in files_and_dirs if os.path.isfile(os.path.join(path_to_storage, model_name, f))]
-
-            for file_name in files:
-                names_contained = all(string in file_name for string in names_to_be_contained)
-                if names_contained:
-                    return True, os.path.join(
-                        path_to_storage, model_name, file_name
-                    )
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return False, ""
-
-    return False, ""
 
 
 def start_layers_analysis(
@@ -672,3 +621,73 @@ if __name__ == "__main__":
         thresholds=thresholds,
         s_thresholds=[0]*len(thresholds)
     )
+
+def perform_original_layers_rank_analysis(
+        configuration: Config,
+        paths_layers_to_analyze: list,
+        black_list: list = (),
+        explained_variance_threshold: float = 0.9,
+        singular_values_threshold: float = 0,
+        relative_plot: bool = True,
+        precision: int = 2,
+        figure_size: tuple = (24, 5),
+        path_to_storage: str = None,
+        verbose: Verbose = Verbose.INFO
+):
+
+    # Checking if the path to the storage exists
+    model_name = configuration.get("original_model_id").split("/")[-1]
+    words_to_be_in_the_file_name = (["paths"] + paths_layers_to_analyze +
+                                    ["black_list"] + black_list)
+    file_available, directory_path, file_name = check_path_to_storage(
+        path_to_storage,
+        "original_layers_rank_analysis",
+        model_name,
+        tuple(words_to_be_in_the_file_name)
+    )
+    file_path = os.path.join(directory_path, file_name)
+
+    print(f"{'File to load data available' if file_available else 'No file to load data'}")
+    print(f"File path: {file_path}")
+
+    if file_available:
+def main():
+    """
+    Main method to start the aligned layers rank analysis
+    """
+
+    if len(sys.argv) < 3:
+        raise Exception("Please provide the name of the configuration file and the environment.\n"
+                        "Example: python aligned_layers_rank_analysis.py config_name environment"
+                        "'environment' can be 'local' or 'server' or 'colab'.")
+
+    # Extracting the configuration name and the environment
+    config_name = sys.argv[1]
+    environment = sys.argv[2]
+
+    # Loading the configuration
+    config = Config(
+        os.path.join(get_path_to_configurations(environment), "rank_analysis", config_name)
+    )
+
+    # Starting the aligned layers rank analysis
+    perform_original_layers_rank_analysis(
+        configuration=config,
+        paths_layers_to_analyze=config.get("targets"),
+        black_list=config.get("black_list"),
+        explained_variance_threshold=config.get("explained_variance_threshold"),
+        singular_values_threshold=(
+            config.get("singular_values_threshold")
+            if config.contains("singular_values_threshold")
+            else 0
+        ),
+        relative_plot=config.get("relative_plot") if config.contains("relative_plot") else True,
+        precision=config.get("precision") if config.contains("precision") else 2,
+        figure_size=config.get("figure_size") if config.contains("figure_size") else (24, 5),
+        path_to_storage=os.path.join(get_path_to_experiments(environment), "rank_analysis"),
+        verbose=Verbose(config.get("verbose")) if config.contains("verbose") else Verbose.INFO
+    )
+
+
+if __name__ == "__main__":
+    main()
