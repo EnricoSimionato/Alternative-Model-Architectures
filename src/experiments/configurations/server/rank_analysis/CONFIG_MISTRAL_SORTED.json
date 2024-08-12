@@ -1,5 +1,6 @@
 {
   "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
+  "analysis_type": "sorted_layers_rank_analysis",
   "original_model_id": "mistralai/Mistral-7B-v0.1",
   "targets": [
     "gate_proj",
@@ -9,8 +10,7 @@
   "black_list": [],
   "similarity_guide_name": "down_proj",
   "explained_variance_threshold": 0.99,
-  "relative_plot": true,
-  "figure_size": [34, 40],
+  "figure_size": [40, 40],
   "precision": 2,
   "verbose": 1
 }
