@@ -318,7 +318,7 @@ def perform_sorted_layers_rank_analysis(
 
         # Loading the data
         with open(file_path, "rb") as f:
-            dictionary_all_delta_matrices = pickle.load(f)
+            pre_analyzed_tensors = pickle.load(f)
     else:
         # Loading the model
         model = load_original_model_for_causal_lm(configuration)
@@ -355,7 +355,7 @@ def perform_sorted_layers_rank_analysis(
         # Computing the ranks of the difference of the layers in the blocks
 
         similarity_guide_name = configuration.get("similarity_guide_name")
-        dictionary_all_delta_matrices = AnalysisTensorDict()
+        pre_analyzed_tensors = AnalysisTensorDict()
         for block_index_1 in tqdm(extracted_layers_grouped_by_block.keys()):
             for block_index_2 in extracted_layers_grouped_by_block.keys():
                 if block_index_1 != block_index_2:
@@ -394,6 +394,7 @@ def perform_sorted_layers_rank_analysis(
                         ],
                         verbose=verbose
                     )
+
                     if verbose >= Verbose.DEBUG:
                         print(f"\nLayers sorted based on similarity")
 
@@ -409,20 +410,20 @@ def perform_sorted_layers_rank_analysis(
                         delta_matrix.compute_singular_values()
 
                     key = (block_index_1, block_index_2)
-                    dictionary_all_delta_matrices.append_tensor(
+                    pre_analyzed_tensors.append_tensor(
                         key,
                         delta_matrices
                     )
 
     # Retrieving the indices of the blocks of the model
-    blocks_indexes_1 = dictionary_all_delta_matrices.get_unique_positional_keys(position=0, sort=True)
+    blocks_indexes_1 = pre_analyzed_tensors.get_unique_positional_keys(position=0, sort=True)
     ranks = np.zeros((len(blocks_indexes_1), len(blocks_indexes_1)))
     relative_ranks = np.zeros((len(blocks_indexes_1), len(blocks_indexes_1)))
 
     # Performing the rank analysis of the difference between the matrices of the model aligned based on the similarity
     analyzed_tensors = AnalysisTensorDict()
     for block_index_1 in tqdm(blocks_indexes_1):
-        filtered_dictionary_all_delta_matrices = dictionary_all_delta_matrices.filter_by_positional_key(
+        filtered_dictionary_all_delta_matrices = pre_analyzed_tensors.filter_by_positional_key(
             key=block_index_1,
             position=0
         )
