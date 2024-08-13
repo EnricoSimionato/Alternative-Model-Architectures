@@ -1,13 +1,10 @@
-import os
 import pickle
-import sys
 from tqdm import tqdm
 
 import numpy as np
 
 import torch
 
-from gbm.utils.experiment_pipeline.experiment import get_path_to_experiments
 from gbm.utils.printing_utils.printing_utils import Verbose
 from gbm.utils.experiment_pipeline.config import Config, get_path_to_configurations
 from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
@@ -16,11 +13,13 @@ from gbm.utils.rank_analysis.delta_layers_rank_analysis import compute_delta_mat
 
 from gbm.utils.rank_analysis.utils import (
     AnalysisTensorWrapper,
-    AnalysisTensorDict, check_path_to_storage, compute_max_possible_rank
+    AnalysisTensorDict,
 )
 
 from gbm.utils.rank_analysis.utils import (
     extract_based_on_path,
+    compute_max_possible_rank,
+
     plot_heatmap
 )
 
@@ -470,7 +469,7 @@ def perform_sorted_layers_rank_analysis(
         y_title="Block indexes",
         columns_labels=blocks_indexes_1,
         rows_labels=blocks_indexes_1,
-        figure_size=configuration.get("figure_size") if configuration.contains("figure_size") else (24, 20),
+        figure_size=configuration.get("figure_size") if configuration.contains("figure_size") else (26, 26),
         save_path=configuration.get("directory_path"),
         heatmap_name=heatmap_name,
         show=configuration.get("show") if configuration.contains("show") else True,
@@ -485,7 +484,7 @@ def perform_sorted_layers_rank_analysis(
         y_title="Block indexes",
         columns_labels=blocks_indexes_1,
         rows_labels=blocks_indexes_1,
-        figure_size=configuration.get("figure_size") if configuration.contains("figure_size") else (24, 20),
+        figure_size=configuration.get("figure_size") if configuration.contains("figure_size") else (26, 26),
         save_path=configuration.get("directory_path"),
         heatmap_name=heatmap_name,
         show=configuration.get("show") if configuration.contains("show") else True,

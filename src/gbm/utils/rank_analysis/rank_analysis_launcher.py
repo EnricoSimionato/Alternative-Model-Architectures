@@ -9,7 +9,8 @@ from gbm.utils.experiment_pipeline.config import (
 
 from gbm.utils.rank_analysis.utils import check_path_to_storage
 from gbm.utils.rank_analysis.original_layers_rank_analysis import perform_original_layers_rank_analysis
-from gbm.utils.rank_analysis.delta_layers_rank_analysis import perform_delta_consecutive_layers_rank_analysis
+from gbm.utils.rank_analysis.delta_layers_rank_analysis import perform_delta_consecutive_layers_rank_analysis, \
+    perform_all_delta_layers_rank_analysis
 from gbm.utils.rank_analysis.delta_layers_rank_analysis import perform_delta_layers_wrt_average_rank_analysis
 from gbm.utils.rank_analysis.sorted_layers_rank_analysis import perform_sorted_layers_rank_analysis
 
@@ -87,6 +88,9 @@ def main():
     elif configuration.get("analysis_type") == "delta_layers_wrt_average_rank_analysis":
         # Perform the rank analysis of the delta layers with respect to the average matrix of some layers
         perform_delta_layers_wrt_average_rank_analysis(configuration, verbose)
+    elif configuration.get("analysis_type") == "all_delta_layers_rank_analysis":
+        # Perform the rank analysis of the delta layers with respect to all the other layers
+        perform_all_delta_layers_rank_analysis(configuration, verbose)
     elif configuration.get("analysis_type") == "sorted_layers_rank_analysis":
         # Perform the rank analysis of the sorted layers of a model
         perform_sorted_layers_rank_analysis(configuration, verbose)
