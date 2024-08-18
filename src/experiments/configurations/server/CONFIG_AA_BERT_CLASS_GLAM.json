@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments",
+    "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/aa",
     "keys_for_naming": [
         "factorization_method",
         "original_model_id"

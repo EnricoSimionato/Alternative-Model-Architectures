@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments",
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/aa",
     "keys_for_naming": [
         "factorization_method",
         "original_model_id"
@@ -39,8 +39,8 @@
     "num_checks_per_epoch": 5,
     "gradient_accumulation_steps": 4,
 
-    "factorization_method": "LocalSVD",
-    "regularized_training": true,
+    "factorization_method": "GlobalBase",
+    "initialization_type": "pseudo-inverse",
     "target_layers": {
         "query": {
             "rank": 256
