@@ -27,6 +27,6 @@
     "ylim": 8000,
 
     "verbose": 1,
-    "device": "mps",
+    "device": "cuda",
     "seed": 42
 }

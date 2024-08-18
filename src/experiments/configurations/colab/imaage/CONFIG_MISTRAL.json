@@ -6,7 +6,7 @@
 
     "original_model_id": "mistralai/Mistral-7B-v0.1",
     "quantization": null,
-    "dtype": "float16",
+    "dtype": "float32",
 
     "targets": [
         "q_proj"
@@ -24,6 +24,6 @@
     "ylim": 8000,
 
     "verbose": 1,
-    "device": "mps",
+    "device": "cuda",
     "seed": 42
 }
