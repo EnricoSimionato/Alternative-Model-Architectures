@@ -4,14 +4,14 @@ from transformers import AutoTokenizer
 
 from peft import get_peft_model, LoraConfig
 
-from gbm import GlobalBaseModel
-from gbm.utils.classification import load_original_model_for_sequence_classification, IMDBDataModule
-from gbm.utils.experiment_pipeline.experiment import Experiment
-from gbm.utils.experiment_pipeline.config import Config
-from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
-from gbm.utils.chatbot import OpenAssistantGuanacoDataModule
-from gbm.utils.chatbot.conversation_utils import start_conversation_loop
-from gbm.utils.chatbot.pl_models import ChatbotModelWrapper
+from neuroflex import GlobalBaseModel
+from neuroflex.utils.classification import load_original_model_for_sequence_classification, IMDBDataModule
+from neuroflex.utils.experiment_pipeline.experiment import Experiment
+from neuroflex.utils.experiment_pipeline.config import Config
+from neuroflex.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
+from neuroflex.utils.chatbot import OpenAssistantGuanacoDataModule
+from neuroflex.utils.chatbot.conversation_utils import start_conversation_loop
+from neuroflex.utils.chatbot.pl_models import ChatbotModelWrapper
 
 
 def test_experiment_with_chatbot():

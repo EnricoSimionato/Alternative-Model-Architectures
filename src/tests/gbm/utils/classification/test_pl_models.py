@@ -5,9 +5,9 @@ from transformers import (
     AutoModelForSequenceClassification
 )
 
-from gbm.utils.classification.pl_datasets import IMDBDataModule
-from gbm.utils.classification.pl_models import ClassifierModelWrapper
-from gbm.utils.device_utils import get_available_device
+from neuroflex.utils.classification.pl_datasets import IMDBDataModule
+from neuroflex.utils.classification.pl_models import ClassifierModelWrapper
+from neuroflex.utils.device_utils import get_available_device
 
 CONFIG = {
     "model": "bert-base-uncased",

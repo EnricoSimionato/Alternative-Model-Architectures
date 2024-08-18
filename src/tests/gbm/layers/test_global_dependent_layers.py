@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from gbm.layers.global_dependent_layer import LocalSVDLinear
+from neuroflex.layers.global_dependent_layer import LocalSVDLinear
 
 class TestLocalSVDLinear:
     def test_LocalSVDLinear(self):

@@ -7,11 +7,11 @@ from transformers import (
     AutoModelForSequenceClassification, AutoModelForCausalLM,
 )
 
-from gbm.models.global_dependent_model import GlobalBaseModel
+from neuroflex.models.global_dependent_model import GlobalBaseModel
 
 import pytest
 
-from gbm.utils import check_model_for_nan, count_parameters
+from neuroflex.utils import check_model_for_nan, count_parameters
 
 """
 class TestGlobalBaseModel:

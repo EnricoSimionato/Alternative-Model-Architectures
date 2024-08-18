@@ -2,10 +2,10 @@ from transformers import AutoTokenizer
 
 from peft import LoraConfig, get_peft_model
 
-from gbm import GlobalBaseModel
-from gbm.utils import Config
-from gbm.utils.storage_utils import store_model_and_info, load_model_and_info
-from gbm.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
+from neuroflex import GlobalBaseModel
+from neuroflex.utils import Config
+from neuroflex.utils.storage_utils import store_model_and_info, load_model_and_info
+from neuroflex.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
 
 
 config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/CONFIG_BERT_CHAT.json")

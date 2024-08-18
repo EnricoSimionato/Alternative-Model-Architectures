@@ -1,7 +1,7 @@
-from gbm.utils.experiment_pipeline.config import (Config)
+from neuroflex.utils.experiment_pipeline.config import (Config)
 
 if __name__ == "__main__":
-    config = Config("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/gbm/utils/CONFIG_LOCAL.json")
+    config = Config("/neuroflex/utils/CONFIG_LOCAL.json")
 
     for key in config.__dict__.keys():
         print(key, config.__dict__[key])
