@@ -46,7 +46,6 @@ def imaage_training_trial(
         preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"
     )
 
-    print("Starting the code")
     model_name = configuration.get("original_model_id").split("/")[-1]
     # Loading the model
     model = load_original_model_for_causal_lm(
