@@ -1,6 +1,7 @@
 import os
 import time
 import csv
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
@@ -134,7 +135,7 @@ def imaage_training_trial(
                         print(f"Tensor {index} in {factorization_label} requires grad: "
                               f"{factorization[index].requires_grad}")
 
-                for epoch in range(num_epochs):
+                for epoch in tqdm(range(num_epochs)):
                     # Computing
                     x = random_x.clone().detach().to(device)
                     y = torch.eye(in_shape).to(device).to(device)

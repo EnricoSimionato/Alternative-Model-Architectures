@@ -9,14 +9,11 @@
     "dtype": "float32",
 
     "targets": [
-        "output_dense",
-        "intermediate_dense"
+        "k_proj"
     ],
-    "black_list": [
-        "attention"
-    ],
+    "black_list": [],
 
-    "rank": 128,
+    "rank": 256,
 
     "num_epochs": 20000,
     "learning_rate": 0.0001,
