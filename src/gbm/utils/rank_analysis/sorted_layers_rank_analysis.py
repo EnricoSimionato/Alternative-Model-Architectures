@@ -1,3 +1,4 @@
+import os
 import pickle
 from tqdm import tqdm
 
@@ -151,7 +152,7 @@ def compute_indices_sorting(
         axis: int,
         similarity_type: str = "cosine",
         verbose: Verbose = Verbose.INFO
-) -> list:
+) -> [list, dict[torch.Tensor]]:
     """
     Computes the indices for the sorting of the elements of the layers in block 2 to be as close as possible to the
     layers in block 1.
@@ -175,6 +176,9 @@ def compute_indices_sorting(
     Returns:
         list:
             The list of indices to reorder the layers in block 2.
+        dict[torch.Tensor]:
+            The matrix of similarities between the layers in block 1 and block 2.
+
 
     Raises:
         Exception:
@@ -207,6 +211,7 @@ def compute_indices_sorting(
                 similarity_type=similarity_type,
                 verbose=verbose
             )
+    similarities_copy = similarities.clone()
 
     # Computing the ordering of the vectors of the matrices in the second block to have the maximum possible similarity
     ordering = []
@@ -229,7 +234,7 @@ def compute_indices_sorting(
     if verbose > Verbose.INFO:
         print(f"New ordering: {ordering}")
 
-    return ordering
+    return ordering, similarities_copy
 
 
 def sort_elements_in_layers(
@@ -305,6 +310,7 @@ def perform_sorted_layers_rank_analysis(
     """
 
     file_path = configuration.get("file_path")
+    similarities_path = os.path.join(configuration.get("directory_path"), "similarities")
     explained_variance_threshold = (
         configuration.get("explained_variance_threshold") if configuration.contains("explained_variance_threshold") else 0
     )
@@ -372,7 +378,7 @@ def perform_sorted_layers_rank_analysis(
                     # Sorting the layers in block 2 to match the layers in block 1 in order to be as similar as possible
 
                     # Computing the ordering
-                    ordering = compute_indices_sorting(
+                    ordering, similarities = compute_indices_sorting(
                         layers_in_block_1,
                         layers_in_block_2,
                         layer_index_for_similarity_1=similarity_guide_index,
@@ -382,6 +388,20 @@ def perform_sorted_layers_rank_analysis(
                     )
                     if verbose > Verbose.INFO:
                         print(f"\nIndices computed {ordering[:10]}")
+
+                    print(f"Block {block_index_1} and block {block_index_2} have mean (on the rows) highest similarity "
+                          f"{torch.mean(torch.max(similarities, dim=1).values).item()}.")
+                    print(f"Block {block_index_1} and block {block_index_2} have mean (on the columns) highest "
+                          f"similarity {torch.mean(torch.max(similarities, dim=0).values).item()}.")
+                    # Saving the similarities
+                    try:
+                        with open(similarities_path, 'rb') as file:
+                            computed_similarities = pickle.load(file)
+                    except FileNotFoundError:
+                        computed_similarities = {}
+                    computed_similarities.update({(block_index_1, block_index_2): similarities})
+                    with open(similarities_path, 'wb') as f:
+                        pickle.dump(computed_similarities, f)
 
                     # Using the ordering to sort the vectors in the matrices of block 2
                     sorted_layers_in_block_2 = sort_elements_in_layers(
@@ -413,6 +433,18 @@ def perform_sorted_layers_rank_analysis(
                         key,
                         delta_matrices
                     )
+
+    try:
+        with open(similarities_path, 'rb') as file:
+            computed_similarities = pickle.load(file)
+            for key, similarities in computed_similarities.items():
+                block_index_1, block_index_2 = key
+                print(f"Block {block_index_1} and block {block_index_2} have mean (on the rows) highest similarity "
+                      f"{torch.mean(torch.max(similarities, dim=1).values).item()}.")
+                print(f"Block {block_index_1} and block {block_index_2} have mean (on the columns) highest "
+                      f"similarity {torch.mean(torch.max(similarities, dim=0).values).item()}.")
+    except FileNotFoundError:
+        print("No file containing the similarities found.")
 
     # Retrieving the indices of the blocks of the model
     blocks_indexes_1 = pre_analyzed_tensors.get_unique_positional_keys(position=0, sort=True)
@@ -453,10 +485,7 @@ def perform_sorted_layers_rank_analysis(
 
     # Saving the matrix wrappers of the layers used to perform the analysis
     with open(file_path, "wb") as f:
-        pickle.dump(
-            analyzed_tensors,
-            f
-        )
+        pickle.dump(analyzed_tensors, f)
 
     # Plotting the results
     heatmap_name = configuration.get("heatmap_name") if configuration.contains("heatmap_name") else "heatmap"

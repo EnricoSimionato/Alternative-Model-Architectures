@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 import matplotlib.pyplot as plt
+import transformers
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
@@ -913,7 +914,7 @@ def extract(
 
 
 def extract_based_on_path(
-        model_tree: nn.Module,
+        model_tree: [nn.Module | transformers.AutoModel],
         paths_of_targets: list,
         extracted_matrices: list,
         black_list: list = None,
@@ -925,7 +926,7 @@ def extract_based_on_path(
     Extracts the matrices from the model tree.
 
     Args:
-        model_tree (nn.Module):
+        model_tree ([nn.Module | transformers.AutoModel]):
             The model tree.
         paths_of_targets (list):
             The path of the targets.
