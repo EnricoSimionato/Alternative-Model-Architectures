@@ -408,7 +408,7 @@ class GlobalDependentModel(ABC, nn.Module):
             verbose: int = 0,
             **kwargs
     ) -> None:
-        nn.Module.__init__(self, **kwargs)
+        nn.Module.__init__(self)
 
         self.verbose = Verbose(verbose)
 
@@ -1274,9 +1274,11 @@ class GlobalBaseModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
+            initialization_type: str = "random",
             verbose: int = 0,
             **kwargs
     ) -> None:
+        kwargs.update({"initialization_type": initialization_type})
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
@@ -1356,9 +1358,11 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
+            initialization_type: str = "random",
             verbose: int = 0,
             **kwargs
     ) -> None:
+        kwargs.update({"initialization_type": initialization_type})
         GlobalDependentModel.__init__(
             self,
             pretrained_model,

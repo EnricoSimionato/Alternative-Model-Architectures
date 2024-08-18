@@ -555,10 +555,12 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             average_layers: nn.ModuleDict,
             target_name: str,
             rank: int,
+            initialization_type: str = "random",
             *args,
             **kwargs
     ) -> None:
         kwargs["rank"] = rank
+        kwargs["initialization_type"] = initialization_type
         super().__init__(
             target_layer,
             global_layers,
@@ -610,24 +612,28 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         target_weight = target_layer.weight.data
         global_key = self.global_dependent_layer.structure[0]["key"]
         local_key = self.global_dependent_layer.structure[1]["key"]
+        initialization_type = kwargs["initialization_type"]
 
         global_matrix = self.get_layer("global", global_key).weight.data
 
         with torch.no_grad():
-            global_matrix = global_matrix.to(torch.float32)
-            pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
-            #pinv_global_matrix = pinv_global_matrix.to(self.global_dependent_layer.dtype)
+            if initialization_type == "pseudo-inverse":
+                global_matrix = global_matrix.to(torch.float32)
+                pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
 
-            local_matrix = target_weight.to(torch.float32) @ pinv_global_matrix
-            local_matrix = local_matrix.to(self.global_dependent_layer.dtype)
+                local_matrix = target_weight.to(torch.float32) @ pinv_global_matrix
+                local_matrix = local_matrix.to(self.global_dependent_layer.dtype)
 
-            self.get_layer("local", local_key).weight.data = local_matrix
+                self.get_layer("local", local_key).weight.data = local_matrix
+                self.get_layer("local", local_key).bias = target_layer.bias
+            elif initialization_type == "random":
+                pass
+            else:
+                raise ValueError("Initialization type not recognized.")
 
-            if "trainable" in self.structure[1].keys():
-                for params in self.get_layer("local", local_key).parameters():
-                    params.requires_grad = self.structure[1]["trainable"]
-
-            self.get_layer("local", local_key).bias = target_layer.bias
+        if "trainable" in self.structure[1].keys():
+            for params in self.get_layer("local", local_key).parameters():
+                params.requires_grad = self.structure[1]["trainable"]
 
         device = get_available_device()
 
