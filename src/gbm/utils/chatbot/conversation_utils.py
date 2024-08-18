@@ -10,6 +10,8 @@ from transformers import (
     BitsAndBytesConfig, AutoTokenizer
 )
 
+from gbm.utils.printing_utils.printing_utils import Verbose
+
 
 def get_conversation_example_1(
 ) -> list[str]:
@@ -237,7 +239,7 @@ def start_conversation_loop(
 
 def load_original_model_for_causal_lm(
         config,
-        verbose: bool = False
+        verbose: Verbose = Verbose.SILENT
 ) -> transformers.AutoModelForCausalLM:
     """
     Loads the original model to be used in the causal language modeling.
@@ -262,14 +264,14 @@ def load_original_model_for_causal_lm(
             bnb_4bit_use_double_quant=True,
             bnb_4bit_compute_dtype=torch.bfloat16
         )
-        if verbose:
+        if verbose > Verbose.SILENT:
             print("Using 4bit quantization\n")
     elif config.contains("quantization") and config.get("quantization") == "8bit":
         # Defining the quantization configuration (8 bits)
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
         )
-        if verbose:
+        if verbose > Verbose.SILENT:
             print("Using 8bit quantization\n")
 
     torch_dtype = torch.float32
@@ -284,7 +286,7 @@ def load_original_model_for_causal_lm(
         quantization_config=bnb_config
     )
 
-    if verbose:
+    if verbose > Verbose.SILENT:
         print(model)
 
     return model

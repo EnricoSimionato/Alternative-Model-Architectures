@@ -70,11 +70,13 @@ def get_factorized_model(
             **alternative_architectures_arguments
         )
     elif factorization_method == "globalbase":
+        alternative_architectures_arguments.update(config.get_dict(["initialization_type"]))
         factorized_model = GlobalBaseModel(
             model,
             **alternative_architectures_arguments
         )
     elif factorization_method == "globalfixedbase":
+        alternative_architectures_arguments.update(config.get_dict(["initialization_type"]))
         factorized_model = GlobalFixedBaseModel(
             model,
             **alternative_architectures_arguments

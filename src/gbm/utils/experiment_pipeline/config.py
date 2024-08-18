@@ -44,6 +44,7 @@ def get_path_to_configurations(
 
     return base_path
 
+
 class Config:
     """
     Config class to store all the configuration parameters of an experiment about training a deep model using Pytorch
@@ -214,6 +215,25 @@ class Config:
             print("Configuration does not contain the task, loading the model as a generic model.")
 
         return original_model
+
+    def check_mandatory_keys(
+            self,
+            mandatory_keys: list,
+            **kwargs
+    ) -> None:
+        """
+        Checks if the configuration file contains the mandatory keys.
+
+        Args:
+            mandatory_keys (list):
+                A list of mandatory keys that must be present in the configuration file.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        for key in mandatory_keys:
+            if not self.contains(key):
+                raise Exception(f"The configuration file must contain the key '{key}'.")
 
     def set(
             self,
