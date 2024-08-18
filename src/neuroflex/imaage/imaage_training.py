@@ -1,19 +1,28 @@
 import os
 import time
-import matplotlib.pyplot as plt
-import torch
 import csv
+
+import matplotlib.pyplot as plt
+
+import torch
+
 from neuroflex.utils.device_utils import get_available_device
+
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline import Config
+
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
+
 from neuroflex.utils.rank_analysis.utils import extract_based_on_path
 
 
-def imaage_train(model):
+def imaage_train(
+        model
+) -> None:
     """
-    Dummy placeholder for model training function.
+
     """
+
     pass
 
 
@@ -32,15 +41,15 @@ def imaage_training_trial(
             The verbosity object.
     """
 
-    # Getting the device
     device = get_available_device(
         preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"
     )
 
+    model_name = configuration.get("original_model_id").split("/")[-1]
     # Loading the model
     model = load_original_model_for_causal_lm(
         configuration,
-        verbose
+        verbose=Verbose.INFO
     )
 
     # Extracting the candidate tensors for the analysis
@@ -92,14 +101,16 @@ def imaage_training_trial(
         tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
         loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
 
+        if verbose >= Verbose.INFO:
+            print()
         # Training the factorizations
-        for factorization_label, factorization in tensor_factrizations.items():
-            # Cloning the tensors to avoid in-place operations
-            factorization_clone = [tensor.clone().detach() for tensor in factorization]
-            for index in range(len(factorization)):
-                factorization_clone[index].requires_grad = factorization[index].requires_grad
-
+        for factorization_label, factorization_init in tensor_factrizations.items():
             for loss_type in loss_types:
+                # Cloning the tensors to avoid in-place operations
+                factorization = [tensor.clone().detach() for tensor in factorization_init]
+                for index in range(len(factorization)):
+                    factorization[index].requires_grad = factorization_init[index].requires_grad
+
                 # Storing the start time
                 start_time = time.time()
 
@@ -107,19 +118,21 @@ def imaage_training_trial(
                 trainable_tensors = [tensor for tensor in factorization if tensor.requires_grad]
                 optimizer = torch.optim.AdamW(
                     trainable_tensors,
-                    lr=1e-4,
+                    lr=configuration.get("learning_rate") if configuration.contains("learning_rate") else 1e-4,
                     eps=1e-7 if tensor_to_analyze.dtype == torch.float16 else 1e-8
                 )
 
                 activation_loss_history = []
                 tensor_loss_history = []
-                if verbose >= Verbose.INFO:
-                    print(f"Starting training using {loss_type} for {factorization_label}")
-
                 initial_activation_loss = None
                 initial_tensor_loss = None
-                final_activation_loss = None
-                final_tensor_loss = None
+
+                if verbose >= Verbose.INFO:
+                    print(f"Starting training using {loss_type} for {factorization_label}")
+                for index in range(len(factorization)):
+                    if verbose >= Verbose.INFO:
+                        print(f"Tensor {index} in {factorization_label} requires grad: "
+                              f"{factorization[index].requires_grad}")
 
                 for epoch in range(num_epochs):
                     # Computing
@@ -156,9 +169,14 @@ def imaage_training_trial(
                 # Calculating and storing the time elapsed
                 time_elapsed = end_time - start_time
                 time_log.append(f"Time for {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds\n")
+                if verbose >= Verbose.INFO:
+                    print(f"Time for {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds")
 
                 final_activation_loss = activation_loss_history[-1].item()
                 final_tensor_loss = tensor_loss_history[-1].item()
+
+                if verbose >= Verbose.INFO:
+                    print()
 
                 # Compute the test activation loss
                 x_test = test_random_x.clone().detach()
@@ -208,7 +226,7 @@ def imaage_training_trial(
             ax.set_ylabel("Loss")
             ax.legend()
 
-        output_path = os.path.join(configuration.get("path_to_storage"), "plot.png") if configuration.contains(
+        output_path = os.path.join(configuration.get("path_to_storage"), model_name + "_plot.png") if configuration.contains(
             "path_to_storage") else "plot.png"
         plt.savefig(output_path)
         plt.show()
@@ -222,13 +240,13 @@ def imaage_training_trial(
                 print(f"Activation loss for {factorization_label} using {loss_type} on test data: {activation_loss}")
 
     # Save the timing results to a file
-    time_log_path = os.path.join(configuration.get("path_to_storage"), "training_times.txt") if configuration.contains(
+    time_log_path = os.path.join(configuration.get("path_to_storage"), model_name + "_training_times.txt") if configuration.contains(
         "path_to_storage") else "training_times.txt"
     with open(time_log_path, "w") as f:
         f.writelines(time_log)
 
     # Save the loss results to a CSV file
-    csv_path = os.path.join(configuration.get("path_to_storage"), "losses.csv") if configuration.contains(
+    csv_path = os.path.join(configuration.get("path_to_storage"), model_name + "_losses.csv") if configuration.contains(
         "path_to_storage") else "losses.csv"
     with open(csv_path, "w", newline="") as csvfile:
         fieldnames = ["Factorization", "Loss Type", "Initial Activation Loss", "Final Activation Loss",

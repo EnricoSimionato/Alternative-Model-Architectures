@@ -4,7 +4,7 @@
         "original_model_id"
     ],
 
-    "original_model_id": "bert-base-uncased",
+    "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
 

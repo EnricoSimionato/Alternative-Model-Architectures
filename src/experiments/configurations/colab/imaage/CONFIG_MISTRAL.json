@@ -1,0 +1,29 @@
+{
+    "path_to_storage": "drive/MyDrive/Thesis",
+    "keys_for_naming": [
+        "original_model_id"
+    ],
+
+    "original_model_id": "mistralai/Mistral-7B-v0.1",
+    "quantization": null,
+    "dtype": "float16",
+
+    "targets": [
+        "q_proj"
+    ],
+    "black_list": [],
+
+    "rank": 512,
+
+    "num_epochs": 10000,
+    "learning_rate": 0.0001,
+    "batch_size": 64,
+
+    "figure_size": [20, 20],
+    "epoch_cut": 0,
+    "ylim": 8000,
+
+    "verbose": 1,
+    "device": "mps",
+    "seed": 42
+}
