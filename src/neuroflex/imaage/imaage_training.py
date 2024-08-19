@@ -17,6 +17,43 @@ from neuroflex.utils.chatbot import load_original_model_for_causal_lm
 from neuroflex.utils.rank_analysis.utils import extract_based_on_path
 
 
+def get_AB_factorization(
+        tensor: torch.Tensor,
+        rank: int,
+        trainable: list[bool],
+        device: torch.device
+) -> (torch.Tensor, torch.Tensor, float):
+    """
+    Computes the AB factorization of a given tensor.
+
+    Args:
+        tensor (torch.Tensor):
+            The tensor to be factorized.
+        rank (int):
+            The rank of the factorization.
+        trainable (list[bool]):
+            A list of booleans indicating whether the corresponding factor should be trainable.
+        device (torch.device):
+            The device to perform the factorization on.
+
+    Returns:
+        (torch.Tensor, torch.Tensor, float):
+            The factorized tensors A and B and the time taken to perform the factorization.
+    """
+
+    out_shape, in_shape = tensor.shape
+
+    # Initializing the AB factorization
+    start_time = time.time()
+    a = torch.randn(out_shape, rank).to(device)
+    a.requires_grad = trainable[0]
+    b = torch.randn(rank, in_shape).to(device)
+    b.requires_grad = trainable[1]
+    elapsed_time = time.time() - start_time
+
+    return a, b, elapsed_time
+
+
 def imaage_train(
         model
 ) -> None:
@@ -75,6 +112,8 @@ def imaage_training_trial(
     time_log = []
     csv_data = []
     for tensor_to_analyze in tensors_to_analyze:
+        tensor_to_analyze = tensor_to_analyze.to(torch.float32)
+
         # Creating the figure to plot the results
         fig, axes = plt.subplots(2, 2, figsize=fig_size)
 
@@ -85,6 +124,7 @@ def imaage_training_trial(
         tensor_to_analyze = tensor_to_analyze.to(device)
         tensorx = torch.matmul(tensor_to_analyze, random_x)
 
+        #a, b, ab_time = get_AB_factorization(tensor_to_analyze, rank, [False, True], device)
         # Initializing the AB factorization
         a = torch.randn(out_shape, rank).to(device)
         a.requires_grad = False
@@ -176,13 +216,13 @@ def imaage_training_trial(
                               f"{f'+ {svd_time:.2f} seconds to perform the SVD' if factorization_label == 'U, S, V^T' else ''}\n"
                 time_log.append(time_string)
                 if verbose >= Verbose.INFO:
-                    print(time_string)
+                    print(time_string, flush=True)
 
                 final_activation_loss = activation_loss_history[-1].item()
                 final_tensor_loss = tensor_loss_history[-1].item()
 
                 if verbose >= Verbose.INFO:
-                    print()
+                    print("", flush=True)
 
                 # Compute the test activation loss
                 x_test = test_random_x.clone().detach()
@@ -258,7 +298,7 @@ def imaage_training_trial(
         "path_to_storage") else "losses.csv"
     with open(csv_path, "w", newline="") as csvfile:
         fieldnames = ["Factorization", "Loss Type", "Initial Activation Loss", "Final Activation Loss",
-                      "Initial Tensor Loss", "Final Tensor Loss", "Test Activation Loss"]
+                      "Initial Tensor Loss", "Final Tensor Loss", "Test Activation Loss", "Training Time", "SVD Time"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         writer.writeheader()

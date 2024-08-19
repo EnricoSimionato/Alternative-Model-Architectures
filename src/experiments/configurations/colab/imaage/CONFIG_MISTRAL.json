@@ -4,9 +4,9 @@
         "original_model_id"
     ],
 
-    "original_model_id": "mistralai/Mistral-7B-v0.1",
+    "original_model_id": "mistralai/Mistral-7B-Instruct-v0.1",
     "quantization": null,
-    "dtype": "float32",
+    "dtype": "float16",
 
     "targets": [
         "q_proj"
