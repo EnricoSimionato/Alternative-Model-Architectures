@@ -37,8 +37,12 @@ def get_AB_factorization(
             The device to perform the factorization on.
 
     Returns:
-        (torch.Tensor, torch.Tensor, float):
-            The factorized tensors A and B and the time taken to perform the factorization.
+        (torch.Tensor):
+            The A factor of the factorization.
+        (torch.Tensor):
+            The B factor of the factorization.
+        (float):
+            The time elapsed to compute the factorization.
     """
 
     out_shape, in_shape = tensor.shape
@@ -54,14 +58,46 @@ def get_AB_factorization(
     return a, b, elapsed_time
 
 
-def imaage_train(
-        model
-) -> None:
+def get_SVD_factorization(
+        tensor: torch.Tensor,
+        rank: int,
+        trainable: list[bool],
+        device: torch.device
+) -> (torch.Tensor, torch.Tensor, torch.Tensor, float):
+    """
+    Computes the SVD factorization of a given tensor.
+
+    Args:
+        tensor (torch.Tensor):
+            The tensor to be factorized.
+        rank (int):
+            The rank of the factorization.
+        trainable (list[bool]):
+            A list of booleans indicating whether the corresponding factor should be trainable.
+        device (torch.device):
+            The device to perform the factorization on.
+
+    Returns:
+        (torch.Tensor):
+            The U factor of the factorization.
+        (torch.Tensor):
+            The S factor of the factorization.
+        (torch.Tensor):
+            The V factor of the factorization.
+        (float):
+            The time elapsed to compute the factorization.
     """
 
-    """
+    # Initializing the SVD factorization
+    start_time = time.time()
+    u, s, vt = torch.svd(tensor.to("cpu"))
+    us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(device)
+    us.requires_grad = trainable[0]
+    vt = vt[:rank, :].to(device)
+    vt.requires_grad = trainable[1]
+    elapsed_time = time.time() - start_time
 
-    pass
+    return us, vt, elapsed_time
 
 
 def imaage_training_trial(
@@ -124,22 +160,8 @@ def imaage_training_trial(
         tensor_to_analyze = tensor_to_analyze.to(device)
         tensorx = torch.matmul(tensor_to_analyze, random_x)
 
-        #a, b, ab_time = get_AB_factorization(tensor_to_analyze, rank, [False, True], device)
-        # Initializing the AB factorization
-        a = torch.randn(out_shape, rank).to(device)
-        a.requires_grad = False
-        b = torch.randn(rank, in_shape).to(device)
-        b.requires_grad = True
-
-        svd_start_time = time.time()
-        # Initializing the SVD factorization
-        u, s, vt = torch.svd(tensor_to_analyze.to("cpu"))
-        us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(device)
-        us.requires_grad = False
-        vt = vt[:rank, :].to(device)
-        vt.requires_grad = True
-        svd_end_time = time.time()
-        svd_time = svd_end_time - svd_start_time
+        a, b, ab_time = get_AB_factorization(tensor_to_analyze, rank, [False, True], device)
+        us, vt, svd_time = get_SVD_factorization(tensor_to_analyze, rank, [False, True], device)
 
         loss_types = ["activation loss", "tensor loss"]
         tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
@@ -304,3 +326,10 @@ def imaage_training_trial(
         writer.writeheader()
         for row in csv_data:
             writer.writerow(row)
+
+
+def imaage_train() -> None:
+    """
+    """
+
+    pass

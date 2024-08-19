@@ -14,6 +14,106 @@ from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config
 
 
+def check_path_to_storage(
+        path_to_storage: str,
+        type_of_analysis: str,
+        model_name: str,
+        strings_to_be_in_the_name: tuple
+) -> tuple[bool, str, str]:
+    """
+    Checks if the path to the storage exists.
+    If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
+    If the path does not exist, the method returns a negative flag and creates the path for the experiment returning it.
+
+    Args:
+        path_to_storage (str):
+            The path to the storage where the experiments data have been stored or will be stored.
+        type_of_analysis (str):
+            The type of analysis to be performed on the model.
+        model_name (str):
+            The name of the model to analyze.
+        strings_to_be_in_the_name (tuple):
+            The strings to be used to create the name or to find in the name of the stored data of the considered
+            experiment.
+
+    Returns:
+        bool:
+            A flag indicating if the path to the storage of the specific experiment already exists.
+        str:
+            The path to the storage of the specific experiment.
+        str:
+            The name of the file to store the data.
+
+    Raises:
+        Exception:
+            If the path to the storage does not exist.
+    """
+
+    if not os.path.exists(path_to_storage):
+        raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
+
+    # Checking if the path to the storage of the specific experiment already exists
+    exists_directory_path = os.path.exists(
+        os.path.join(
+            path_to_storage, model_name
+        )
+    ) & os.path.isdir(
+        os.path.join(
+            path_to_storage, model_name
+        )
+    ) & os.path.exists(
+        os.path.join(
+            path_to_storage, model_name, type_of_analysis
+        )
+    ) & os.path.isdir(
+        os.path.join(
+            path_to_storage, model_name, type_of_analysis
+        )
+    )
+
+    exists_file = False
+    directory_path = os.path.join(
+        path_to_storage, model_name, type_of_analysis
+    )
+    file_name = None
+    if exists_directory_path:
+        try:
+            files_and_dirs = os.listdir(
+                directory_path
+            )
+
+            # Extracting the files
+            files = [
+                f
+                for f in files_and_dirs
+                if os.path.isfile(os.path.join(path_to_storage, model_name, type_of_analysis, f))
+            ]
+
+            # Checking if some file ame contains the required strings
+            for f_name in files:
+                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
+                if names_contained:
+                    exists_file = True
+                    file_name = f_name
+                    break
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False, "", ""
+
+    else:
+        os.makedirs(
+            os.path.join(
+                directory_path
+            )
+        )
+
+    if not exists_file:
+        file_name = "_".join(strings_to_be_in_the_name)
+
+    return exists_file, directory_path, str(file_name)
+
+
 def store_model_and_info(
         model: [nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
         config: Config,
