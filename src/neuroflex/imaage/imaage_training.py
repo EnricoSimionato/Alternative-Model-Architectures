@@ -91,12 +91,15 @@ def imaage_training_trial(
         b = torch.randn(rank, in_shape).to(device)
         b.requires_grad = True
 
+        svd_start_time = time.time()
         # Initializing the SVD factorization
         u, s, vt = torch.svd(tensor_to_analyze.to("cpu"))
         us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(device)
         us.requires_grad = False
         vt = vt[:rank, :].to(device)
         vt.requires_grad = True
+        svd_end_time = time.time()
+        svd_time = svd_end_time - svd_start_time
 
         loss_types = ["activation loss", "tensor loss"]
         tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
@@ -169,9 +172,11 @@ def imaage_training_trial(
                 end_time = time.time()
                 # Calculating and storing the time elapsed
                 time_elapsed = end_time - start_time
-                time_log.append(f"Time for {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds\n")
+                time_string = f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds "\
+                              f"{f'+ {svd_time:.2f} seconds to perform the SVD' if factorization_label == 'U, S, V^T' else ''}\n"
+                time_log.append(time_string)
                 if verbose >= Verbose.INFO:
-                    print(f"Time for {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds")
+                    print(time_string)
 
                 final_activation_loss = activation_loss_history[-1].item()
                 final_tensor_loss = tensor_loss_history[-1].item()
@@ -199,6 +204,8 @@ def imaage_training_trial(
                     "Initial Tensor Loss": initial_tensor_loss,
                     "Final Tensor Loss": final_tensor_loss,
                     "Test Activation Loss": test_activation_loss,
+                    "Training Time": time_elapsed,
+                    "SVD Time": svd_time if factorization_label == "U, S, V^T" else 0.0
                 })
 
         for label, activation_loss_history in loss_histories_factorizations["activation loss"].items():

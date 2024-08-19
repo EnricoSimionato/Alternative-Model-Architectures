@@ -9,22 +9,19 @@
     "dtype": "float32",
 
     "targets": [
-        "output_dense",
-        "intermediate_dense"
+        "k_proj"
     ],
-    "black_list": [
-        "attention"
-    ],
+    "black_list": [],
 
-    "rank": 128,
+    "rank": 256,
 
     "num_epochs": 20000,
     "learning_rate": 0.0001,
     "batch_size": 64,
 
-    "figure_size": [20, 20],
+    "figure_size": [30, 30],
     "epoch_cut": 0,
-    "ylim": 8000,
+    "ylim": 25000,
 
     "verbose": 1,
     "device": "mps",
