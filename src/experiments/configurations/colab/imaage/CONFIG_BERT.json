@@ -1,5 +1,6 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    "analysis_type": "global_matrices_initialization_analysis",
     "keys_for_naming": [
         "original_model_id"
     ],
@@ -24,7 +25,7 @@
 
     "figure_size": [20, 20],
     "epoch_cut": 0,
-    "ylim": 8000,
+    "ylim": 30000,
 
     "verbose": 1,
     "device": "cuda",

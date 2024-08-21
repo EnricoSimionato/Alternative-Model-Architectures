@@ -1,5 +1,6 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/imaage",
+    "analysis_type": "global_matrices_initialization_analysis",
     "keys_for_naming": [
         "original_model_id"
     ],
@@ -18,7 +19,7 @@
 
     "rank": 128,
 
-    "num_epochs": 40000,
+    "num_epochs": 10000,
     "learning_rate": 0.0001,
     "batch_size": 64,
 
