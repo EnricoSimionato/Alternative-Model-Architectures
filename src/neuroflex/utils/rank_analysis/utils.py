@@ -170,6 +170,8 @@ class AnalysisTensorWrapper:
         self.singular_values = None
         self.rank_analysis_results = []
 
+        self.attributes = {}
+
     def get_tensor(
             self,
             numpy_array: bool = False
@@ -317,6 +319,24 @@ class AnalysisTensorWrapper:
 
         return self.tensor.shape
 
+    def get_attribute(
+            self,
+            key: str
+    ) -> Any:
+        """
+        Returns the attribute given the key.
+
+        Args:
+            key (str):
+                The key of the attribute.
+
+        Returns:
+            Any:
+                The attribute.
+        """
+
+        return self.attributes[key]
+
     def set_tensor(
             self,
             tensor: torch.Tensor
@@ -414,6 +434,23 @@ class AnalysisTensorWrapper:
         """
 
         self.singular_values = singular_values
+
+    def set_attribute(
+            self,
+            key: str,
+            value: Any
+    ) -> None:
+        """
+        Sets the attribute given the key.
+
+        Args:
+            key (str):
+                The key of the attribute.
+            value (Any):
+                The value of the attribute.
+        """
+
+        self.attributes[key] = value
 
     def append_rank_analysis_result(
             self,

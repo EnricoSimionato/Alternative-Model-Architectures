@@ -5,7 +5,11 @@ from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 
-from neuroflex.imaage.imaage_training import imaage_train, imaage_training_trial
+from neuroflex.imaage.imaage_training import (
+    imaage_train,
+    perform_simple_initialization_analysis,
+    perform_global_matrices_initialization_analysis
+)
 
 
 def main():
@@ -31,14 +35,21 @@ def main():
     # Checking if the configuration file contains the necessary keys
     mandatory_keys = [
         "path_to_storage",
+        "analysis_type",
         "targets",
         "original_model_id",
         "rank"
     ]
     configuration.check_mandatory_keys(mandatory_keys)
 
-    # Performing the rank analysis
-    imaage_training_trial(configuration, verbose)
+    if configuration.get("analysis_type") == "simple_initialization_analysis":
+        # Perform the simple initialization analysis
+        perform_simple_initialization_analysis(configuration, verbose)
+    elif configuration.get("analysis_type") == "global_matrices_initialization_analysis":
+        # Perform the global matrix initialization analysis
+        perform_global_matrices_initialization_analysis(configuration, verbose)
+    else:
+        raise Exception("The analysis type is not recognized.")
 
 
 if __name__ == "__main__":
