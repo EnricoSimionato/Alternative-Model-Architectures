@@ -3,10 +3,10 @@ import sys
 
 from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
+from neuroflex.utils.experiment_pipeline.storage_utils import check_path_to_storage
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 
 from neuroflex.imaage.imaage_training import (
-    imaage_train,
     perform_simple_initialization_analysis,
     perform_global_matrices_initialization_analysis
 )
@@ -41,6 +41,28 @@ def main():
         "rank"
     ]
     configuration.check_mandatory_keys(mandatory_keys)
+
+    words_to_be_in_the_file_name = (
+            ["paths"] + configuration.get("targets") +
+            ["black_list"] + configuration.get("black_list") +
+            ["rank"] + [str(configuration.get("rank"))]
+    )
+
+    file_available, directory_path, file_name = check_path_to_storage(
+        configuration.get("path_to_storage"),
+        configuration.get("analysis_type"),
+        configuration.get("original_model_id").split("/")[-1],
+        tuple(words_to_be_in_the_file_name)
+    )
+    file_path = os.path.join(directory_path, file_name)
+    configuration.update(
+        {
+            "file_available": file_available,
+            "file_path": file_path,
+            "directory_path": directory_path,
+            "file_name": file_name
+        }
+    )
 
     if configuration.get("analysis_type") == "simple_initialization_analysis":
         # Perform the simple initialization analysis

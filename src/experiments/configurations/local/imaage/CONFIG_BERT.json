@@ -19,13 +19,13 @@
 
     "rank": 128,
 
-    "num_epochs": 10000,
+    "num_epochs": 12000,
     "learning_rate": 0.0001,
     "batch_size": 64,
 
-    "figure_size": [20, 20],
-    "epoch_cut": 0,
-    "ylim": 8000,
+    "figure_size": [30, 20],
+    "epoch_cut": 1500,
+    "ylim": 30000,
 
     "verbose": 1,
     "device": "mps",

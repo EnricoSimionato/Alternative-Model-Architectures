@@ -1,0 +1,30 @@
+{
+    "path_to_storage": "/content/drive/MyDrive/Thesis",
+    "analysis_type": "global_matrices_initialization_analysis",
+    "keys_for_naming": [
+        "original_model_id"
+    ],
+
+    "original_model_id": "google/gemma-2b",
+    "quantization": null,
+    "dtype": "float16",
+
+    "targets": [
+        "q_proj"
+    ],
+    "black_list": [],
+
+    "rank": 512,
+
+    "num_epochs": 10000,
+    "learning_rate": 0.0001,
+    "batch_size": 64,
+
+    "figure_size": [45, 30],
+    "epoch_cut": 0,
+    "ylim": 40000,
+
+    "verbose": 1,
+    "device": "cuda",
+    "seed": 42
+}

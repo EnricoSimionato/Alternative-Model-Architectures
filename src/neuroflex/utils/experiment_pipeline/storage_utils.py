@@ -18,7 +18,8 @@ def check_path_to_storage(
         path_to_storage: str,
         type_of_analysis: str,
         model_name: str,
-        strings_to_be_in_the_name: tuple
+        strings_to_be_in_the_name: tuple,
+        format: str = "pkl"
 ) -> tuple[bool, str, str]:
     """
     Checks if the path to the storage exists.
@@ -35,6 +36,8 @@ def check_path_to_storage(
         strings_to_be_in_the_name (tuple):
             The strings to be used to create the name or to find in the name of the stored data of the considered
             experiment.
+        format (str, optional):
+            The format of the file to store the data. Defaults to "pkl".
 
     Returns:
         bool:
@@ -51,6 +54,9 @@ def check_path_to_storage(
 
     if not os.path.exists(path_to_storage):
         raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
+
+    strings_to_be_in_the_name = [el for el in strings_to_be_in_the_name]
+    strings_to_be_in_the_name.append(f".{format}")
 
     # Checking if the path to the storage of the specific experiment already exists
     exists_directory_path = os.path.exists(
@@ -109,7 +115,7 @@ def check_path_to_storage(
         )
 
     if not exists_file:
-        file_name = "_".join(strings_to_be_in_the_name)
+        file_name = "_".join(strings_to_be_in_the_name[:-1]) + strings_to_be_in_the_name[-1]
 
     return exists_file, directory_path, str(file_name)
 
