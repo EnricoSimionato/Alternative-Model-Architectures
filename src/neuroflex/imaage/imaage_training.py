@@ -52,9 +52,9 @@ def get_ab_factorization(
 
     # Initializing the AB factorization
     start_time = time.time()
-    a = torch.randn(out_shape, rank).to(device)
+    a = torch.randn(out_shape, rank, dtype=tensor.dtype).to(device)
     a.requires_grad = trainable[0]
-    b = torch.randn(rank, in_shape).to(device)
+    b = torch.randn(rank, in_shape, dtype=tensor.dtype).to(device)
     b.requires_grad = trainable[1]
     elapsed_time = time.time() - start_time
 
@@ -93,10 +93,10 @@ def get_svd_factorization(
 
     # Initializing the SVD factorization
     start_time = time.time()
-    u, s, vt = torch.svd(tensor.to("cpu").to(torch.float32))
-    us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(device)
+    u, s, vt = torch.svd(tensor.to(torch.float32).to("cpu"))
+    us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(tensor.dtype).to(device)
     us.requires_grad = trainable[0]
-    vt = vt[:rank, :].to(device)
+    vt = vt[:rank, :].to(tensor.dtype).to(device)
     vt.requires_grad = trainable[1]
     elapsed_time = time.time() - start_time
 
@@ -144,14 +144,14 @@ def get_global_matrix_factorization(
 
     start_time = time.time()
     if initialization_type == "random":
-        b = torch.randn(rank, in_shape).to(tensor.dtype).to(device)
+        b = torch.randn(rank, in_shape, dtype=tensor.dtype).to(device)
         b.requires_grad = trainable
 
     elif initialization_type == "pseudo-inverse":
         b = torch.matmul(
-            torch.linalg.pinv(global_matrix.to(torch.float32).to("cpu")).to(tensor.dtype).to(device),
-            tensor.to(device)
-        )
+            torch.linalg.pinv(global_matrix.to(torch.float32).to("cpu")).to(device),
+            tensor.to(torch.float32).to(device)
+        ).to(tensor.dtype)
         b.requires_grad = trainable
 
     else:
@@ -178,161 +178,204 @@ def perform_simple_initialization_analysis(
 
     # Setting some parameters
     rank = configuration.get("rank")
-    num_epochs = configuration.get("num_epochs") if configuration.contains("num_epochs") else 1000
-    batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 1
-    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (16, 16)
+    num_epochs = configuration.get("num_epochs") if configuration.contains("num_epochs") else 5000
+    batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 64
+    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     epoch_cut = configuration.get("epoch_cut") if configuration.contains("epoch_cut") else 750
+
     device = get_available_device(
         preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"
     )
 
-    model_name = configuration.get("original_model_id").split("/")[-1]
-    """
-    # Loading the model
-    model = load_original_model_for_causal_lm(
-        configuration,
-        verbose=Verbose.INFO
-    )
+    file_available = configuration.get("file_available")
+    file_path = configuration.get("file_path")
+    directory_path = configuration.get("directory_path")
+    file_name = configuration.get("file_name")
+    file_name_no_format = file_name.split(".")[0]
 
-    # Extracting the candidate tensors for the analysis
-    extracted_tensors = []
-    extract_based_on_path(
-        model,
-        configuration.get("targets"),
-        extracted_tensors,
-        configuration.get("black_list"),
-        verbose=verbose
-    )
-    # Choosing the actual tensors to analyze
-    tensors_to_analyze = [extracted_tensors[0].get_tensor()]
-    """
-    tensors_to_analyze = [torch.randn(4096*2*2, 4096).to(device)]
+    # Creating the figure to plot the results
+    fig, axes = plt.subplots(2, 2, figsize=fig_size)
 
-    time_log = []
-    csv_data = []
-    for tensor_to_analyze in tensors_to_analyze:
-        tensor_to_analyze = tensor_to_analyze.to(torch.float32)
+    if file_available:
+        print(f"The file '{file_path}' is available.")
+        # Load the data from the file
+        with open(file_path, "rb") as f:
+            all_loss_histories = pkl.load(f)
+    else:
+        # Loading the model
+        model = load_original_model_for_causal_lm(
+            configuration,
+            verbose=Verbose.INFO
+        )
 
-        # Creating the figure to plot the results
-        fig, axes = plt.subplots(2, 2, figsize=fig_size)
+        # Extracting the candidate tensors for the analysis
+        extracted_tensors = []
+        extract_based_on_path(
+            model,
+            configuration.get("targets"),
+            extracted_tensors,
+            configuration.get("black_list"),
+            verbose=verbose
+        )
+        # Choosing the actual tensors to analyze
+        tensor_wrappers_to_analyze = [extracted_tensors[0]]
 
-        # Preparing the data
-        out_shape, in_shape = tensor_to_analyze.shape
-        random_x = torch.randn(in_shape, batch_size).to(device)
-        test_random_x = torch.randn(in_shape, batch_size).to(device)
-        tensor_to_analyze = tensor_to_analyze.to(device)
-        tensorx = torch.matmul(tensor_to_analyze, random_x)
+        time_log = []
+        csv_data = []
+        all_loss_histories = {}
+        for tensor_wrapper_to_analyze in tensor_wrappers_to_analyze:
+            tensor_to_analyze = tensor_wrapper_to_analyze.get_tensor().to(torch.float32)
 
-        a, b, ab_time = get_ab_factorization(tensor_to_analyze, rank, [False, True], device)
-        us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
+            # Preparing the data
+            out_shape, in_shape = tensor_to_analyze.shape
+            random_x = torch.randn(in_shape, batch_size).to(device)
+            test_random_x = torch.randn(in_shape, batch_size).to(device)
+            tensor_to_analyze = tensor_to_analyze.to(device)
+            tensorx = torch.matmul(tensor_to_analyze, random_x)
 
-        loss_types = ["activation loss", "tensor loss"]
-        tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
-        loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
+            a, b, ab_time = get_ab_factorization(tensor_to_analyze, rank, [False, True], device)
+            us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
 
-        if verbose >= Verbose.INFO:
-            print()
-        # Training the factorizations
-        for factorization_label, factorization_init in tensor_factrizations.items():
-            for loss_type in loss_types:
-                # Cloning the tensors to avoid in-place operations
-                factorization = [tensor.clone().detach() for tensor in factorization_init]
-                for index in range(len(factorization)):
-                    factorization[index].requires_grad = factorization_init[index].requires_grad
+            loss_types = ["activation loss", "tensor loss"]
+            tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
+            loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
 
-                # Storing the start time
-                start_time = time.time()
+            if verbose >= Verbose.INFO:
+                print()
+            # Training the factorizations
+            for factorization_label, factorization_init in tensor_factrizations.items():
+                for loss_type in loss_types:
+                    # Cloning the tensors to avoid in-place operations
+                    factorization = [tensor.clone().detach() for tensor in factorization_init]
+                    for index in range(len(factorization)):
+                        factorization[index].requires_grad = factorization_init[index].requires_grad
 
-                # Setting the optimizer
-                trainable_tensors = [tensor for tensor in factorization if tensor.requires_grad]
-                optimizer = torch.optim.AdamW(
-                    trainable_tensors,
-                    lr=configuration.get("learning_rate") if configuration.contains("learning_rate") else 1e-4,
-                    eps=1e-7 if tensor_to_analyze.dtype == torch.float16 else 1e-8
-                )
+                    # Storing the start time
+                    start_time = time.time()
 
-                activation_loss_history = []
-                tensor_loss_history = []
-                initial_activation_loss = None
-                initial_tensor_loss = None
+                    # Setting the optimizer
+                    trainable_tensors = [tensor for tensor in factorization if tensor.requires_grad]
+                    optimizer = torch.optim.AdamW(
+                        trainable_tensors,
+                        lr=configuration.get("learning_rate") if configuration.contains("learning_rate") else 1e-4,
+                        eps=1e-7 if tensor_to_analyze.dtype == torch.float16 else 1e-8
+                    )
 
-                if verbose >= Verbose.INFO:
-                    print(f"Starting training using {loss_type} for {factorization_label}")
-                for index in range(len(factorization)):
+                    activation_loss_history = []
+                    tensor_loss_history = []
+                    initial_activation_loss = None
+                    initial_tensor_loss = None
+
                     if verbose >= Verbose.INFO:
-                        print(f"Tensor {index} in {factorization_label} requires grad: "
-                              f"{factorization[index].requires_grad}")
+                        print(f"Starting training using {loss_type} for {factorization_label}")
+                    for index in range(len(factorization)):
+                        if verbose >= Verbose.INFO:
+                            print(f"Tensor {index} in {factorization_label} requires grad: "
+                                  f"{factorization[index].requires_grad}")
 
-                for _ in tqdm(range(num_epochs)):
-                    # Computing
-                    x = random_x.clone().detach().to(device)
-                    y = torch.eye(in_shape).to(device).to(device)
+                    for _ in tqdm(range(num_epochs)):
+                        # Computing
+                        x = random_x.clone().detach().to(device)
+                        y = torch.eye(in_shape).to(device).to(device)
+                        for tensor in factorization:
+                            x = torch.matmul(tensor, x)
+                            y = torch.matmul(tensor, y)
+
+                        activation_loss = (torch.norm((tensorx - x), dim=0) ** 2).mean()
+                        tensor_loss = torch.norm(tensor_to_analyze - y) ** 2
+
+                        if initial_activation_loss is None:
+                            initial_activation_loss = activation_loss.item()
+                        if initial_tensor_loss is None:
+                            initial_tensor_loss = tensor_loss.item()
+
+                        if loss_type == "activation loss":
+                            loss = activation_loss
+                        elif loss_type == "tensor loss":
+                            loss = tensor_loss
+                        else:
+                            raise ValueError(f"Unknown loss type: {loss_type}")
+
+                        activation_loss_history.append(activation_loss.detach().cpu())
+                        tensor_loss_history.append(tensor_loss.detach().cpu())
+
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+
+                    # Storing the end time
+                    end_time = time.time()
+                    # Calculating and storing the time elapsed
+                    time_elapsed = end_time - start_time
+                    time_string = f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds "\
+                                  f"{f'+ {svd_time:.2f} seconds to perform the SVD' if factorization_label == 'U, S, V^T' else ''}\n"
+                    time_log.append(time_string)
+                    if verbose >= Verbose.INFO:
+                        print(time_string, flush=True)
+
+                    final_activation_loss = activation_loss_history[-1].item()
+                    final_tensor_loss = tensor_loss_history[-1].item()
+
+                    if verbose >= Verbose.INFO:
+                        print("", flush=True)
+
+                    # Compute the test activation loss
+                    x_test = test_random_x.clone().detach()
                     for tensor in factorization:
-                        x = torch.matmul(tensor, x)
-                        y = torch.matmul(tensor, y)
+                        x_test = torch.matmul(tensor, x_test)
+                    test_activation_loss = (torch.norm((torch.matmul(tensor_to_analyze, test_random_x) - x_test), dim=0) ** 2).mean().item()
 
-                    activation_loss = (torch.norm((tensorx - x), dim=0) ** 2).mean()
-                    tensor_loss = torch.norm(tensor_to_analyze - y) ** 2
+                    loss_histories_factorizations["activation loss"][
+                        f"{factorization_label} trained using {loss_type}"] = activation_loss_history
+                    loss_histories_factorizations["tensor loss"][
+                        f"{factorization_label} trained using {loss_type}"] = tensor_loss_history
 
-                    if initial_activation_loss is None:
-                        initial_activation_loss = activation_loss.item()
-                    if initial_tensor_loss is None:
-                        initial_tensor_loss = tensor_loss.item()
+                    # Save details to CSV
+                    csv_data.append({
+                        "Factorization": factorization_label,
+                        "Loss Type": loss_type,
+                        "Initial Activation Loss": initial_activation_loss,
+                        "Final Activation Loss": final_activation_loss,
+                        "Initial Tensor Loss": initial_tensor_loss,
+                        "Final Tensor Loss": final_tensor_loss,
+                        "Test Activation Loss": test_activation_loss,
+                        "Training Time": time_elapsed,
+                        "SVD Time": svd_time if factorization_label == "U, S, V^T" else 0.0
+                    })
 
-                    if loss_type == "activation loss":
-                        loss = activation_loss
-                    elif loss_type == "tensor loss":
-                        loss = tensor_loss
-                    else:
-                        raise ValueError(f"Unknown loss type: {loss_type}")
+                for factorization_label, factorization in tensor_factrizations.items():
+                    for loss_type in loss_types:
+                        x_test = test_random_x.clone().detach()
+                        for tensor in factorization:
+                            x_test = torch.matmul(tensor, x_test)
+                        activation_loss = (torch.norm((tensorx - x_test), dim=0) ** 2).mean()
+                        print(
+                            f"Activation loss for {factorization_label} using {loss_type} on test data: {activation_loss}")
 
-                    activation_loss_history.append(activation_loss.detach().cpu())
-                    tensor_loss_history.append(tensor_loss.detach().cpu())
+            all_loss_histories[tensor_wrapper_to_analyze.get_path()] = loss_histories_factorizations
 
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+        # Saving the loss histories to a file
+        with open(file_path, "wb") as f:
+            pkl.dump(all_loss_histories, f)
 
-                # Storing the end time
-                end_time = time.time()
-                # Calculating and storing the time elapsed
-                time_elapsed = end_time - start_time
-                time_string = f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds "\
-                              f"{f'+ {svd_time:.2f} seconds to perform the SVD' if factorization_label == 'U, S, V^T' else ''}\n"
-                time_log.append(time_string)
-                if verbose >= Verbose.INFO:
-                    print(time_string, flush=True)
+        # Save the timing results to a file
+        time_log_path = os.path.join(directory_path, file_name_no_format + "_training_times.txt")
+        with open(time_log_path, "w") as f:
+            f.writelines(time_log)
 
-                final_activation_loss = activation_loss_history[-1].item()
-                final_tensor_loss = tensor_loss_history[-1].item()
+        # Save the loss results to a CSV file
+        csv_path = os.path.join(directory_path, file_name_no_format + "_losses.csv")
+        with open(csv_path, "w", newline="") as csvfile:
+            fieldnames = ["Factorization", "Loss Type", "Initial Activation Loss", "Final Activation Loss",
+                          "Initial Tensor Loss", "Final Tensor Loss", "Test Activation Loss", "Training Time",
+                          "SVD Time"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-                if verbose >= Verbose.INFO:
-                    print("", flush=True)
+            writer.writeheader()
+            for row in csv_data:
+                writer.writerow(row)
 
-                # Compute the test activation loss
-                x_test = test_random_x.clone().detach()
-                for tensor in factorization:
-                    x_test = torch.matmul(tensor, x_test)
-                test_activation_loss = (torch.norm((torch.matmul(tensor_to_analyze, test_random_x) - x_test), dim=0) ** 2).mean().item()
-
-                loss_histories_factorizations["activation loss"][
-                    f"{factorization_label} trained using {loss_type}"] = activation_loss_history
-                loss_histories_factorizations["tensor loss"][
-                    f"{factorization_label} trained using {loss_type}"] = tensor_loss_history
-
-                # Save details to CSV
-                csv_data.append({
-                    "Factorization": factorization_label,
-                    "Loss Type": loss_type,
-                    "Initial Activation Loss": initial_activation_loss,
-                    "Final Activation Loss": final_activation_loss,
-                    "Initial Tensor Loss": initial_tensor_loss,
-                    "Final Tensor Loss": final_tensor_loss,
-                    "Test Activation Loss": test_activation_loss,
-                    "Training Time": time_elapsed,
-                    "SVD Time": svd_time if factorization_label == "U, S, V^T" else 0.0
-                })
-
+    for tensor_to_analyze_label, loss_histories_factorizations in all_loss_histories.items():
         for label, activation_loss_history in loss_histories_factorizations["activation loss"].items():
             axes[0, 0].plot(activation_loss_history, label=f"{label}")
             axes[1, 0].plot(activation_loss_history[epoch_cut:], label=f"{label}")
@@ -359,36 +402,9 @@ def perform_simple_initialization_analysis(
             ax.set_ylabel("Loss")
             ax.legend()
 
-        output_path = os.path.join(configuration.get("path_to_storage"), model_name + "_plot.png") if configuration.contains(
-            "path_to_storage") else "plot.png"
-        plt.savefig(output_path)
-        plt.show()
-
-        for factorization_label, factorization in tensor_factrizations.items():
-            for loss_type in loss_types:
-                x_test = test_random_x.clone().detach()
-                for tensor in factorization:
-                    x_test = torch.matmul(tensor, x_test)
-                activation_loss = (torch.norm((tensorx - x_test), dim=0) ** 2).mean()
-                print(f"Activation loss for {factorization_label} using {loss_type} on test data: {activation_loss}")
-
-    # Save the timing results to a file
-    time_log_path = os.path.join(configuration.get("path_to_storage"), model_name + "_training_times.txt") if configuration.contains(
-        "path_to_storage") else "training_times.txt"
-    with open(time_log_path, "w") as f:
-        f.writelines(time_log)
-
-    # Save the loss results to a CSV file
-    csv_path = os.path.join(configuration.get("path_to_storage"), model_name + "_losses.csv") if configuration.contains(
-        "path_to_storage") else "losses.csv"
-    with open(csv_path, "w", newline="") as csvfile:
-        fieldnames = ["Factorization", "Loss Type", "Initial Activation Loss", "Final Activation Loss",
-                      "Initial Tensor Loss", "Final Tensor Loss", "Test Activation Loss", "Training Time", "SVD Time"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        writer.writeheader()
-        for row in csv_data:
-            writer.writerow(row)
+    output_path = os.path.join(directory_path, file_name_no_format + "_plot.png")
+    plt.savefig(output_path)
+    plt.show()
 
 
 def perform_global_matrices_initialization_analysis(
@@ -419,6 +435,7 @@ def perform_global_matrices_initialization_analysis(
     file_path = configuration.get("file_path")
     directory_path = configuration.get("directory_path")
     file_name = configuration.get("file_name")
+    file_name_no_format = file_name.split(".")[0]
 
     # Creating the figure to plot the results
     fig, axes = plt.subplots(2, 3, figsize=fig_size)
@@ -672,12 +689,12 @@ def perform_global_matrices_initialization_analysis(
             })
 
         # Save the timing results to a file
-        time_log_path = os.path.join(directory_path, file_name + "_training_times.txt")
+        time_log_path = os.path.join(directory_path, file_name_no_format + "_training_times.txt")
         with open(time_log_path, "w") as f:
             f.writelines(time_log)
 
         # Save the loss results to a CSV file
-        csv_path = os.path.join(directory_path, file_name + "_losses.csv")
+        csv_path = os.path.join(directory_path, file_name_no_format + "_losses.csv")
         with open(csv_path, "w", newline="") as csvfile:
             fieldnames = ["Factorization", "Initial Activation Loss", "Final Activation Loss", "Initial Tensor Loss",
                           "Final Tensor Loss", "Test Activation Loss", "Initial Penalization Term",
@@ -725,6 +742,6 @@ def perform_global_matrices_initialization_analysis(
         ax.set_ylabel("Loss")
         ax.legend()
 
-    output_path = os.path.join(directory_path, file_name + "_plot.png")
+    output_path = os.path.join(directory_path, file_name_no_format + "_plot.png")
     plt.savefig(output_path)
     plt.show()

@@ -1,28 +1,31 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/imaage",
-    "analysis_type": "simple_initialization_analysis",
+    "analysis_type": "global_matrices_initialization_analysis",
     "keys_for_naming": [
         "original_model_id"
     ],
 
-    "original_model_id": "google/gemma-2b",
+    "original_model_id": "bert-base-uncased",
     "quantization": null,
-    "dtype": "float16",
+    "dtype": "float32",
 
     "targets": [
-        "q_proj"
+        "output_dense",
+        "intermediate_dense"
     ],
-    "black_list": [],
+    "black_list": [
+        "attention"
+    ],
 
-    "rank": 256,
+    "rank": 128,
 
-    "num_epochs": 10000,
+    "num_epochs": 12000,
     "learning_rate": 0.0001,
     "batch_size": 64,
 
-    "figure_size": [30, 30],
-    "epoch_cut": 0,
-    "ylim": 40000,
+    "figure_size": [30, 20],
+    "epoch_cut": 1,
+    "ylim": 30000,
 
     "verbose": 1,
     "device": "mps",
