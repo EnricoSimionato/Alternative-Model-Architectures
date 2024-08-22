@@ -20,7 +20,7 @@ from neuroflex.utils.rank_analysis.utils import extract_based_on_path
 from neuroflex.utils.rank_analysis.utils import AnalysisTensorDict
 
 
-def get_AB_factorization(
+def get_ab_factorization(
         tensor: torch.Tensor,
         rank: int,
         trainable: list[bool],
@@ -61,7 +61,7 @@ def get_AB_factorization(
     return a, b, elapsed_time
 
 
-def get_SVD_factorization(
+def get_svd_factorization(
         tensor: torch.Tensor,
         rank: int,
         trainable: list[bool],
@@ -93,7 +93,7 @@ def get_SVD_factorization(
 
     # Initializing the SVD factorization
     start_time = time.time()
-    u, s, vt = torch.svd(tensor.to("cpu"))
+    u, s, vt = torch.svd(tensor.to("cpu").to(torch.float32))
     us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(device)
     us.requires_grad = trainable[0]
     vt = vt[:rank, :].to(device)
@@ -187,6 +187,7 @@ def perform_simple_initialization_analysis(
     )
 
     model_name = configuration.get("original_model_id").split("/")[-1]
+    """
     # Loading the model
     model = load_original_model_for_causal_lm(
         configuration,
@@ -204,6 +205,8 @@ def perform_simple_initialization_analysis(
     )
     # Choosing the actual tensors to analyze
     tensors_to_analyze = [extracted_tensors[0].get_tensor()]
+    """
+    tensors_to_analyze = [torch.randn(4096*2*2, 4096).to(device)]
 
     time_log = []
     csv_data = []
@@ -220,8 +223,8 @@ def perform_simple_initialization_analysis(
         tensor_to_analyze = tensor_to_analyze.to(device)
         tensorx = torch.matmul(tensor_to_analyze, random_x)
 
-        a, b, ab_time = get_AB_factorization(tensor_to_analyze, rank, [False, True], device)
-        us, vt, svd_time = get_SVD_factorization(tensor_to_analyze, rank, [False, True], device)
+        a, b, ab_time = get_ab_factorization(tensor_to_analyze, rank, [False, True], device)
+        us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
 
         loss_types = ["activation loss", "tensor loss"]
         tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
@@ -468,6 +471,9 @@ def perform_global_matrices_initialization_analysis(
         tensors_to_analyze_svd = AnalysisTensorDict(
             [tensor_wrappers_key_for_analysis]*len(tensor_wrappers_to_analyze), tensor_wrappers_to_analyze
         )
+        tensors_to_analyze_ab.set_dtype(torch.float32)
+        tensors_to_analyze_pseudo_inverse.set_dtype(torch.float32)
+        tensors_to_analyze_svd.set_dtype(torch.float32)
 
         # Defining the global matrix to use in the analysis
         global_matrix = torch.randn(shape[0], rank).to(device)
@@ -510,7 +516,7 @@ def perform_global_matrices_initialization_analysis(
         for tensor in tensors_to_analyze_svd.get_tensor_list(tensor_wrappers_key_for_analysis):
             tensor.set_attribute("factorization_type", "AB pseudo-inverse initialized")
             tensor.set_attribute("global_matrix", global_matrix)
-            us, vt, svd_init_time_one_matrix = get_SVD_factorization(
+            us, vt, svd_init_time_one_matrix = get_svd_factorization(
                 tensor.get_tensor(),
                 rank,
                 [True, True],

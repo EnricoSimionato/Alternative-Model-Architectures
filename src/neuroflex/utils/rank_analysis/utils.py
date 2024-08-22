@@ -351,6 +351,34 @@ class AnalysisTensorWrapper:
 
         self.tensor = tensor
 
+    def set_dtype(
+            self,
+            dtype: torch.dtype
+    ) -> None:
+        """
+        Sets the dtype of the tensor.
+
+        Args:
+            dtype (torch.dtype):
+                The dtype of the tensor.
+        """
+
+        self.tensor = self.tensor.to(dtype)
+
+    def set_device(
+            self,
+            device: torch.device
+    ) -> None:
+        """
+        Sets the device of the tensor.
+
+        Args:
+            device (torch.device):
+                The device of the tensor.
+        """
+
+        self.tensor = self.tensor.to(device)
+
     def set_name(
             self,
             name: str
@@ -745,6 +773,38 @@ class AnalysisTensorDict:
                 self.tensors[key] = self.tensors[key] + [tensor]
         else:
             self.set_tensor(key, tensor)
+
+    def set_dtype(
+            self,
+            dtype: torch.dtype
+    ) -> None:
+        """
+        Sets the dtype of the tensors.
+
+        Args:
+            dtype (torch.dtype):
+                The dtype of the tensors.
+        """
+
+        for key in self.tensors.keys():
+            for tensor_wrapper in self.tensors[key]:
+                tensor_wrapper.set_dtype(dtype)
+
+    def set_device(
+            self,
+            device: torch.device
+    ) -> None:
+        """
+        Sets the device of the tensors.
+
+        Args:
+            device (torch.device):
+                The device of the tensors.
+        """
+
+        for key in self.tensors.keys():
+            for tensor_wrapper in self.tensors[key]:
+                tensor_wrapper.set_device(device)
 
     def filter_by_positional_key(
             self,
