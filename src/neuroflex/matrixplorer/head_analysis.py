@@ -299,7 +299,7 @@ def perform_heads_similarity_analysis(
             for index_2 in range(len(y_list)):
                 y_2 = y_list[index_2]
                 if index_2 > index_1:
-                    similarity = compute_cosine(y_1, y_2, dim=0).numpy()
+                    similarity = compute_cosine(y_1, y_2, dim=0).detach().numpy()
                     similarity_mean = similarity.mean()
                     function_similarities[index_1, index_2] = similarity_mean
                     function_similarities[index_2, index_1] = similarity_mean
