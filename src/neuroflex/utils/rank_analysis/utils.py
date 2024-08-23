@@ -254,6 +254,32 @@ class AnalysisTensorWrapper:
 
         return self.layer
 
+    def get_precision(
+            self
+    ) -> int:
+        """
+        Returns the precision of the relative rank of the tensor.
+
+        Returns:
+            int:
+                The precision of the relative rank of the tensor.
+        """
+
+        return self.precision
+
+    def get_verbose(
+            self
+    ) -> Verbose:
+        """
+        Returns the verbosity level.
+
+        Returns:
+            Verbose:
+                The verbosity level.
+        """
+
+        return self.verbose
+
     def get_singular_values(
             self
     ) -> np.ndarray:
@@ -266,6 +292,19 @@ class AnalysisTensorWrapper:
         """
 
         return self.singular_values
+
+    def get_explained_variance(
+            self
+    ) -> None:
+        """
+        Returns the explained variance of the tensor.
+
+        Returns:
+            np.ndarray:
+                The explained variance of the tensor.
+        """
+
+        return compute_explained_variance(self.singular_values)
 
     def get_rank(
             self,
@@ -336,6 +375,44 @@ class AnalysisTensorWrapper:
         """
 
         return self.attributes[key]
+
+    def get_parameters_count(
+            self
+    ) -> int:
+        """
+        Returns the number of parameters of the tensor.
+
+        Returns:
+            int:
+                The number of parameters of the tensor.
+        """
+
+        return self.tensor.numel()
+
+    def get_parameters_count_thresholded(
+            self,
+            explained_variance_threshold: float = 0,
+            singular_values_threshold: float = 0
+    ) -> int:
+        """
+        Returns the number of parameters of the tensor.
+
+        Args:
+            explained_variance_threshold (float, optional):
+                The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
+                singular values that explain the threshold fraction of the total variance. Defaults to 0.
+            singular_values_threshold (float, optional):
+                The threshold to use to compute the rank based on singular values. Rank is computed as the number of
+                singular values that are greater than the threshold. Defaults to 0.
+
+        Returns:
+            int:
+                The number of parameters of the tensor.
+        """
+
+        rank = self.get_rank(explained_variance_threshold, singular_values_threshold, relative=False)
+
+        return rank * self.get_shape()[0] + rank * self.get_shape()[1]
 
     def set_tensor(
             self,

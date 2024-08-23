@@ -1,0 +1,25 @@
+{
+    "path_to_storage": "/content/drive/MyDrive/Thesis",
+    "analysis_type": "heads_similarity_analysis",
+    "keys_for_naming": [
+        "original_model_id"
+    ],
+
+    "original_model_id": "bert-base-uncased",
+    "quantization": null,
+    "dtype": "float32",
+
+    "targets": [
+        "query"
+    ],
+    "black_list": [],
+    "name_num_heads_mapping": {
+        "query": "num_attention_heads"
+    },
+
+    "figure_size": [60, 60],
+
+    "verbose": 1,
+    "device": "cuda",
+    "seed": 42
+}

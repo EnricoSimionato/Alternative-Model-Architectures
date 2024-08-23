@@ -28,8 +28,9 @@ from neuroflex.utils.rank_analysis.utils import (
 def compute_cosine(
         x: torch.Tensor,
         y: torch.Tensor,
+        dim: int = 0,
         verbose: Verbose = Verbose.INFO
-) -> float:
+) -> torch.Tensor:
     """
     Computes the cosine similarity between two tensors.
 
@@ -38,11 +39,13 @@ def compute_cosine(
             The first tensor.
         y (torch.Tensor):
             The second tensor.
+        dim (int):
+            The dimension to compute the cosine similarity. Default: 0.
         verbose (Verbose):
             The verbosity level. Default: Verbose.INFO.
 
     Returns:
-        float:
+        torch.Tensor:
             The cosine similarity between the two tensors.
     """
 
@@ -53,15 +56,16 @@ def compute_cosine(
         print(f"The cosine similarity between x and y is "
               f"{torch.nn.functional.cosine_similarity(x.unsqueeze(0), y.unsqueeze(0)).item()}")
 
-    return torch.nn.functional.cosine_similarity(x.unsqueeze(0), y.unsqueeze(0)).item()
+    return torch.nn.functional.cosine_similarity(x.unsqueeze(0), y.unsqueeze(0), dim=dim)
 
 
 def compute_similarity(
         x: torch.Tensor,
         y: torch.Tensor,
         similarity_type: str = "cosine",
-        verbose: Verbose = Verbose.INFO
-) -> float:
+        verbose: Verbose = Verbose.INFO,
+        **kwargs
+) -> torch.Tensor:
     """
     Compute the similarity between two tensors.
 
@@ -74,14 +78,16 @@ def compute_similarity(
             The type of similarity to compute. Default: "cosine".
         verbose (Verbose):
             The verbosity level. Default: Verbose.INFO.
+        **kwargs:
+            Additional arguments for the similarity computation.
 
     Returns:
-        float:
+        torch.Tensor:
             The similarity between the two tensors.
     """
 
     if similarity_type == "cosine":
-        return compute_cosine(x, y, verbose=verbose)
+        return compute_cosine(x, y, dim=kwargs["dim"], verbose=verbose)
     else:
         raise Exception(f"Similarity type '{similarity_type}' not supported.")
 
@@ -210,7 +216,7 @@ def compute_indices_sorting(
                 vector_2,
                 similarity_type=similarity_type,
                 verbose=verbose
-            )
+            ).item()
     similarities_copy = similarities.clone()
 
     # Computing the ordering of the vectors of the matrices in the second block to have the maximum possible similarity
