@@ -5,7 +5,6 @@ from neuroflex.matrixplorer.head_analysis import perform_head_analysis, perform_
 from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
 from neuroflex.utils.experiment_pipeline.storage_utils import check_path_to_storage
-from neuroflex.utils.printing_utils.printing_utils import Verbose
 
 from neuroflex.matrixplorer.matrix_initialization_analysis import (
     perform_simple_initialization_analysis,
@@ -79,7 +78,6 @@ def main():
 
     # Loading the configuration
     configuration = Config(os.path.join(get_path_to_configurations(environment), "analysis", config_name))
-    verbose = Verbose(configuration.get("verbose") if configuration.contains("verbose") else 0)
 
     # Checking if the configuration file contains the necessary keys
     mandatory_keys = [
