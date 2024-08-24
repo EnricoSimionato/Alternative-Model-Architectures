@@ -7,6 +7,8 @@ from enum import Enum
 
 import transformers
 
+from neuroflex.utils.printing_utils.printing_utils import Verbose
+
 
 class ExperimentStatus(Enum):
     NOT_STARTED = "Not started"
@@ -92,6 +94,12 @@ class Config:
                 if key not in config.keys():
                     raise Exception(f"The key '{key}', which is one the keys to be used for the naming of the "
                                     f"experiment must be provided in the configuration.")
+
+        # Setting the verbosity level
+        try:
+            self.verbose = Verbose(config.pop("verbose"))
+        except KeyError:
+            self.verbose = Verbose(0)
 
         self.__dict__.update(config)
 

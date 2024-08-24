@@ -913,6 +913,306 @@ class AnalysisTensorDict:
         return filtered_tensors
 
 
+class AnalysisLayerWrapper(nn.Module):
+    """
+    Wrapper for the analysis of a layer.
+
+    Args:
+        layer (nn.Module):
+            The layer.
+        label (str, optional):
+            The label of the layer. Defaults to None.
+
+    Attributes:
+        layer (nn.Module):
+            The layer.
+        label (str):
+            The label of the layer.
+        activations (list):
+            The list of activations.
+        mean_activations (torch.Tensor):
+            The mean of the activations.
+        variance_activations (torch.Tensor):
+            The variance of the activations.
+    """
+
+    def __init__(
+            self,
+            layer: nn.Module,
+            label: str = None,
+            *args,
+            **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.layer = layer
+        self.label = label
+
+        self.activations = []
+        self.mean_activations = None
+        self.variance_activations = None
+
+    def get_layer(
+            self
+    ) -> nn.Module:
+        """
+        Returns the layer.
+
+        Returns:
+            nn.Module:
+                The layer.
+        """
+
+        return self.layer
+
+    def get_label(
+            self
+    ) -> str:
+        """
+        Returns the label of the layer.
+
+        Returns:
+            str:
+                The label of the layer.
+        """
+
+        return self.label
+
+    def get_activations(
+            self
+    ) -> list:
+        """
+        Returns the activations.
+
+        Returns:
+            list:
+                The activations.
+        """
+
+        return self.activations
+
+    def get_mean_activations(
+            self
+    ) -> torch.Tensor:
+        """
+        Returns the mean of the activations.
+
+        Returns:
+            torch.Tensor:
+                The mean of the activations.
+        """
+
+        return self.mean_activations
+
+    def get_variance_activations(
+            self
+    ) -> torch.Tensor:
+        """
+        Returns the variance of the activations.
+
+        Returns:
+            torch.Tensor:
+                The variance of the activations.
+        """
+
+        return self.variance_activations
+
+    def set_label(
+            self,
+            label: str
+    ) -> None:
+        """
+        Sets the label of the layer.
+
+        Args:
+            label (str):
+                The label of the layer.
+        """
+
+        self.label = label
+
+    def set_activations(
+            self,
+            activations: list
+    ) -> None:
+        """
+        Sets the activations.
+
+        Args:
+            activations (list):
+                The activations.
+        """
+
+        self.activations = activations
+
+    def set_mean_activations(
+            self,
+            mean_activations: torch.Tensor
+    ) -> None:
+        """
+        Sets the mean of the activations.
+
+        Args:
+            mean_activations (torch.Tensor):
+                The mean of the activations.
+        """
+
+        self.mean_activations = mean_activations
+
+    def set_variance_activations(
+            self,
+            variance_activations: torch.Tensor
+    ) -> None:
+        """
+        Sets the variance of the activations.
+
+        Args:
+            variance_activations (torch.Tensor):
+                The variance of the activations.
+        """
+
+        self.variance_activations = variance_activations
+
+    def compute_mean_activations(
+            self
+    ) -> None:
+        """
+        Computes the mean of the activations.
+        """
+
+        self.set_mean_activations(torch.mean(torch.stack(self.activations), dim=0))
+
+    def compute_variance_activations(
+            self
+    ) -> None:
+        """
+        Computes the variance of the activations.
+        """
+
+        self.set_variance_activations(torch.var(torch.stack(self.activations), dim=0))
+
+    def compute_stats(
+            self
+    ) -> None:
+        """
+        Computes the statistics of the activations.
+        """
+
+        self.compute_mean_activations()
+        self.compute_variance_activations()
+
+    def forward(
+            self,
+            x: torch.Tensor,
+            *args,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Forward pass of the layer.
+
+        Args:
+            x (torch.Tensor):
+                The input tensor.
+
+        Returns:
+            torch.Tensor:
+                The output tensor.
+        """
+
+        output = self.layer(x, *args, **kwargs)
+        self.activations.append(output)
+
+        return output
+
+
+class AnalysisModelWrapper(nn.Module):
+    """
+    Wrapper for the analysis of a model.
+
+    Args:
+        model (nn.Module):
+            The model.
+        *args:
+            Additional positional arguments.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        model (nn.Module):
+            The model.
+    """
+
+    def __init__(
+            self,
+            model: [nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
+            *args,
+            **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.model = model
+        self.wrap_model(self.model)
+
+    def wrap_model(
+            self,
+            module_tree: nn.Module,
+            path: str = "",
+            verbose: Verbose = Verbose.SILENT,
+            **kwargs
+    ) -> None:
+        """
+        Converts layers into global-dependent versions.
+
+        Args:
+            module_tree (nn.Module):
+                Model or module containing layers.
+            path (str):
+                Path to the current layer.
+            verbose (Verbose):
+                Level of verbosity.
+            **kwargs:
+                Additional keyword arguments.
+        """
+
+        for layer_name in module_tree._modules.keys():
+            # Extracting the child from the current module
+            child = module_tree._modules[layer_name]
+            # If the child has no children, the layer is an actual computational layer of the model
+            if len(child._modules) == 0:
+                # Creating a wrapper for the layer
+                layer_wrapper = AnalysisLayerWrapper(child, path + (f"{layer_name}" if path == "" else f"_{layer_name}"))
+                # Setting the wrapper as the child of the current module
+                module_tree._modules[layer_name] = layer_wrapper
+            else:
+                # Recursively calling the method on the child, if the child has children
+                self._convert_into_global_dependent_model(
+                    child,
+                    path + (f"{layer_name}" if path == "" else f"_{layer_name}"),
+                    verbose=verbose,
+                    **kwargs
+                )
+
+    def forward(
+            self,
+            x: torch.Tensor,
+            *args,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Forward pass of the model.
+
+        Args:
+            x (torch.Tensor):
+                The input tensor.
+
+        Returns:
+            torch.Tensor:
+                The output tensor.
+        """
+
+        return self.model(x, *args, **kwargs)
+
+
 # Definition of the mathematical functions to perform the rank analysis
 
 def compute_singular_values(

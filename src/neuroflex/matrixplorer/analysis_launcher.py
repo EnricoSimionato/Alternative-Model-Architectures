@@ -121,7 +121,7 @@ def main():
     # Performing the analysis
     if configuration.get("analysis_type") not in analysis_mapping.keys():
         raise Exception("The analysis type is not recognized.")
-    analysis_mapping[configuration.get("analysis_type")](configuration, verbose)
+    analysis_mapping[configuration.get("analysis_type")](configuration)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,33 @@
+{
+    "path_to_storage": "/content/drive/MyDrive/Thesis",
+    "analysis_type": "global_matrices_initialization_analysis",
+    "keys_for_naming": [
+        "original_model_id"
+    ],
+
+    "original_model_id": "bert-base-uncased",
+    "quantization": null,
+    "dtype": "float32",
+
+    "targets": [
+        "output_dense",
+        "intermediate_dense"
+    ],
+    "black_list": [
+        "attention"
+    ],
+
+    "rank": 128,
+
+    "num_epochs": 20000,
+    "learning_rate": 0.0001,
+    "batch_size": 64,
+
+    "figure_size": [20, 20],
+    "epoch_cut": 0,
+    "ylim": 30000,
+
+    "verbose": 1,
+    "device": "cuda",
+    "seed": 42
+}

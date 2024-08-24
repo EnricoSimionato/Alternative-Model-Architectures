@@ -17,7 +17,7 @@
         "query": "num_attention_heads"
     },
 
-    "figure_size": [30, 30],
+    "figure_size": [100, 100],
 
     "verbose": 1,
     "device": "mps",

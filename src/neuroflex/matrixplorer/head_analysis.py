@@ -304,6 +304,11 @@ def perform_heads_similarity_analysis(
                     function_similarities[index_1, index_2] = similarity_mean
                     function_similarities[index_2, index_1] = similarity_mean
 
+        # Save the data for future use
+        with open(file_path, "wb") as f:
+            pkl.dump((tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads), f)
+        print(f"Data has been saved to '{file_path}'.")
+
     # Plot the similarity matrix
     fig, ax = plt.subplots(figsize=fig_size)
     sns.heatmap(function_similarities, annot=True, cmap="viridis", cbar=True, ax=ax)

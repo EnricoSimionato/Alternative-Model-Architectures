@@ -2,10 +2,11 @@ import transformers
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from neuroflex.utils.experiment_pipeline.config import Config
+from neuroflex.utils.printing_utils.printing_utils import Verbose
 
 
 def load_original_model_for_sequence_classification(
-        config: Config
+        config: Config,
 ) -> transformers.AutoModel:
     """
     Loads the model to be used in the sequence classification task.
@@ -28,7 +29,7 @@ def load_original_model_for_sequence_classification(
 
 
 def load_tokenizer_for_sequence_classification(
-        config: Config
+        config: Config,
 ) -> transformers.AutoModel:
     """
     Loads the tokenizer to be used in the sequence classification task.
