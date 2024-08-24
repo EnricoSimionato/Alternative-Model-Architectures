@@ -224,6 +224,24 @@ class Config:
 
         return original_model
 
+    def get_verbose(
+            self,
+            **kwargs
+    ) -> Verbose:
+        """
+        Returns the verbosity level of the configuration.
+
+        Args:
+            kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Verbose:
+                The verbosity level of the configuration.
+        """
+
+        return self.verbose
+
     def check_mandatory_keys(
             self,
             mandatory_keys: list,

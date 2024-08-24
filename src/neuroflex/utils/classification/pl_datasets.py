@@ -344,21 +344,3 @@ class IMDBDataModule(pl.LightningDataModule):
             batch_size=self.batch_size * 2,
             num_workers=self.num_workers
         )
-
-
-if __name__ == "__main__":
-
-    from transformers import AutoTokenizer
-    bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    dataset = IMDBDataModule(
-        32,
-        2,
-        bert_tokenizer,
-        512,
-        (0.8, 0.1, 0.1),
-        seed=42
-    )
-    dataset.setup()
-
-    print(dataset.train)
-    print()

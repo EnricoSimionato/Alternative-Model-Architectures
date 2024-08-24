@@ -163,7 +163,6 @@ def get_global_matrix_factorization(
 
 def perform_simple_initialization_analysis(
         configuration: Config,
-        verbose: Verbose = Verbose.SILENT
 ) -> None:
     """
     Compares which of the two initializations are better in terms of the quality loss and the speed of convergence to a
@@ -172,8 +171,6 @@ def perform_simple_initialization_analysis(
     Args:
         configuration (Config):
             The configuration object.
-        verbose (Verbose):
-            The verbosity object.
     """
 
     # Setting some parameters
@@ -182,6 +179,7 @@ def perform_simple_initialization_analysis(
     batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 64
     fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     epoch_cut = configuration.get("epoch_cut") if configuration.contains("epoch_cut") else 750
+    verbose = configuration.get("verbose")
 
     device = get_available_device(
         preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"

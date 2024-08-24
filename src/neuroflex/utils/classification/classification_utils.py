@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import transformers
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -20,17 +22,21 @@ def load_original_model_for_sequence_classification(
             The model for sequence classification.
     """
 
-    return AutoModelForSequenceClassification.from_pretrained(
+    model = AutoModelForSequenceClassification.from_pretrained(
         config.get("original_model_id"),
         num_labels=config.get("num_classes"),
         id2label=config.get("id2label"),
         label2id=config.get("label2id"),
     )
+    if config.get_verbose() >= Verbose.INFO:
+        print(f"Model loaded: {config.get('original_model_id')}")
+
+    return model
 
 
 def load_tokenizer_for_sequence_classification(
         config: Config,
-) -> transformers.AutoModel:
+) -> [transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
     """
     Loads the tokenizer to be used in the sequence classification task.
 
@@ -53,5 +59,8 @@ def load_tokenizer_for_sequence_classification(
 
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+
+    if config.get_verbose() >= Verbose.INFO:
+        print(f"Tokenizer loaded: {config.get('tokenizer_id')}")
 
     return tokenizer
