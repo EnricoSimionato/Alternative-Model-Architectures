@@ -1410,8 +1410,8 @@ def extract_based_on_path(
             The list of black listed paths. Defaults to None.
         path (str, optional):
             The path to the current layer. Defaults to "".
-        verbose (bool, optional):
-            Whether to print the layer name. Defaults to False.
+        verbose (Verbose, optional):
+            The verbosity level. Defaults to Verbose.INFO.
     """
 
     for layer_name in model_tree._modules.keys():
@@ -1439,20 +1439,20 @@ def extract_based_on_path(
                 if verbose > Verbose.SILENT:
                     print(f"Found {layer_path} in {path}")
 
-                    list_containing_layer_number = [
-                        sub_path for sub_path in path.split("_") if sub_path.isdigit()
-                    ]
-                    block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
-                    extracted_matrices.append(
-                        AnalysisTensorWrapper(
-                            tensor=child.weight.detach(),
-                            name=layer_name,
-                            label=layer_path,
-                            path=path,
-                            block_index=int(block_index),
-                            layer=child
-                        )
+                list_containing_layer_number = [
+                    sub_path for sub_path in path.split("_") if sub_path.isdigit()
+                ]
+                block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
+                extracted_matrices.append(
+                    AnalysisTensorWrapper(
+                        tensor=child.weight.detach(),
+                        name=layer_name,
+                        label=layer_path,
+                        path=path,
+                        block_index=int(block_index),
+                        layer=child
                     )
+                )
         else:
             # Recursively calling the function
             extract_based_on_path(
