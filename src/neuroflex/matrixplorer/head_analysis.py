@@ -248,16 +248,19 @@ def perform_heads_similarity_analysis(
         with open(file_path, "rb") as f:
             tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads = pkl.load(f)
     else:
-        model = load_original_model_for_causal_lm(configuration, verbose=Verbose.INFO)
+        model = load_original_model_for_causal_lm(configuration)
         extracted_tensors = []
+        print("Model loaded")
         extract_based_on_path(model, configuration.get("targets"), extracted_tensors, configuration.get("black_list"), verbose=verbose)
-
+        print("Everything extracted")
         tensor_wrappers_to_analyze = extracted_tensors
+        print(extracted_tensors)
         tensor_wrappers_num_heads = []
 
         similarity_size = 0
         y_list = []
         for tensor_wrapper in tensor_wrappers_to_analyze:
+            print("starting the loop")
             if verbose >= Verbose.INFO:
                 print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
             # Defining the head-related parameters
