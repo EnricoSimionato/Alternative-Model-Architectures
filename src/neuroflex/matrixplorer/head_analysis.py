@@ -107,7 +107,8 @@ def perform_head_analysis(
             tensor_wrappers_num_heads = []
 
             for tensor_wrapper in tensor_wrappers_to_analyze:
-
+                if verbose >= Verbose.INFO:
+                    print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
                 output_size, input_size = tensor_wrapper.get_shape()
                 tensor_wrapper.compute_singular_values()
 
@@ -137,7 +138,8 @@ def perform_head_analysis(
 
         # Process each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
-            print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
+            if verbose >= Verbose.INFO:
+                print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
             fig, axes = plt.subplots(2, 2, figsize=fig_size)
             color_map = plt.cm.get_cmap('viridis', tensor_wrappers_num_heads[tensor_wrapper_index])
             fig.suptitle(f"Analysis of the tensor with path '{tensor_wrapper.get_path()}'")
@@ -250,17 +252,14 @@ def perform_heads_similarity_analysis(
     else:
         model = load_original_model_for_causal_lm(configuration)
         extracted_tensors = []
-        print("Model loaded")
         extract_based_on_path(model, configuration.get("targets"), extracted_tensors, configuration.get("black_list"), verbose=verbose)
-        print("Everything extracted")
+
         tensor_wrappers_to_analyze = extracted_tensors
-        print(extracted_tensors)
         tensor_wrappers_num_heads = []
 
         similarity_size = 0
         y_list = []
         for tensor_wrapper in tensor_wrappers_to_analyze:
-            print("starting the loop")
             if verbose >= Verbose.INFO:
                 print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
             # Defining the head-related parameters
