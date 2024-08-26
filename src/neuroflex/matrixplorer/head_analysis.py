@@ -136,6 +136,7 @@ def perform_head_analysis(
 
         # Process each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
+            print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
             fig, axes = plt.subplots(2, 2, figsize=fig_size)
             color_map = plt.cm.get_cmap('viridis', tensor_wrappers_num_heads[tensor_wrapper_index])
             fig.suptitle(f"Analysis of the tensor with path '{tensor_wrapper.get_path()}'")
@@ -217,7 +218,6 @@ def perform_head_analysis(
 
 def perform_heads_similarity_analysis(
         configuration: Config,
-        verbose: Verbose = Verbose.SILENT
 ) -> None:
     """
     Perform the analysis of the similarity between the heads of the attention mechanism.
@@ -225,8 +225,6 @@ def perform_heads_similarity_analysis(
     Args:
         configuration: Config
             The configuration object containing the necessary information to perform the analysis.
-        verbose: Verbose
-            The verbosity level of the analysis.
     """
 
     # Getting the parameters related to the paths from the configuration
