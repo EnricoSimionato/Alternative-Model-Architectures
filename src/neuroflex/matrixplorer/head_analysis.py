@@ -123,10 +123,17 @@ def perform_head_analysis(
 
                 extract_heads(tensor_wrapper, num_heads, head_dim)
 
-            print("Finished")
+            print(file_path)
             # Save the processed data for future use
-            with open(file_path, "wb") as f:
-                pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
+            try:
+                # Save the processed data for future use
+                with open(file_path, "wb") as f:
+                    pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
+                if verbose >= Verbose.INFO:
+                    print(f"Data has been saved to '{file_path}'.")
+            except Exception as e:
+                print(f"Error saving pickle file '{file_path}': {e}")
+                return
             if verbose >= Verbose.INFO:
                 print(f"Data has been saved to '{file_path}'.")
 
@@ -206,7 +213,6 @@ def perform_head_analysis(
 
 
             plt.close(fig)
-            print("13")
 
             if verbose >= Verbose.INFO:
                 print(f"Plots of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
@@ -235,9 +241,6 @@ def perform_head_analysis(
     # Saving the analyzed tensors to the file
     with open(file_path, "wb") as f:
         pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
-
-
-    print("12134392o5rj3")
 
 
 def perform_heads_similarity_analysis(
