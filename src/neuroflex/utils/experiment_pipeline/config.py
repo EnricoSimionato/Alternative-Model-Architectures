@@ -38,7 +38,7 @@ def get_path_to_configurations(
         base_path = ("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/"
                      "local")
     elif environment == "server":
-        base_path = "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/configurations/server"
+        base_path = "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/configurations/server"
     elif environment == "colab":
         base_path = "/content/Alternative-Model-Architectures/src/experiments/configurations/colab"
     else:
