@@ -1448,7 +1448,7 @@ def extract_based_on_path(
                         tensor=child.weight.detach(),
                         name=layer_name,
                         label=layer_path,
-                        path=path,
+                        path=path + "_" + layer_name,
                         block_index=int(block_index),
                         layer=child
                     )
