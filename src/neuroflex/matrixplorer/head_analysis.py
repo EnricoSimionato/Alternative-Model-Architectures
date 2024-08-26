@@ -107,6 +107,7 @@ def perform_head_analysis(
             tensor_wrappers_num_heads = []
 
             for tensor_wrapper in tensor_wrappers_to_analyze:
+
                 output_size, input_size = tensor_wrapper.get_shape()
                 tensor_wrapper.compute_singular_values()
 
