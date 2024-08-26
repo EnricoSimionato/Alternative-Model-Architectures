@@ -79,7 +79,9 @@ def perform_head_analysis(
     fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     explained_variance_threshold = configuration.get("explained_variance_threshold")
     name_num_heads_mapping = configuration.get("name_num_heads_mapping")
-    name_dim_heads_mapping = (configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None)
+    name_dim_heads_mapping = (
+        configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None
+    )
     verbose = configuration.get_verbose()
 
     # Preparing CSV file path
@@ -268,22 +270,36 @@ def perform_heads_similarity_analysis(
     )
     verbose = configuration.get_verbose()
 
-    # Load the data if the file is available, otherwise process the model
+    # Loading the data if the file is available, otherwise processing the model
     if file_available:
         print(f"The file '{file_path}' is available.")
         with open(file_path, "rb") as f:
             tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads = pkl.load(f)
     else:
+        # Loading the model
         model = load_original_model_for_causal_lm(configuration)
+        # Extracting the tensors to be analysed
         extracted_tensors = []
-        extract_based_on_path(model, configuration.get("targets"), extracted_tensors, configuration.get("black_list"), verbose=verbose)
+        extract_based_on_path(
+            model,
+            configuration.get("targets"),
+            extracted_tensors,
+            configuration.get("black_list"),
+            verbose=verbose)
 
+        # Choosing the actual tensors to be analyzed
         tensor_wrappers_to_analyze = extracted_tensors
-        tensor_wrappers_num_heads = []
 
-        similarity_size = 0
-        y_list = []
-        for tensor_wrapper_group in tensor_wrappers_to_analyze:
+        # Grouping the tensors based on some criteria
+        grouped_tensor_wrappers_num_heads = []
+        grouped_function_similarities = []
+        grouped_tensor_wrappers_to_analyze = [[tensor_wrapper,] for tensor_wrapper in tensor_wrappers_to_analyze]
+        # TODO Group the tensors based on some criteria
+
+        for tensor_wrapper_group in grouped_tensor_wrappers_to_analyze:
+            y_list = []
+            similarity_size = 0
+            tensor_wrappers_num_heads = []
             for tensor_wrapper in tensor_wrapper_group:
                 if verbose >= Verbose.INFO:
                     print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
@@ -320,13 +336,14 @@ def perform_heads_similarity_analysis(
                     y = head @ x
                     y_list.append(y)
 
-                if verbose >= Verbose.INFO:
-                    print(f"Generated outputs for the heads of the tensor with path '{tensor_wrapper.get_path()}'")
-                    print()
+                verbose.print(
+                    f"Generated outputs for the heads of the tensor with path '{tensor_wrapper.get_path()}'\n",
+                    Verbose.INFO
+                )
 
-            if verbose >= Verbose.INFO:
-                print("Stating the computation of the similarities")
-            # Initialize the array
+            grouped_tensor_wrappers_num_heads.append(tensor_wrappers_num_heads)
+
+            verbose.print(f"Stating the computation of the similarities", Verbose.INFO)
             function_similarities = np.zeros((similarity_size, similarity_size))
             # Compute similarities and fill the matrix
             for index_1 in tqdm(range(len(y_list))):
@@ -339,6 +356,7 @@ def perform_heads_similarity_analysis(
                         function_similarities[index_1, index_2] = similarity_mean
                         function_similarities[index_2, index_1] = similarity_mean
 
+            grouped_function_similarities.append(function_similarities)
 
 
     # Plot the similarity matrix
