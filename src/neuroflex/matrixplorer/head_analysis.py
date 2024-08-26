@@ -123,9 +123,12 @@ def perform_head_analysis(
 
                 extract_heads(tensor_wrapper, num_heads, head_dim)
 
+            print("Finished")
             # Save the processed data for future use
             with open(file_path, "wb") as f:
                 pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
+            if verbose >= Verbose.INFO:
+                print(f"Data has been saved to '{file_path}'.")
 
         # Extending fieldnames based on the maximum number of heads
         for i in range(max(tensor_wrappers_num_heads)):
@@ -136,6 +139,7 @@ def perform_head_analysis(
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
+        print("starting agin")
         # Processing each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
             if verbose >= Verbose.INFO:
@@ -276,65 +280,63 @@ def perform_heads_similarity_analysis(
 
         similarity_size = 0
         y_list = []
-        for tensor_wrapper in tensor_wrappers_to_analyze:
+        for tensor_wrapper_group in tensor_wrappers_to_analyze:
+            for tensor_wrapper in tensor_wrapper_group:
+                if verbose >= Verbose.INFO:
+                    print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
+                # Defining the head-related parameters
+                output_size, input_size = tensor_wrapper.get_shape()
+                if input_size != tensor_wrappers_to_analyze[0].get_shape()[1]:
+                    raise Exception("All the tensors must have the same input size")
+
+                num_heads = model.__dict__["config"].__dict__[name_num_heads_mapping[tensor_wrapper.get_name()]]
+                similarity_size += num_heads
+                tensor_wrappers_num_heads.append(num_heads)
+                if name_dim_heads_mapping is None:
+                    if output_size % num_heads != 0:
+                        raise Exception("The output size of the tensor is not divisible by the number of heads.")
+                    head_dim = output_size // num_heads
+                else:
+                    head_dim = model.__dict__["config"].__dict__[name_dim_heads_mapping[tensor_wrapper.get_name()]]
+
+                # Extracting the heads
+                extract_heads(tensor_wrapper, num_heads, head_dim)
+                if verbose >= Verbose.INFO:
+                    print(f"Extracted {num_heads} heads from the tensor with path '{tensor_wrapper.get_path()}'")
+
+                # Generate random input
+                input_dim = tensor_wrappers_to_analyze[0].get_shape()[1]
+                batch_size = 1024
+                x = np.random.randn(input_dim, batch_size)
+                x = torch.tensor(x, dtype=torch.float32)
+
+                # Generate outputs for each head (for illustration, random matrices are used)
+                for _ in range(num_heads):
+                    head = np.random.randn(input_dim, input_dim)
+                    head = torch.tensor(head, dtype=torch.float32)
+                    y = head @ x
+                    y_list.append(y)
+
+                if verbose >= Verbose.INFO:
+                    print(f"Generated outputs for the heads of the tensor with path '{tensor_wrapper.get_path()}'")
+                    print()
+
             if verbose >= Verbose.INFO:
-                print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
-            # Defining the head-related parameters
-            output_size, input_size = tensor_wrapper.get_shape()
-            if input_size != tensor_wrappers_to_analyze[0].get_shape()[1]:
-                raise Exception("All the tensors must have the same input size")
+                print("Stating the computation of the similarities")
+            # Initialize the array
+            function_similarities = np.zeros((similarity_size, similarity_size))
+            # Compute similarities and fill the matrix
+            for index_1 in tqdm(range(len(y_list))):
+                y_1 = y_list[index_1]
+                for index_2 in range(len(y_list)):
+                    y_2 = y_list[index_2]
+                    if index_2 > index_1:
+                        similarity = compute_cosine(y_1, y_2, dim=0).detach().numpy()
+                        similarity_mean = similarity.mean()
+                        function_similarities[index_1, index_2] = similarity_mean
+                        function_similarities[index_2, index_1] = similarity_mean
 
-            num_heads = model.__dict__["config"].__dict__[name_num_heads_mapping[tensor_wrapper.get_name()]]
-            similarity_size += num_heads
-            tensor_wrappers_num_heads.append(num_heads)
-            if name_dim_heads_mapping is None:
-                if output_size % num_heads != 0:
-                    raise Exception("The output size of the tensor is not divisible by the number of heads.")
-                head_dim = output_size // num_heads
-            else:
-                head_dim = model.__dict__["config"].__dict__[name_dim_heads_mapping[tensor_wrapper.get_name()]]
 
-            # Extracting the heads
-            extract_heads(tensor_wrapper, num_heads, head_dim)
-            if verbose >= Verbose.INFO:
-                print(f"Extracted {num_heads} heads from the tensor with path '{tensor_wrapper.get_path()}'")
-
-            # Generate random input
-            input_dim = tensor_wrappers_to_analyze[0].get_shape()[1]
-            batch_size = 1024
-            x = np.random.randn(input_dim, batch_size)
-            x = torch.tensor(x, dtype=torch.float32)
-
-            # Generate outputs for each head (for illustration, random matrices are used)
-            for _ in range(num_heads):
-                head = np.random.randn(input_dim, input_dim)
-                head = torch.tensor(head, dtype=torch.float32)
-                y = head @ x
-                y_list.append(y)
-
-            if verbose >= Verbose.INFO:
-                print(f"Generated outputs for the heads of the tensor with path '{tensor_wrapper.get_path()}'")
-                print()
-
-        if verbose >= Verbose.INFO:
-            print("Stating the computation of the similarities")
-        # Initialize the array
-        function_similarities = np.zeros((similarity_size, similarity_size))
-        # Compute similarities and fill the matrix
-        for index_1 in tqdm(range(len(y_list))):
-            y_1 = y_list[index_1]
-            for index_2 in range(len(y_list)):
-                y_2 = y_list[index_2]
-                if index_2 > index_1:
-                    similarity = compute_cosine(y_1, y_2, dim=0).detach().numpy()
-                    similarity_mean = similarity.mean()
-                    function_similarities[index_1, index_2] = similarity_mean
-                    function_similarities[index_2, index_1] = similarity_mean
-
-        # Save the data for future use
-        with open(file_path, "wb") as f:
-            pkl.dump((tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads), f)
-        print(f"Data has been saved to '{file_path}'.")
 
     # Plot the similarity matrix
     fig, ax = plt.subplots(figsize=fig_size)
@@ -346,3 +348,9 @@ def perform_heads_similarity_analysis(
 
     # Save the similarity matrix
     fig.savefig(os.path.join(directory_path, file_name_no_format + f"_similarities.png"))
+
+
+    # Save the data for future use
+    with open(file_path, "wb") as f:
+        pkl.dump((tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads), f)
+    print(f"Data has been saved to '{file_path}'.")
