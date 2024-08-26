@@ -82,10 +82,10 @@ def perform_head_analysis(
     name_dim_heads_mapping = (configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None)
     verbose = configuration.get_verbose()
 
-    # Prepare CSV file path
+    # Preparing CSV file path
     csv_file_path = os.path.join(directory_path, file_name_no_format + "_analysis.csv")
 
-    # Open the CSV file for writing
+    # Opening the CSV file for writing
     with open(csv_file_path, mode='w', newline='') as csvfile:
         # Define the field names for the CSV file
         fieldnames = [
@@ -94,7 +94,7 @@ def perform_head_analysis(
             "Average Heads Parameters Count"
         ]
 
-        # Load the data if the file is available, otherwise process the model
+        # Loading the data if the file is available, otherwise process the model
         if file_available:
             print(f"The file '{file_path}' is available.")
             with open(file_path, "rb") as f:
@@ -127,43 +127,48 @@ def perform_head_analysis(
             with open(file_path, "wb") as f:
                 pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
 
-        # Extend fieldnames based on the maximum number of heads
+        # Extending fieldnames based on the maximum number of heads
         for i in range(max(tensor_wrappers_num_heads)):
             fieldnames.append(f"Head {i} Rank")
             fieldnames.append(f"Head {i} Parameters Count")
 
-        # Create the CSV writer object
+        # Creating the CSV writer object
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        # Process each tensor wrapper and write the results to the CSV file
+        # Processing each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
             if verbose >= Verbose.INFO:
                 print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
             fig, axes = plt.subplots(2, 2, figsize=fig_size)
+            print("1")
             color_map = plt.cm.get_cmap('viridis', tensor_wrappers_num_heads[tensor_wrapper_index])
+            print("2")
             fig.suptitle(f"Analysis of the tensor with path '{tensor_wrapper.get_path()}'")
+            print("3")
 
             tensor_rank = tensor_wrapper.get_rank(explained_variance_threshold=explained_variance_threshold, relative=False)
+            print("4")
             tensor_parameters_count = tensor_wrapper.get_parameters_count_thresholded(explained_variance_threshold=explained_variance_threshold)
+            print("5")
 
             axes[0, 0].plot(tensor_wrapper.get_singular_values())
             axes[0, 0].set_title("Singular Values")
             axes[0, 0].set_xlabel("Component")
             axes[0, 0].set_ylabel("Singular Value")
-
+            print("6")
             axes[0, 1].plot(tensor_wrapper.get_explained_variance())
             axes[0, 1].set_title("Explained Variance")
             axes[0, 1].set_xlabel("Component")
             axes[0, 1].set_ylabel("Explained Variance (%)")
-
+            print("7")
             axes[0, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
 
             heads_ranks = []
             heads_parameters_counts = []
             head_data = {}
             heads_shape = tensor_wrapper.get_attribute("heads")[0].get_shape()
-
+            print("8")
             for i, head_wrapper in enumerate(tensor_wrapper.get_attribute("heads")):
                 color = color_map(i)
                 axes[1, 0].plot(head_wrapper.get_singular_values(), label=head_wrapper.get_label(), color=color)
@@ -184,13 +189,21 @@ def perform_head_analysis(
 
                 head_data[f"Head {i} Rank"] = head_rank
                 head_data[f"Head {i} Parameters Count"] = head_parameters_count
+            print("9")
 
             axes[1, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
-
+            print("10")
             axes[1, 0].legend()
             axes[1, 1].legend()
+            print("11")
+
             fig.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_wrapper.get_path()}.png"))
+            print("12")
+
+
             plt.close(fig)
+            print("13")
+
             if verbose >= Verbose.INFO:
                 print(f"Plots of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
 
@@ -208,6 +221,7 @@ def perform_head_analysis(
                 "Average Heads Parameters Count": f"{(sum(heads_parameters_counts) / len(heads_parameters_counts)):.2f}"
             }
             row_data.update(head_data)
+            print("16")
 
             # Writing the row data to the CSV file
             writer.writerow(row_data)
@@ -217,6 +231,9 @@ def perform_head_analysis(
     # Saving the analyzed tensors to the file
     with open(file_path, "wb") as f:
         pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
+
+
+    print("12134392o5rj3")
 
 
 def perform_heads_similarity_analysis(
