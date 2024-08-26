@@ -173,23 +173,21 @@ def perform_simple_initialization_analysis(
             The configuration object.
     """
 
-    # Setting some parameters
-    rank = configuration.get("rank")
-    num_epochs = configuration.get("num_epochs") if configuration.contains("num_epochs") else 5000
-    batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 64
-    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
-    epoch_cut = configuration.get("epoch_cut") if configuration.contains("epoch_cut") else 750
-    verbose = configuration.get("verbose")
-
-    device = get_available_device(
-        preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"
-    )
-
+    # Getting the parameters related to the paths from the configuration
     file_available = configuration.get("file_available")
     file_path = configuration.get("file_path")
     directory_path = configuration.get("directory_path")
     file_name = configuration.get("file_name")
     file_name_no_format = file_name.split(".")[0]
+
+    # Getting the parameters for the experiment
+    rank = configuration.get("rank")
+    num_epochs = configuration.get("num_epochs") if configuration.contains("num_epochs") else 5000
+    batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 64
+    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
+    epoch_cut = configuration.get("epoch_cut") if configuration.contains("epoch_cut") else 750
+    verbose = configuration.get_verbose()
+    device = get_available_device(preferred_device=configuration.get("device") if configuration.contains("device") else "cuda")
 
     # Creating the figure to plot the results
     fig, axes = plt.subplots(2, 2, figsize=fig_size)
@@ -201,10 +199,7 @@ def perform_simple_initialization_analysis(
             all_loss_histories = pkl.load(f)
     else:
         # Loading the model
-        model = load_original_model_for_causal_lm(
-            configuration,
-            verbose=Verbose.INFO
-        )
+        model = load_original_model_for_causal_lm(configuration)
 
         # Extracting the candidate tensors for the analysis
         extracted_tensors = []
@@ -235,21 +230,18 @@ def perform_simple_initialization_analysis(
             us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
 
             loss_types = ["activation loss", "tensor loss"]
-            tensor_factrizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
+            tensor_factorizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
             loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
 
             if verbose >= Verbose.INFO:
                 print()
             # Training the factorizations
-            for factorization_label, factorization_init in tensor_factrizations.items():
+            for factorization_label, factorization_init in tensor_factorizations.items():
                 for loss_type in loss_types:
                     # Cloning the tensors to avoid in-place operations
                     factorization = [tensor.clone().detach() for tensor in factorization_init]
                     for index in range(len(factorization)):
                         factorization[index].requires_grad = factorization_init[index].requires_grad
-
-                    # Storing the start time
-                    start_time = time.time()
 
                     # Setting the optimizer
                     trainable_tensors = [tensor for tensor in factorization if tensor.requires_grad]
@@ -271,8 +263,10 @@ def perform_simple_initialization_analysis(
                             print(f"Tensor {index} in {factorization_label} requires grad: "
                                   f"{factorization[index].requires_grad}")
 
+                    # Storing the start time
+                    start_time = time.time()
+
                     for _ in tqdm(range(num_epochs)):
-                        # Computing
                         x = random_x.clone().detach().to(device)
                         y = torch.eye(in_shape).to(device).to(device)
                         for tensor in factorization:
@@ -322,6 +316,7 @@ def perform_simple_initialization_analysis(
                     for tensor in factorization:
                         x_test = torch.matmul(tensor, x_test)
                     test_activation_loss = (torch.norm((torch.matmul(tensor_to_analyze, test_random_x) - x_test), dim=0) ** 2).mean().item()
+                    print(f"Test activation loss for {factorization_label} trained using {loss_type}: {test_activation_loss}")
 
                     loss_histories_factorizations["activation loss"][
                         f"{factorization_label} trained using {loss_type}"] = activation_loss_history
@@ -340,15 +335,6 @@ def perform_simple_initialization_analysis(
                         "Training Time": time_elapsed,
                         "SVD Time": svd_time if factorization_label == "U, S, V^T" else 0.0
                     })
-
-                for factorization_label, factorization in tensor_factrizations.items():
-                    for loss_type in loss_types:
-                        x_test = test_random_x.clone().detach()
-                        for tensor in factorization:
-                            x_test = torch.matmul(tensor, x_test)
-                        activation_loss = (torch.norm((tensorx - x_test), dim=0) ** 2).mean()
-                        print(
-                            f"Activation loss for {factorization_label} using {loss_type} on test data: {activation_loss}")
 
             all_loss_histories[tensor_wrapper_to_analyze.get_path()] = loss_histories_factorizations
 

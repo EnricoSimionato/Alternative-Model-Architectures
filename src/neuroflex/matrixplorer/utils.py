@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-import os
 from typing import Any
-
-import matplotlib.pyplot as plt
-import transformers
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
 
 import torch
 import torch.nn as nn
 
-import re
+import transformers
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 
+from neuroflex.utils.rank_analysis.utils import compute_explained_variance
+from neuroflex.utils.rank_analysis.utils import compute_singular_values
 
 # Definition of the classes to perform the rank analysis
 
@@ -121,9 +118,9 @@ class AnalysisTensorWrapper:
         layer (nn.Module, optional):
             The layer of the tensor. Defaults to None.
         precision (int, optional):
-            The precision of the relative rank of the tensor. Defaults to 2.
+            The precision of the relative rank of the tensor. Default to 2.
         verbose (Verbose, optional):
-            The verbosity level. Defaults to Verbose.INFO.
+            The verbosity level. Default to Verbose.INFO.
 
     Attributes:
         tensor (torch.Tensor):
@@ -1213,182 +1210,8 @@ class AnalysisModelWrapper(nn.Module):
         return self.model(x, *args, **kwargs)
 
 
-# Definition of the mathematical functions to perform the rank analysis
-
-def compute_singular_values(
-        matrix: np.ndarray
-) -> np.ndarray:
-    """
-    Computes the singular values of a matrix.
-
-    Args:
-        matrix (np.ndarray):
-            The matrix to compute the singular values of.
-
-    Returns:
-        np.ndarray:
-            The singular values of the matrix.
-    """
-
-    return np.linalg.svd(matrix, compute_uv=False)
-
-
-def compute_explained_variance(
-    s: np.array,
-    scaling: int = 1
-) -> np.array:
-    """
-    Computes the explained variance for a set of singular values.
-
-    Args:
-        s (np.array):
-            The singular values.
-        scaling (float, optional):
-            Scaling to apply to the explained variance at each singular value.
-            Defaults to 1.
-
-    Returns:
-        np.array:
-            The explained variance for each singular value.
-    """
-
-    if s[0] == 0.:
-        return np.ones(len(s))
-
-    return (np.square(s) * scaling).cumsum() / (np.square(s) * scaling).sum()
-
-
-def compute_rank(
-        singular_values: dict,
-        threshold: float = 0,
-        s_threshold: float = 0
-) -> dict:
-    """
-    Computes the rank of a matrix considering negligible eigenvalues that are very small or that provide a very small
-    change in terms of fraction of explained variance.
-
-    Args:
-        singular_values (dict):
-            The singular values of the matrices of the model.
-            The dictionary has the following structure:
-            >> {
-            >>    "layer_name": {
-            >>        "s": [np.array, ...]
-            >>    }
-            >> }
-        threshold (float):
-            The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
-            singular values that explain the threshold fraction of the total variance.
-        s_threshold (float):
-            The threshold to use to compute the rank based on singular values. Rank is computed as the number of
-            singular values that are greater than the threshold.
-
-    Returns:
-        dict:
-            The ranks given the input singular values.
-    """
-
-    ranks = {}
-    for layer_name in singular_values.keys():
-        ranks[layer_name] = []
-
-        for s in singular_values[layer_name]["s"]:
-            explained_variance = compute_explained_variance(s)
-            rank_based_on_explained_variance = np.argmax(explained_variance > threshold)
-            if s[-1] < s_threshold:
-                rank_based_on_explained_variance = len(explained_variance)
-
-            rank_based_on_singular_values = np.argmax(s < s_threshold)
-            if s[-1] > s_threshold:
-                rank_based_on_singular_values = len(s)
-
-            rank = np.minimum(rank_based_on_explained_variance, rank_based_on_singular_values)
-
-            ranks[layer_name].append(rank)
-
-    return ranks
-
-
-def compute_max_possible_rank(
-        analyzed_matrices: AnalysisTensorDict
-) -> int:
-    """
-    Computes the maximum possible rank of the matrices of the model.
-
-    Args:
-        analyzed_matrices (AnalysisTensorDict):
-            The analyzed matrices of the model.
-
-    Returns:
-        int:
-            The maximum possible rank of the matrices of the model.
-    """
-
-    max_possible_rank = 0
-    for key in analyzed_matrices.get_keys():
-        for analyzed_matrix in analyzed_matrices.get_tensor_list(key):
-            singular_values = analyzed_matrix.get_singular_values()
-            max_possible_rank = max(max_possible_rank, len(singular_values))
-
-    return max_possible_rank
-
-
-# Definition of the functions to extract the matrices from the model tree
-
-def extract(
-        model_tree: nn.Module,
-        names_of_targets: list,
-        extracted_matrices: list,
-        path: list = [],
-        verbose: bool = False,
-        **kwargs
-) -> None:
-    """
-    Extracts the matrices from the model tree.
-
-    Args:
-        model_tree (nn.Module):
-            The model tree.
-        names_of_targets (list):
-            The names of the targets.
-        extracted_matrices (list):
-            The list of extracted matrices.
-        path (list, optional):
-            The path to the current layer. Defaults to [].
-        verbose (bool, optional):
-            Whether to print the layer name. Defaults to False.
-    """
-
-    for layer_name in model_tree._modules.keys():
-        child = model_tree._modules[layer_name]
-        if len(child._modules) == 0:
-            if layer_name in names_of_targets:
-                if verbose:
-                    print(f"Found {layer_name} in {path}")
-
-                extracted_matrices.append(
-                    {
-                        "weight": child.weight.detach().numpy(),
-                        "layer_name": layer_name,
-                        "label": [el for el in path if re.search(r'\d', el)][0],
-                        "path": path
-                    }
-                )
-        else:
-            new_path = path.copy()
-            new_path.append(layer_name)
-            extract(
-                child,
-                names_of_targets,
-                extracted_matrices,
-                new_path,
-                verbose=verbose,
-                **kwargs
-            )
-
-
-def extract_based_on_path(
-        model_tree: [nn.Module | transformers.AutoModel],
+def extract_analysis_layer_wrappers(
+        module_tree: [nn.Module | transformers.AutoModel],
         paths_of_targets: list,
         extracted_matrices: list,
         black_list: list = None,
@@ -1400,23 +1223,23 @@ def extract_based_on_path(
     Extracts the matrices from the model tree.
 
     Args:
-        model_tree ([nn.Module | transformers.AutoModel]):
+        module_tree ([nn.Module | transformers.AutoModel]):
             The model tree.
         paths_of_targets (list):
             The path of the targets.
         extracted_matrices (list):
             The list of extracted matrices.
         black_list (list, optional):
-            The list of black listed paths. Defaults to None.
+            The list of blacklisted paths. Defaults to None.
         path (str, optional):
             The path to the current layer. Defaults to "".
         verbose (Verbose, optional):
-            The verbosity level. Defaults to Verbose.INFO.
+            The verbosity level. Default to Verbose.INFO.
     """
 
-    for layer_name in model_tree._modules.keys():
-        child = model_tree._modules[layer_name]
-        if len(child._modules) == 0:
+    for layer_name in module_tree._modules.keys():
+        child = module_tree._modules[layer_name]
+        if issubclass(type(child), AnalysisLayerWrapper):
             if verbose > Verbose.INFO:
                 print(f"Checking {layer_name} in {path}")
 
@@ -1455,231 +1278,12 @@ def extract_based_on_path(
                 )
         else:
             # Recursively calling the function
-            extract_based_on_path(
-                model_tree=child,
+            extract_analysis_layer_wrappers(
+                module_tree=child,
                 paths_of_targets=paths_of_targets,
                 extracted_matrices=extracted_matrices,
                 black_list=black_list,
-                path=layer_name if path == "" else path + "_" + layer_name,
+                path=path + "_" + layer_name,
                 verbose=verbose,
                 **kwargs
             )
-
-
-# Definition of the functions to plot the results of the rank analysis
-
-def plot_heatmap(
-        data: np.ndarray,
-        interval: dict,
-        title: str = "Rank analysis of the matrices of the model",
-        x_title: str = "Layer indexes",
-        y_title: str = "Type of matrix",
-        columns_labels: list = None,
-        rows_labels: list = None,
-        figure_size: tuple = (24, 5),
-        save_path: str = None,
-        heatmap_name: str = "heatmap",
-        show: bool = False
-):
-    """
-    Plots a heatmap.
-
-    Args:
-        data (np.ndarray):
-            The data to plot.
-        interval (dict):
-            The interval to use to plot the heatmap.
-        title (str, optional):
-            The title of the heatmap. Defaults to "Rank analysis of the matrices of the model".
-        x_title (str, optional):
-            The title of the x-axis. Defaults to "Layer indexes".
-        y_title (str, optional):
-            The title of the y-axis. Defaults to "Type of matrix".
-        columns_labels (list, optional):
-            The labels of the columns. Defaults to None.
-        rows_labels (list, optional):
-            The labels of the rows. Defaults to None.
-        figure_size (tuple, optional):
-            The size of the figure. Defaults to (10, 5).
-        save_path (str, optional):
-            The path where to save the heatmap. Defaults to None.
-        heatmap_name (str, optional):
-            The name of the heatmap. Defaults to "heatmap".
-        show (bool, optional):
-            Whether to show the heatmap. Defaults to False.
-    """
-
-    # Creating the figure
-    fig, axs = plt.subplots(
-        1,
-        1,
-        figsize=figure_size
-    )
-
-    # Showing the heatmap
-    heatmap = axs.imshow(
-        data,
-        cmap="hot",
-        interpolation="nearest",
-        vmin=interval["min"],
-        vmax=interval["max"]
-    )
-
-    # Setting title, labels and ticks
-    axs.set_title(
-        title,
-        fontsize=18,
-        y=1.05
-    )
-    axs.set_xlabel(
-        x_title,
-        fontsize=12
-    )
-    axs.set_ylabel(
-        y_title,
-        fontsize=12
-    )
-    if rows_labels:
-        axs.set_yticks(np.arange(len(rows_labels)))
-        axs.set_yticklabels(rows_labels)
-    if columns_labels:
-        axs.set_xticks(np.arange(len(columns_labels)))
-        axs.set_xticklabels(columns_labels)
-    axs.axis("on")
-
-    # Adding the colorbar
-    divider = make_axes_locatable(axs)
-    colormap_axis = divider.append_axes("right", size="5%", pad=0.05)
-    fig.colorbar(
-        heatmap,
-        cax=colormap_axis
-    )
-
-    # Changing the color of the text based on the background to make it more readable
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if data[i, j] > interval["min"] + (interval["max"] - interval["min"]) / 3:
-                text_color = "black"
-            else:
-                text_color = "white"
-            axs.text(j, i, f"{data[i, j]}", ha="center", va="center", color=text_color)
-
-    plt.tight_layout()
-
-    # Storing the heatmap
-    if save_path and os.path.exists(save_path):
-        plt.savefig(
-            os.path.join(
-                save_path,
-                heatmap_name
-            )
-        )
-        print("Heatmap stored to", os.path.join(save_path, heatmap_name))
-
-    # Showing the heatmap
-    if show:
-        plt.show()
-
-    plt.close()
-
-
-# Definition of the functions to manage and check the storage
-
-def check_path_to_storage(
-        path_to_storage: str,
-        type_of_analysis: str,
-        model_name: str,
-        strings_to_be_in_the_name: tuple
-) -> tuple[bool, str, str]:
-    """
-    Checks if the path to the storage exists.
-    If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
-    If the path does not exist, the method returns a negative flag and creates the path for the experiment returning it.
-
-    Args:
-        path_to_storage (str):
-            The path to the storage where the experiments data have been stored or will be stored.
-        type_of_analysis (str):
-            The type of analysis to be performed on the model.
-        model_name (str):
-            The name of the model to analyze.
-        strings_to_be_in_the_name (tuple):
-            The strings to be used to create the name or to find in the name of the stored data of the considered
-            experiment.
-
-    Returns:
-        bool:
-            A flag indicating if the path to the storage of the specific experiment already exists.
-        str:
-            The path to the storage of the specific experiment.
-        str:
-            The name of the file to store the data.
-
-    Raises:
-        Exception:
-            If the path to the storage does not exist.
-    """
-
-    if not os.path.exists(path_to_storage):
-        raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
-
-    # Checking if the path to the storage of the specific experiment already exists
-    exists_directory_path = os.path.exists(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.exists(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    )
-
-    exists_file = False
-    directory_path = os.path.join(
-        path_to_storage, model_name, type_of_analysis
-    )
-    file_name = None
-    if exists_directory_path:
-        try:
-            files_and_dirs = os.listdir(
-                directory_path
-            )
-
-            # Extracting the files
-            files = [
-                f
-                for f in files_and_dirs
-                if os.path.isfile(os.path.join(path_to_storage, model_name, type_of_analysis, f))
-            ]
-
-            # Checking if some file ame contains the required strings
-            for f_name in files:
-                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
-                if names_contained:
-                    exists_file = True
-                    file_name = f_name
-                    break
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return False, "", ""
-
-    else:
-        os.makedirs(
-            os.path.join(
-                directory_path
-            )
-        )
-
-    if not exists_file:
-        file_name = "_".join(strings_to_be_in_the_name)
-
-    return exists_file, directory_path, str(file_name)

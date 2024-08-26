@@ -1,19 +1,21 @@
 import os
 import pickle as pkl
 import csv
-from matplotlib import pyplot as plt
 from tqdm import tqdm
+
+from matplotlib import pyplot as plt
+from matplotlib import colors as mcolors
+import seaborn as sns
+
+import numpy as np
+
+import torch
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
 from neuroflex.utils.rank_analysis.sorted_layers_rank_analysis import compute_cosine
 from neuroflex.utils.rank_analysis.utils import extract_based_on_path, AnalysisTensorWrapper
-
-import numpy as np
-import torch
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 def extract_heads(
@@ -59,7 +61,6 @@ def extract_heads(
 
 def perform_head_analysis(
         configuration: Config,
-        verbose: Verbose = Verbose.SILENT
 ) -> None:
     """
     Perform the analysis of the heads of the attention mechanism.
@@ -67,8 +68,6 @@ def perform_head_analysis(
     Args:
         configuration: Config
             The configuration object containing the necessary information to perform the analysis.
-        verbose: Verbose
-            The verbosity level of the analysis.
     """
 
     # Getting the parameters related to the paths from the configuration
@@ -81,9 +80,8 @@ def perform_head_analysis(
     fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     explained_variance_threshold = configuration.get("explained_variance_threshold")
     name_num_heads_mapping = configuration.get("name_num_heads_mapping")
-    name_dim_heads_mapping = (
-        configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None
-    )
+    name_dim_heads_mapping = (configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None)
+    verbose = configuration.get_verbose()
 
     # Prepare CSV file path
     csv_file_path = os.path.join(directory_path, file_name_no_format + "_analysis.csv")
@@ -103,7 +101,7 @@ def perform_head_analysis(
             with open(file_path, "rb") as f:
                 tensor_wrappers_to_analyze, tensor_wrappers_num_heads = pkl.load(f)
         else:
-            model = load_original_model_for_causal_lm(configuration, verbose=Verbose.INFO)
+            model = load_original_model_for_causal_lm(configuration)
             extracted_tensors = []
             extract_based_on_path(model, configuration.get("targets"), extracted_tensors, configuration.get("black_list"), verbose=verbose)
             tensor_wrappers_to_analyze = extracted_tensors
@@ -140,6 +138,7 @@ def perform_head_analysis(
         # Process each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
             fig, axes = plt.subplots(2, 2, figsize=fig_size)
+            color_map = plt.cm.get_cmap('viridis', tensor_wrappers_num_heads[tensor_wrapper_index])
             fig.suptitle(f"Analysis of the tensor with path '{tensor_wrapper.get_path()}'")
 
             tensor_rank = tensor_wrapper.get_rank(explained_variance_threshold=explained_variance_threshold, relative=False)
@@ -155,14 +154,17 @@ def perform_head_analysis(
             axes[0, 1].set_xlabel("Component")
             axes[0, 1].set_ylabel("Explained Variance (%)")
 
+            axes[0, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
+
             heads_ranks = []
             heads_parameters_counts = []
             head_data = {}
             heads_shape = tensor_wrapper.get_attribute("heads")[0].get_shape()
 
             for i, head_wrapper in enumerate(tensor_wrapper.get_attribute("heads")):
-                axes[1, 0].plot(head_wrapper.get_singular_values(), label=head_wrapper.get_label())
-                axes[1, 1].plot(head_wrapper.get_explained_variance(), label=head_wrapper.get_label())
+                color = color_map(i)
+                axes[1, 0].plot(head_wrapper.get_singular_values(), label=head_wrapper.get_label(), color=color)
+                axes[1, 1].plot(head_wrapper.get_explained_variance(), label=head_wrapper.get_label(), color=color)
 
                 axes[1, 0].set_title("Head Singular Values")
                 axes[1, 0].set_xlabel("Component")
@@ -172,9 +174,6 @@ def perform_head_analysis(
                 axes[1, 1].set_xlabel("Component")
                 axes[1, 1].set_ylabel("Explained Variance (%)")
 
-                axes[1, 0].legend()
-                axes[1, 1].legend()
-
                 head_rank = head_wrapper.get_rank(explained_variance_threshold=explained_variance_threshold, relative=False)
                 head_parameters_count = head_wrapper.get_parameters_count_thresholded(explained_variance_threshold=explained_variance_threshold)
                 heads_ranks.append(head_rank)
@@ -183,6 +182,10 @@ def perform_head_analysis(
                 head_data[f"Head {i} Rank"] = head_rank
                 head_data[f"Head {i} Parameters Count"] = head_parameters_count
 
+            axes[1, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
+
+            axes[1, 0].legend()
+            axes[1, 1].legend()
             fig.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_wrapper.get_path()}.png"))
 
             row_data = {
@@ -200,9 +203,10 @@ def perform_head_analysis(
             }
             row_data.update(head_data)
 
+            # Writing the row data to the CSV file
             writer.writerow(row_data)
 
-    # Finally, save the data to the file
+    # Saving the analyzed tensors to the file
     with open(file_path, "wb") as f:
         pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
 
@@ -233,6 +237,7 @@ def perform_heads_similarity_analysis(
     name_dim_heads_mapping = (
         configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None
     )
+    verbose = configuration.get_verbose()
 
     # Load the data if the file is available, otherwise process the model
     if file_available:
