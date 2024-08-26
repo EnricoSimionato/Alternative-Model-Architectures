@@ -187,6 +187,9 @@ def perform_head_analysis(
             axes[1, 0].legend()
             axes[1, 1].legend()
             fig.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_wrapper.get_path()}.png"))
+            plt.close(fig)
+            if verbose >= Verbose.INFO:
+                print(f"Plots of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
 
             row_data = {
                 "Tensor Path": tensor_wrapper.get_path() + f"_{tensor_wrapper.get_name()}",
@@ -205,6 +208,8 @@ def perform_head_analysis(
 
             # Writing the row data to the CSV file
             writer.writerow(row_data)
+            if verbose >= Verbose.INFO:
+                print(f"Information of the analysis of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
 
     # Saving the analyzed tensors to the file
     with open(file_path, "wb") as f:
