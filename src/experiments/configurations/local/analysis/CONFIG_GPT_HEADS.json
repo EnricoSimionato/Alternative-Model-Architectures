@@ -10,11 +10,15 @@
     "dtype": "float32",
 
     "targets": [
-        "query"
+        "q_proj",
+        "k_proj",
+        "v_proj"
     ],
     "black_list": [],
     "name_num_heads_mapping": {
-        "query": "num_attention_heads"
+        "q_proj": "num_heads",
+        "k_proj": "num_heads",
+        "v_proj": "num_heads"
     },
 
     "explained_variance_threshold": 0.9,

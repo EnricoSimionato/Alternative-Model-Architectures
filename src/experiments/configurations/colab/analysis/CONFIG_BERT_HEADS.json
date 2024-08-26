@@ -10,11 +10,15 @@
     "dtype": "float32",
 
     "targets": [
-        "query"
+        "query",
+        "key",
+        "value"
     ],
     "black_list": [],
     "name_num_heads_mapping": {
-        "query": "num_attention_heads"
+        "query": "num_attention_heads",
+        "key": "num_attention_heads",
+        "value": "num_attention_heads"
     },
 
     "explained_variance_threshold": 0.9,
