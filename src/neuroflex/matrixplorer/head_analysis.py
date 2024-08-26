@@ -109,8 +109,7 @@ def perform_head_analysis(
             tensor_wrappers_num_heads = []
 
             for tensor_wrapper in tensor_wrappers_to_analyze:
-                if verbose >= Verbose.INFO:
-                    print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
+                verbose.print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'", Verbose.INFO)
                 output_size, input_size = tensor_wrapper.get_shape()
                 tensor_wrapper.compute_singular_values()
 
@@ -125,19 +124,10 @@ def perform_head_analysis(
 
                 extract_heads(tensor_wrapper, num_heads, head_dim)
 
-            print(file_path)
             # Save the processed data for future use
-            try:
-                # Save the processed data for future use
-                with open(file_path, "wb") as f:
-                    pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
-                if verbose >= Verbose.INFO:
-                    print(f"Data has been saved to '{file_path}'.")
-            except Exception as e:
-                print(f"Error saving pickle file '{file_path}': {e}")
-                return
-            if verbose >= Verbose.INFO:
-                print(f"Data has been saved to '{file_path}'.")
+            #with open(file_path, "wb") as f:
+            #    pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
+            verbose.print(f"Data has been saved to '{file_path}'.", Verbose.INFO)
 
         # Extending fieldnames based on the maximum number of heads
         for i in range(max(tensor_wrappers_num_heads)):
@@ -148,7 +138,7 @@ def perform_head_analysis(
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        print("starting agin")
+        print("starting again")
         # Processing each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
             if verbose >= Verbose.INFO:
