@@ -1,5 +1,5 @@
 {
-  "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
+  "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
   "analysis_type": "delta_layers_wrt_average_rank_analysis",
   "original_model_id": "bert-base-uncased",
   "targets": [
