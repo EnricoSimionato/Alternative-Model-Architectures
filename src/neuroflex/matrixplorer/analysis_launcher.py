@@ -25,7 +25,7 @@ specific_mandatory_keys_mapping = {
     "global_matrices_initialization_analysis": ["rank"],
 
     "head_analysis": ["explained_variance_threshold", "name_num_heads_mapping"],
-    "heads_similarity_analysis": []
+    "heads_similarity_analysis": ["grouping"]
 }
 
 
@@ -58,6 +58,8 @@ def append_additional_words_to_be_in_the_file_name(
         words_to_be_in_the_file_name += ["rank"] + [str(configuration.get("rank"))]
     elif analysis_type == "head_analysis":
         words_to_be_in_the_file_name += ["explained_variance_threshold"] + [str(configuration.get("explained_variance_threshold"))]
+    elif analysis_type == "heads_similarity_analysis":
+        words_to_be_in_the_file_name += ["grouping"] + [str(configuration.get("grouping"))]
 
     return words_to_be_in_the_file_name
 
