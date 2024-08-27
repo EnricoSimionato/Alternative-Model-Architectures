@@ -180,17 +180,14 @@ def perform_simple_initialization_analysis(
     file_name = configuration.get("file_name")
     file_name_no_format = file_name.split(".")[0]
 
-    # Getting the parameters for the experiment
+    # Getting the parameters related to the analysis from the configuration
+    verbose = configuration.get_verbose()
+    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     rank = configuration.get("rank")
     num_epochs = configuration.get("num_epochs") if configuration.contains("num_epochs") else 5000
     batch_size = configuration.get("batch_size") if configuration.contains("batch_size") else 64
-    fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     epoch_cut = configuration.get("epoch_cut") if configuration.contains("epoch_cut") else 750
-    verbose = configuration.get_verbose()
     device = get_available_device(preferred_device=configuration.get("device") if configuration.contains("device") else "cuda")
-
-    # Creating the figure to plot the results
-    fig, axes = plt.subplots(2, 2, figsize=fig_size)
 
     if file_available:
         print(f"The file '{file_path}' is available.")
@@ -211,12 +208,13 @@ def perform_simple_initialization_analysis(
             verbose=verbose
         )
         # Choosing the actual tensors to analyze
-        tensor_wrappers_to_analyze = [extracted_tensors[0]]
+        tensor_wrappers_to_analyze = extracted_tensors
 
         time_log = []
         csv_data = []
         all_loss_histories = {}
         for tensor_wrapper_to_analyze in tensor_wrappers_to_analyze:
+            verbose.print(f"\nAnalyzing tensor: {tensor_wrapper_to_analyze.get_path()}", Verbose.INFO)
             tensor_to_analyze = tensor_wrapper_to_analyze.get_tensor().to(torch.float32)
 
             # Preparing the data
@@ -226,17 +224,18 @@ def perform_simple_initialization_analysis(
             tensor_to_analyze = tensor_to_analyze.to(device)
             tensorx = torch.matmul(tensor_to_analyze, random_x)
 
+            # Initializing the factorizations
             a, b, ab_time = get_ab_factorization(tensor_to_analyze, rank, [False, True], device)
             us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
+            tensor_factorizations = {"A, B": [[b, a], ab_time], "U, S, V^T": [[vt, us], svd_time]}
 
             loss_types = ["activation loss", "tensor loss"]
-            tensor_factorizations = {"A, B": [b, a], "U, S, V^T": [vt, us]}
             loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
 
-            if verbose >= Verbose.INFO:
-                print()
             # Training the factorizations
-            for factorization_label, factorization_init in tensor_factorizations.items():
+            for factorization_label, factorization_init_plus_time in tensor_factorizations.items():
+                factorization_init = factorization_init_plus_time[0]
+                init_time = factorization_init_plus_time[1]
                 for loss_type in loss_types:
                     # Cloning the tensors to avoid in-place operations
                     factorization = [tensor.clone().detach() for tensor in factorization_init]
@@ -256,16 +255,15 @@ def perform_simple_initialization_analysis(
                     initial_activation_loss = None
                     initial_tensor_loss = None
 
-                    if verbose >= Verbose.INFO:
-                        print(f"Starting training using {loss_type} for {factorization_label}")
+                    verbose.print(f"Starting training using {loss_type} for {factorization_label}", Verbose.INFO)
                     for index in range(len(factorization)):
-                        if verbose >= Verbose.INFO:
-                            print(f"Tensor {index} in {factorization_label} requires grad: "
-                                  f"{factorization[index].requires_grad}")
+                        verbose.print(
+                            f"Tensor {index} in {factorization_label} requires grad: "
+                            f"{factorization[index].requires_grad}", Verbose.INFO
+                        )
 
-                    # Storing the start time
                     start_time = time.time()
-
+                    # Training the factorization
                     for _ in tqdm(range(num_epochs)):
                         x = random_x.clone().detach().to(device)
                         y = torch.eye(in_shape).to(device).to(device)
@@ -273,6 +271,7 @@ def perform_simple_initialization_analysis(
                             x = torch.matmul(tensor, x)
                             y = torch.matmul(tensor, y)
 
+                        # Computing the losses
                         activation_loss = (torch.norm((tensorx - x), dim=0) ** 2).mean()
                         tensor_loss = torch.norm(tensor_to_analyze - y) ** 2
 
@@ -288,35 +287,46 @@ def perform_simple_initialization_analysis(
                         else:
                             raise ValueError(f"Unknown loss type: {loss_type}")
 
+                        # Storing the losses
                         activation_loss_history.append(activation_loss.detach().cpu())
                         tensor_loss_history.append(tensor_loss.detach().cpu())
 
+                        # Performing the optimization step
                         optimizer.zero_grad()
                         loss.backward()
                         optimizer.step()
 
-                    # Storing the end time
                     end_time = time.time()
                     # Calculating and storing the time elapsed
                     time_elapsed = end_time - start_time
-                    time_string = f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} seconds "\
-                                  f"{f'+ {svd_time:.2f} seconds to perform the SVD' if factorization_label == 'U, S, V^T' else ''}\n"
+                    time_string = (f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} "
+                                   f"seconds + {init_time:.2f} seconds to initialize the matrix\n")
                     time_log.append(time_string)
-                    if verbose >= Verbose.INFO:
-                        print(time_string, flush=True)
+                    verbose.print(time_string, Verbose.INFO)
 
                     final_activation_loss = activation_loss_history[-1].item()
                     final_tensor_loss = tensor_loss_history[-1].item()
+                    verbose.print(
+                        f"Final activation loss for {factorization_label} trained using {loss_type}: "
+                        f"{final_activation_loss}",
+                        Verbose.INFO
+                    )
+                    verbose.print(
+                        f"Final tensor loss for {factorization_label} trained using {loss_type}: "
+                        f"{final_tensor_loss}",
+                        Verbose.INFO
+                    )
 
-                    if verbose >= Verbose.INFO:
-                        print("", flush=True)
-
-                    # Compute the test activation loss
+                    # Computing the test activation loss
                     x_test = test_random_x.clone().detach()
                     for tensor in factorization:
                         x_test = torch.matmul(tensor, x_test)
                     test_activation_loss = (torch.norm((torch.matmul(tensor_to_analyze, test_random_x) - x_test), dim=0) ** 2).mean().item()
-                    print(f"Test activation loss for {factorization_label} trained using {loss_type}: {test_activation_loss}")
+                    verbose.print(
+                        f"Test activation loss for {factorization_label} trained using {loss_type}: "
+                        f"{test_activation_loss}",
+                        Verbose.INFO
+                    )
 
                     loss_histories_factorizations["activation loss"][
                         f"{factorization_label} trained using {loss_type}"] = activation_loss_history
@@ -325,6 +335,8 @@ def perform_simple_initialization_analysis(
 
                     # Save details to CSV
                     csv_data.append({
+                        "Original Tensor Path": tensor_wrapper_to_analyze.get_path(),
+                        "Original Tensor Shape": tensor_wrapper_to_analyze.get_shape(),
                         "Factorization": factorization_label,
                         "Loss Type": loss_type,
                         "Initial Activation Loss": initial_activation_loss,
@@ -333,7 +345,7 @@ def perform_simple_initialization_analysis(
                         "Final Tensor Loss": final_tensor_loss,
                         "Test Activation Loss": test_activation_loss,
                         "Training Time": time_elapsed,
-                        "SVD Time": svd_time if factorization_label == "U, S, V^T" else 0.0
+                        "Initialization Time": init_time
                     })
 
             all_loss_histories[tensor_wrapper_to_analyze.get_path()] = loss_histories_factorizations
@@ -342,17 +354,17 @@ def perform_simple_initialization_analysis(
         with open(file_path, "wb") as f:
             pkl.dump(all_loss_histories, f)
 
-        # Save the timing results to a file
+        # Saving the timing results to a file
         time_log_path = os.path.join(directory_path, file_name_no_format + "_training_times.txt")
         with open(time_log_path, "w") as f:
             f.writelines(time_log)
 
-        # Save the loss results to a CSV file
-        csv_path = os.path.join(directory_path, file_name_no_format + "_losses.csv")
+        # Saving the loss results to a CSV file
+        csv_path = os.path.join(directory_path, file_name_no_format + f"_losses_and_times.csv")
         with open(csv_path, "w", newline="") as csvfile:
-            fieldnames = ["Factorization", "Loss Type", "Initial Activation Loss", "Final Activation Loss",
-                          "Initial Tensor Loss", "Final Tensor Loss", "Test Activation Loss", "Training Time",
-                          "SVD Time"]
+            fieldnames = ["Original Tensor Path", "Original Tensor Shape", "Factorization", "Loss Type",
+                          "Initial Activation Loss", "Final Activation Loss", "Initial Tensor Loss",
+                          "Final Tensor Loss", "Test Activation Loss", "Training Time", "Initialization Time"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             writer.writeheader()
@@ -360,6 +372,9 @@ def perform_simple_initialization_analysis(
                 writer.writerow(row)
 
     for tensor_to_analyze_label, loss_histories_factorizations in all_loss_histories.items():
+        # Creating the figure to plot the results
+        fig, axes = plt.subplots(2, 2, figsize=fig_size)
+        fig.suptitle(f"Initialization analysis of the tensor: {tensor_to_analyze_label}")
         for label, activation_loss_history in loss_histories_factorizations["activation loss"].items():
             axes[0, 0].plot(activation_loss_history, label=f"{label}")
             axes[1, 0].plot(activation_loss_history[epoch_cut:], label=f"{label}")
@@ -386,14 +401,12 @@ def perform_simple_initialization_analysis(
             ax.set_ylabel("Loss")
             ax.legend()
 
-    output_path = os.path.join(directory_path, file_name_no_format + "_plot.png")
-    plt.savefig(output_path)
-    plt.show()
+        # Saving the plot
+        plt.savefig(os.path.join(directory_path, file_name_no_format + f"{tensor_to_analyze_label}_plot.png"))
 
 
 def perform_global_matrices_initialization_analysis(
         configuration: Config,
-        verbose: Verbose = Verbose.SILENT
 ) -> None:
     """
     Compares which of the two initializations are better in terms of the quality loss and the speed of convergence to a
@@ -402,8 +415,6 @@ def perform_global_matrices_initialization_analysis(
     Args:
         configuration (Config):
             The configuration object.
-        verbose (Verbose):
-            The verbosity object.
     """
 
     # Setting some parameters
@@ -415,6 +426,8 @@ def perform_global_matrices_initialization_analysis(
     device = get_available_device(
         preferred_device=configuration.get("device") if configuration.contains("device") else "cuda"
     )
+    verbose = configuration.get_verbose()
+
     file_available = configuration.get("file_available")
     file_path = configuration.get("file_path")
     directory_path = configuration.get("directory_path")
@@ -431,10 +444,7 @@ def perform_global_matrices_initialization_analysis(
             tensor_factorizations_loss_histories, tensor_factorizations_dict = pkl.load(f)
     else:
         # Loading the model
-        model = load_original_model_for_causal_lm(
-            configuration,
-            verbose=Verbose.INFO
-        )
+        model = load_original_model_for_causal_lm(configuration)
 
         # Extracting the candidate tensors for the analysis
         extracted_tensor_wrappers = []
@@ -459,8 +469,7 @@ def perform_global_matrices_initialization_analysis(
         for tensor in tensor_wrappers_to_analyze:
             if tensor.get_shape() != shape:
                 raise ValueError("The tensors to analyze must have the same shape.")
-        if verbose >= Verbose.INFO:
-            print(f"\nShape of the tensors to analyze: {shape}")
+        verbose.print(f"\nShape of the tensors to analyze: {shape}", Verbose.INFO)
 
         # Defining the tensor dictionaries to compare different initializations
         tensors_to_analyze_ab = AnalysisTensorDict(
