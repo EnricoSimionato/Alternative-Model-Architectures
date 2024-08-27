@@ -93,9 +93,10 @@ def get_svd_factorization(
 
     # Initializing the SVD factorization
     start_time = time.time()
-    u, s, vt = torch.svd(tensor.to(torch.float32).to("cpu"))
+    u, s, v = torch.svd(tensor.to(torch.float32).to("cpu"))
     us = torch.matmul(u[:, :rank], torch.diag(s[:rank])).to(tensor.dtype).to(device)
     us.requires_grad = trainable[0]
+    vt = v.T
     vt = vt[:rank, :].to(tensor.dtype).to(device)
     vt.requires_grad = trainable[1]
     elapsed_time = time.time() - start_time
@@ -227,15 +228,19 @@ def perform_simple_initialization_analysis(
             # Initializing the factorizations
             a, b, ab_time = get_ab_factorization(tensor_to_analyze, rank, [False, True], device)
             us, vt, svd_time = get_svd_factorization(tensor_to_analyze, rank, [False, True], device)
-            tensor_factorizations = {"A, B": [[b, a], ab_time], "U, S, V^T": [[vt, us], svd_time]}
+
+            tensor_factorizations = {
+                "U, S, V^T": {"tensors": [vt, us], "init_time": svd_time},
+                "A, B": {"tensors": [b, a], "init_time": ab_time}
+            }
 
             loss_types = ["activation loss", "tensor loss"]
             loss_histories_factorizations = {"activation loss": {}, "tensor loss": {}}
 
             # Training the factorizations
-            for factorization_label, factorization_init_plus_time in tensor_factorizations.items():
-                factorization_init = factorization_init_plus_time[0]
-                init_time = factorization_init_plus_time[1]
+            for factorization_label, factorization_init_and_init_time in tensor_factorizations.items():
+                factorization_init = factorization_init_and_init_time["tensors"]
+                init_time = factorization_init_and_init_time["init_time"]
                 for loss_type in loss_types:
                     # Cloning the tensors to avoid in-place operations
                     factorization = [tensor.clone().detach() for tensor in factorization_init]
@@ -255,7 +260,7 @@ def perform_simple_initialization_analysis(
                     initial_activation_loss = None
                     initial_tensor_loss = None
 
-                    verbose.print(f"Starting training using {loss_type} for {factorization_label}", Verbose.INFO)
+                    verbose.print(f"\nStarting training using {loss_type} for {factorization_label}", Verbose.INFO)
                     for index in range(len(factorization)):
                         verbose.print(
                             f"Tensor {index} in {factorization_label} requires grad: "
@@ -266,7 +271,7 @@ def perform_simple_initialization_analysis(
                     # Training the factorization
                     for _ in tqdm(range(num_epochs)):
                         x = random_x.clone().detach().to(device)
-                        y = torch.eye(in_shape).to(device).to(device)
+                        y = torch.eye(in_shape).to(device)
                         for tensor in factorization:
                             x = torch.matmul(tensor, x)
                             y = torch.matmul(tensor, y)
@@ -377,9 +382,11 @@ def perform_simple_initialization_analysis(
         fig.suptitle(f"Initialization analysis of the tensor: {tensor_to_analyze_label}")
         for label, activation_loss_history in loss_histories_factorizations["activation loss"].items():
             axes[0, 0].plot(activation_loss_history, label=f"{label}")
-            axes[1, 0].plot(activation_loss_history[epoch_cut:], label=f"{label}")
-            if configuration.contains("ylim"):
-                axes[1, 0].set_ylim(0, configuration.get("ylim"))
+            axes[1, 0].plot(activation_loss_history, label=f"{label}")
+            if configuration.contains("y_range"):
+                axes[1, 0].set_ylim(configuration.get("y_range"))
+            if configuration.contains("x_range"):
+                axes[1, 0].set_xlim(configuration.get("x_range"))
             print(f"Activation loss for {label}: {activation_loss_history[-1]}")
 
         axes[0, 0].set_title("Full activation training loss history (target activation - approximated activation)")
@@ -388,9 +395,11 @@ def perform_simple_initialization_analysis(
 
         for label, tensor_loss_history in loss_histories_factorizations["tensor loss"].items():
             axes[0, 1].plot(tensor_loss_history, label=f"{label}", )
-            axes[1, 1].plot(tensor_loss_history[epoch_cut:], label=f"{label}")
-            if configuration.contains("ylim"):
-                axes[1, 1].set_ylim(0, configuration.get("ylim"))
+            axes[1, 1].plot(tensor_loss_history, label=f"{label}")
+            if configuration.contains("y_range"):
+                axes[1, 1].set_ylim(configuration.get("y_range"))
+            if configuration.contains("x_range"):
+                axes[1, 1].set_xlim(configuration.get("x_range"))
             print(f"Target tensor - approximated tensor for {label}: {tensor_loss_history[-1]}")
 
         axes[0, 1].set_title("Full loss history (target tensor - approximated tensor)")
@@ -402,7 +411,7 @@ def perform_simple_initialization_analysis(
             ax.legend()
 
         # Saving the plot
-        plt.savefig(os.path.join(directory_path, file_name_no_format + f"{tensor_to_analyze_label}_plot.png"))
+        plt.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_to_analyze_label}_plot.png"))
 
 
 def perform_global_matrices_initialization_analysis(
