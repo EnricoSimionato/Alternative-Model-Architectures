@@ -76,13 +76,13 @@ def perform_head_analysis(
     file_name_no_format = configuration.get("file_name_no_format")
 
     # Getting the parameters related to the analysis from the configuration
+    verbose = configuration.get_verbose()
     fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
-    explained_variance_threshold = configuration.get("explained_variance_threshold")
     name_num_heads_mapping = configuration.get("name_num_heads_mapping")
     name_dim_heads_mapping = (
         configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None
     )
-    verbose = configuration.get_verbose()
+    explained_variance_threshold = configuration.get("explained_variance_threshold")
 
     # Preparing CSV file path
     csv_file_path = os.path.join(directory_path, file_name_no_format + "_analysis.csv")
@@ -91,9 +91,9 @@ def perform_head_analysis(
     with open(csv_file_path, mode='w', newline='') as csvfile:
         # Define the field names for the CSV file
         fieldnames = [
-            "Tensor Path", "Tensor Shape", "Number of Heads", "Heads Shape", "Explained Variance Threshold", "Tensor Approximated Rank",
-            "Total Heads Rank", "Average Heads Rank", "Tensor Parameters Count", "Total Heads Parameters Count",
-            "Average Heads Parameters Count"
+            "Tensor Path", "Tensor Shape", "Number of Heads", "Heads Shape", "Explained Variance Threshold",
+            "Tensor Approximated Rank", "Total Heads Rank", "Average Heads Rank", "Tensor Parameters Count",
+            "Total Heads Parameters Count", "Average Heads Parameters Count"
         ]
 
         # Loading the data if the file is available, otherwise process the model
@@ -102,17 +102,29 @@ def perform_head_analysis(
             with open(file_path, "rb") as f:
                 tensor_wrappers_to_analyze, tensor_wrappers_num_heads = pkl.load(f)
         else:
+            # Loading the model
             model = load_original_model_for_causal_lm(configuration)
+            # Extracting the tensors to be analyzed
             extracted_tensors = []
-            extract_based_on_path(model, configuration.get("targets"), extracted_tensors, configuration.get("black_list"), verbose=verbose)
+            extract_based_on_path(
+                model,
+                configuration.get("targets"),
+                extracted_tensors,
+                configuration.get("black_list"),
+                verbose=verbose
+            )
+
+            # Choosing the actual tensors to be analyzed
             tensor_wrappers_to_analyze = extracted_tensors
             tensor_wrappers_num_heads = []
 
             for tensor_wrapper in tensor_wrappers_to_analyze:
                 verbose.print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'", Verbose.INFO)
-                output_size, input_size = tensor_wrapper.get_shape()
+                # Computing the singular values of the tensor
                 tensor_wrapper.compute_singular_values()
 
+                # Defining the head-related parameters
+                output_size, input_size = tensor_wrapper.get_shape()
                 num_heads = model.__dict__["config"].__dict__[name_num_heads_mapping[tensor_wrapper.get_name()]]
                 tensor_wrappers_num_heads.append(num_heads)
                 if name_dim_heads_mapping is None:
@@ -122,12 +134,17 @@ def perform_head_analysis(
                 else:
                     head_dim = model.__dict__["config"].__dict__[name_dim_heads_mapping[tensor_wrapper.get_name()]]
 
+                # Extracting the heads
                 extract_heads(tensor_wrapper, num_heads, head_dim)
+                verbose.print(
+                    f"Extracted {num_heads} heads from the tensor with path '{tensor_wrapper.get_path()}'",
+                    Verbose.DEBUG
+                )
 
-            # Save the processed data for future use
+            # Saving the processed data for future use
             #with open(file_path, "wb") as f:
             #    pkl.dump((tensor_wrappers_to_analyze, tensor_wrappers_num_heads), f)
-            verbose.print(f"Data has been saved to '{file_path}'.", Verbose.INFO)
+            #verbose.print(f"Data has been saved to '{file_path}'.", Verbose.INFO)
 
         # Extending fieldnames based on the maximum number of heads
         for i in range(max(tensor_wrappers_num_heads)):
@@ -138,41 +155,40 @@ def perform_head_analysis(
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        print("starting again")
-        # Processing each tensor wrapper and write the results to the CSV file
         for tensor_wrapper_index, tensor_wrapper in enumerate(tensor_wrappers_to_analyze):
-            if verbose >= Verbose.INFO:
-                print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
+            verbose.print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'", Verbose.INFO)
+
+            # Computing the rank and the number of parameters of the tensor
+            tensor_rank = tensor_wrapper.get_rank(
+                explained_variance_threshold=explained_variance_threshold,
+                relative=False
+            )
+            tensor_parameters_count = tensor_wrapper.get_parameters_count_thresholded(
+                explained_variance_threshold=explained_variance_threshold
+            )
+
             fig, axes = plt.subplots(2, 2, figsize=fig_size)
-            print("1")
             color_map = plt.cm.get_cmap('viridis', tensor_wrappers_num_heads[tensor_wrapper_index])
-            print("2")
             fig.suptitle(f"Analysis of the tensor with path '{tensor_wrapper.get_path()}'")
-            print("3")
 
-            tensor_rank = tensor_wrapper.get_rank(explained_variance_threshold=explained_variance_threshold, relative=False)
-            print("4")
-            tensor_parameters_count = tensor_wrapper.get_parameters_count_thresholded(explained_variance_threshold=explained_variance_threshold)
-            print("5")
-
+            # Plotting the singular values and explained variance of the tensor
             axes[0, 0].plot(tensor_wrapper.get_singular_values())
             axes[0, 0].set_title("Singular Values")
             axes[0, 0].set_xlabel("Component")
             axes[0, 0].set_ylabel("Singular Value")
-            print("6")
+
             axes[0, 1].plot(tensor_wrapper.get_explained_variance())
             axes[0, 1].set_title("Explained Variance")
             axes[0, 1].set_xlabel("Component")
             axes[0, 1].set_ylabel("Explained Variance (%)")
-            print("7")
             axes[0, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
 
             heads_ranks = []
             heads_parameters_counts = []
             head_data = {}
             heads_shape = tensor_wrapper.get_attribute("heads")[0].get_shape()
-            print("8")
             for i, head_wrapper in enumerate(tensor_wrapper.get_attribute("heads")):
+                # Plotting the singular values and explained variance of the head
                 color = color_map(i)
                 axes[1, 0].plot(head_wrapper.get_singular_values(), label=head_wrapper.get_label(), color=color)
                 axes[1, 1].plot(head_wrapper.get_explained_variance(), label=head_wrapper.get_label(), color=color)
@@ -185,30 +201,30 @@ def perform_head_analysis(
                 axes[1, 1].set_xlabel("Component")
                 axes[1, 1].set_ylabel("Explained Variance (%)")
 
-                head_rank = head_wrapper.get_rank(explained_variance_threshold=explained_variance_threshold, relative=False)
-                head_parameters_count = head_wrapper.get_parameters_count_thresholded(explained_variance_threshold=explained_variance_threshold)
+                # Computing the rank and the number of parameters of the head
+                head_rank = head_wrapper.get_rank(
+                    explained_variance_threshold=explained_variance_threshold,
+                    relative=False
+                )
+                head_parameters_count = head_wrapper.get_parameters_count_thresholded(
+                    explained_variance_threshold=explained_variance_threshold
+                )
                 heads_ranks.append(head_rank)
                 heads_parameters_counts.append(head_parameters_count)
 
                 head_data[f"Head {i} Rank"] = head_rank
                 head_data[f"Head {i} Parameters Count"] = head_parameters_count
-            print("9")
 
             axes[1, 1].axhline(y=explained_variance_threshold, color='black', linestyle='--', label='Threshold')
-            print("10")
             axes[1, 0].legend()
             axes[1, 1].legend()
-            print("11")
 
+            # Saving the plot
             fig.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_wrapper.get_path()}.png"))
-            print("12")
-
-
             plt.close(fig)
+            verbose.print(f"Plots of the tensor with path '{tensor_wrapper.get_path()}' has been saved.", Verbose.INFO)
 
-            if verbose >= Verbose.INFO:
-                print(f"Plots of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
-
+            # Writing the row data to the CSV file
             row_data = {
                 "Tensor Path": tensor_wrapper.get_path() + f"_{tensor_wrapper.get_name()}",
                 "Tensor Shape": f"({tensor_wrapper.get_shape()[0]}, {tensor_wrapper.get_shape()[1]})",
@@ -223,12 +239,11 @@ def perform_head_analysis(
                 "Average Heads Parameters Count": f"{(sum(heads_parameters_counts) / len(heads_parameters_counts)):.2f}"
             }
             row_data.update(head_data)
-            print("16")
-
-            # Writing the row data to the CSV file
             writer.writerow(row_data)
-            if verbose >= Verbose.INFO:
-                print(f"Information of the analysis of the tensor with path '{tensor_wrapper.get_path()}' has been saved.")
+            verbose.print(
+                f"Information of the analysis of the tensor with path '{tensor_wrapper.get_path()}' has been saved.",
+                Verbose.INFO
+            )
 
     # Saving the analyzed tensors to the file
     with open(file_path, "wb") as f:
@@ -253,18 +268,20 @@ def perform_heads_similarity_analysis(
     file_name_no_format = configuration.get("file_name_no_format")
 
     # Getting the parameters related to the analysis from the configuration
+    verbose = configuration.get_verbose()
     fig_size = configuration.get("figure_size") if configuration.contains("figure_size") else (20, 20)
     name_num_heads_mapping = configuration.get("name_num_heads_mapping")
     name_dim_heads_mapping = (
         configuration.get("name_dim_heads_mapping") if configuration.contains("name_dim_heads_mapping") else None
     )
-    verbose = configuration.get_verbose()
+    num_samples = configuration.get("num_samples") if configuration.contains("num_samples") else 1024
 
     # Loading the data if the file is available, otherwise processing the model
     if file_available:
         print(f"The file '{file_path}' is available.")
         with open(file_path, "rb") as f:
-            tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads = pkl.load(f)
+            grouped_tensor_wrappers_to_analyze, grouped_function_similarities, grouped_tensor_wrappers_num_heads = \
+                pkl.load(f)
     else:
         # Loading the model
         model = load_original_model_for_causal_lm(configuration)
@@ -283,16 +300,31 @@ def perform_heads_similarity_analysis(
         # Grouping the tensors based on some criteria
         grouped_tensor_wrappers_num_heads = []
         grouped_function_similarities = []
-        grouped_tensor_wrappers_to_analyze = [[tensor_wrapper,] for tensor_wrapper in tensor_wrappers_to_analyze]
+        if configuration.get("grouping") == "single_matrix":
+            grouped_tensor_wrappers_to_analyze = [
+                {"tensors": [tensor_wrapper], "label": tensor_wrapper.get_path()}
+                for tensor_wrapper in tensor_wrappers_to_analyze
+            ]
+        elif configuration.get("grouping") == "matrix_type":
+            unique_labels = set([tensor_wrapper.get_label() for tensor_wrapper in tensor_wrappers_to_analyze])
+            grouped_tensor_wrappers_to_analyze = [
+                {"tensors": [], "label": unique_label} for unique_label in unique_labels
+            ]
+            for tensor_wrapper in tensor_wrappers_to_analyze:
+                for group_index in range(len(grouped_tensor_wrappers_to_analyze)):
+                    if grouped_tensor_wrappers_to_analyze[group_index]["label"] == tensor_wrapper.get_label():
+                        grouped_tensor_wrappers_to_analyze[group_index]["tensors"].append(tensor_wrapper)
+        else:
+            grouped_tensor_wrappers_to_analyze = [{"tensors": tensor_wrappers_to_analyze, "label": "all_tensors"}]
         # TODO Group the tensors based on some criteria
 
-        for tensor_wrapper_group in grouped_tensor_wrappers_to_analyze:
+        for tensor_wrapper_group_dict in grouped_tensor_wrappers_to_analyze:
+            tensor_wrapper_group = tensor_wrapper_group_dict["tensors"]
             y_list = []
             similarity_size = 0
             tensor_wrappers_num_heads = []
             for tensor_wrapper in tensor_wrapper_group:
-                if verbose >= Verbose.INFO:
-                    print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'")
+                verbose.print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'", Verbose.INFO)
                 # Defining the head-related parameters
                 output_size, input_size = tensor_wrapper.get_shape()
                 if input_size != tensor_wrappers_to_analyze[0].get_shape()[1]:
@@ -310,16 +342,17 @@ def perform_heads_similarity_analysis(
 
                 # Extracting the heads
                 extract_heads(tensor_wrapper, num_heads, head_dim)
-                if verbose >= Verbose.INFO:
-                    print(f"Extracted {num_heads} heads from the tensor with path '{tensor_wrapper.get_path()}'")
+                verbose.print(
+                    f"Extracted {num_heads} heads from the tensor with path '{tensor_wrapper.get_path()}'",
+                    Verbose.DEBUG
+                )
 
-                # Generate random input
+                # Generating random input
                 input_dim = tensor_wrappers_to_analyze[0].get_shape()[1]
-                batch_size = 1024
-                x = np.random.randn(input_dim, batch_size)
+                x = np.random.randn(input_dim, num_samples)
                 x = torch.tensor(x, dtype=torch.float32)
 
-                # Generate outputs for each head (for illustration, random matrices are used)
+                # Generating outputs for each head (for illustration, random matrices are used)
                 for _ in range(num_heads):
                     head = np.random.randn(input_dim, input_dim)
                     head = torch.tensor(head, dtype=torch.float32)
@@ -335,7 +368,7 @@ def perform_heads_similarity_analysis(
 
             verbose.print(f"Stating the computation of the similarities", Verbose.INFO)
             function_similarities = np.zeros((similarity_size, similarity_size))
-            # Compute similarities and fill the matrix
+            # Computing similarities and fill the matrix
             for index_1 in tqdm(range(len(y_list))):
                 y_1 = y_list[index_1]
                 for index_2 in range(len(y_list)):
@@ -348,20 +381,37 @@ def perform_heads_similarity_analysis(
 
             grouped_function_similarities.append(function_similarities)
 
+    for index, function_similarities in enumerate(grouped_function_similarities):
+        # Plotting the similarity matrix
+        fig, ax = plt.subplots(figsize=fig_size)
+        fig.suptitle(f"Analysis of the tensor with path '{grouped_tensor_wrappers_to_analyze[index]['label']}'")
+        sns.heatmap(function_similarities, annot=True, cmap="viridis", cbar=True, ax=ax)
+        ax.set_title("Cosine Similarity Heatmap")
+        ax.set_xlabel("Head Index")
+        ax.set_ylabel("Head Index")
 
-    # Plot the similarity matrix
-    fig, ax = plt.subplots(figsize=fig_size)
-    sns.heatmap(function_similarities, annot=True, cmap="viridis", cbar=True, ax=ax)
-    ax.set_title("Cosine Similarity Heatmap")
-    ax.set_xlabel("Head Index")
-    ax.set_ylabel("Head Index")
-    plt.show()
+        # Saving the plot
+        fig.savefig(
+            os.path.join(
+                directory_path,
+                file_name_no_format + f"_{grouped_tensor_wrappers_to_analyze[index]['label']}_similarities.png"
+            )
+        )
+        plt.close(fig)
+        verbose.print(
+            f"Plots of the tensor with path '{grouped_tensor_wrappers_to_analyze[index]['label']}' has been "
+            f"saved.",
+            Verbose.INFO
+        )
 
-    # Save the similarity matrix
-    fig.savefig(os.path.join(directory_path, file_name_no_format + f"_similarities.png"))
-
-
-    # Save the data for future use
+    # Saving the data for future use
     with open(file_path, "wb") as f:
-        pkl.dump((tensor_wrappers_to_analyze, function_similarities, tensor_wrappers_num_heads), f)
+        pkl.dump(
+            (
+                grouped_tensor_wrappers_to_analyze,
+                grouped_function_similarities,
+                grouped_tensor_wrappers_num_heads
+            ),
+            f
+        )
     print(f"Data has been saved to '{file_path}'.")
