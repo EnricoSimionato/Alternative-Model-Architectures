@@ -316,14 +316,13 @@ def perform_heads_similarity_analysis(
                         grouped_tensor_wrappers_to_analyze[group_index]["tensors"].append(tensor_wrapper)
         else:
             grouped_tensor_wrappers_to_analyze = [{"tensors": tensor_wrappers_to_analyze, "label": "all_tensors"}]
-        # TODO Group the tensors based on some criteria
 
-        for tensor_wrapper_group_dict in grouped_tensor_wrappers_to_analyze:
-            tensor_wrapper_group = tensor_wrapper_group_dict["tensors"]
+        for tensor_wrappers_group_dict in grouped_tensor_wrappers_to_analyze:
+            tensor_wrappers_group = tensor_wrappers_group_dict["tensors"]
             y_list = []
             similarity_size = 0
             tensor_wrappers_num_heads = []
-            for tensor_wrapper in tensor_wrapper_group:
+            for tensor_wrapper in tensor_wrappers_group:
                 verbose.print(f"Analyzing the tensor with path '{tensor_wrapper.get_path()}'", Verbose.INFO)
                 # Defining the head-related parameters
                 output_size, input_size = tensor_wrapper.get_shape()
