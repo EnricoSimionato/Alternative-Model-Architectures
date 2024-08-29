@@ -1,5 +1,5 @@
 {
-    "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     "analysis_type": "simple_matrices_initialization_analysis",
     "keys_for_naming": [
         "original_model_id"
