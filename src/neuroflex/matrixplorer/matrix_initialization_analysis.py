@@ -509,6 +509,7 @@ def perform_simple_initialization_analysis(
         plt.savefig(os.path.join(directory_path, file_name_no_format + f"_{tensor_to_analyze_label}_plot.png"))
         logger.info(f"Plot saved for the tensor: {tensor_to_analyze_label}")
 
+
 def perform_global_matrices_initialization_analysis(
         configuration: Config,
 ) -> None:
