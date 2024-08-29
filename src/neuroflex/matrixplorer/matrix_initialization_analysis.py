@@ -220,7 +220,7 @@ def perform_simple_initialization_analysis(
     logging.basicConfig(filename=os.path.join(configuration.get("directory_path"), "logs.log"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_simple_initialization_analysis in matrix_initialization_analysis.py.")
-    logging.disable(logging.CRITICAL)
+
     # Getting the parameters related to the paths from the configuration
     logger.info(f"Getting the parameters related to the paths from the configuration")
     file_available = configuration.get("file_available")
