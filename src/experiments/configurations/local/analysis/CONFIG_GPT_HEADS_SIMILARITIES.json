@@ -1,22 +1,28 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
     "analysis_type": "heads_similarity_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
-
+    
     "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
-
     "targets": [
-        "query"
+        "q_proj",
+        "k_proj",
+        "v_proj"
     ],
     "black_list": [],
+    
     "name_num_heads_mapping": {
-        "query": "num_attention_heads"
+        "q_proj": "num_heads",
+        "k_proj": "num_heads",
+        "v_proj": "num_heads"
     },
+    
+    "num_samples": 8192,
+    "grouping": "single_matrix",
 
+    
     "figure_size": [100, 100],
 
     "verbose": 1,

@@ -1,20 +1,22 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
-    "analysis_type": "head_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
 
+    "analysis_type": "head_analysis",
+    
     "original_model_id": "google/gemma-2b",
     "quantization": null,
     "dtype": "float32",
-
     "targets": [
-        "query"
+        "q_proj",
+        "k_proj",
+        "v_proj"
     ],
     "black_list": [],
+    
     "name_num_heads_mapping": {
-        "query": "num_attention_heads"
+        "q_proj": "num_heads",
+        "k_proj": "num_heads",
+        "v_proj": "num_heads"
     },
 
     "explained_variance_threshold": 0.9,

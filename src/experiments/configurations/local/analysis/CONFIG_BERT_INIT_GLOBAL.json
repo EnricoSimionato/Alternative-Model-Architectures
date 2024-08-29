@@ -14,11 +14,12 @@
         "attention"
     ],
 
-    "rank": 512,
+    "rank": 256,
 
     "num_epochs": 20000,
     "learning_rate": 0.0001,
     "batch_size": 512,
+    "alpha": 2.5,
 
     "figure_size": [45, 30],
     "y_range": [10000, 35000],

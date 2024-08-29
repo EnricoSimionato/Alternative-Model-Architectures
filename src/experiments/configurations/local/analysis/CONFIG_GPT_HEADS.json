@@ -1,20 +1,18 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
     "analysis_type": "head_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
-
+    
     "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
-
     "targets": [
         "q_proj",
         "k_proj",
         "v_proj"
     ],
     "black_list": [],
+    
     "name_num_heads_mapping": {
         "q_proj": "num_heads",
         "k_proj": "num_heads",

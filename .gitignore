@@ -162,15 +162,15 @@ cython_debug/
 *.xml
 *.iml
 
+src/experiments/cache/*
+src/experiments/data/*
+src/experiments/models/*
 src/experiments/performed_experiments/*
 !src/experiments/performed_experiments/aa
-!src/experiments/performed_experiments/imaage
-!src/experiments/performed_experiments/rank_analysis
+!src/experiments/performed_experiments/analysis
 
-src/experiments/performed_experiments/rank_analysis/*
-!src/experiments/performed_experiments/rank_analysis/.gitkeep
-src/experiments/performed_experiments/imaage/*
-!src/experiments/performed_experiments/imaage/.gitkeep
+src/experiments/performed_experiments/analysis/*
+!src/experiments/performed_experiments/analysis/.gitkeep
 src/experiments/performed_experiments/aa/*
 !src/experiments/performed_experiments/aa/.gitkeep
 

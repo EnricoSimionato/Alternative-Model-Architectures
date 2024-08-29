@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 from neuroflex.matrixplorer.head_analysis import perform_head_analysis, perform_heads_similarity_analysis
 from neuroflex.utils.experiment_pipeline import Config
@@ -117,7 +118,14 @@ def main():
             "file_name_no_format": file_name.split(".")[0]
         }
     )
+    # Creating the logger
+    logging.basicConfig(filename=os.path.join(configuration.get("directory_path"), "logs.log"), level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Running main in analysis_launcher.py.")
+    logger.info(f"Configuration file: {config_name}.")
+    logger.info(f"File available: {file_available}.")
 
+    logger.info(f"Starting the analysis {configuration.get('analysis_type')}.")
     # Performing the analysis
     if configuration.get("analysis_type") not in analysis_mapping.keys():
         raise Exception("The analysis type is not recognized.")
