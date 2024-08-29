@@ -1,16 +1,14 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    
     "analysis_type": "simple_initialization_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
 
     "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
-
     "targets": [
-        "k_proj"
+        "c_fc",
+        "c_proj"
     ],
     "black_list": [],
 
@@ -18,11 +16,10 @@
 
     "num_epochs": 20000,
     "learning_rate": 0.0001,
-    "batch_size": 64,
+    "num_samples": 512,
 
     "figure_size": [35, 35],
-    "y_range": [0, 25000],
-    "x_range": [0, 12000],
+    "y_range": [0, 10000],
 
     "verbose": 1,
     "device": "cuda",
