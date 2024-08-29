@@ -10,8 +10,7 @@
     "dtype": "float32",
 
     "targets": [
-        "c_fc",
-        "c_proj"
+        "c_fc"
     ],
     "black_list": [],
 
