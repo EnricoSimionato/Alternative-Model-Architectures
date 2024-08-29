@@ -268,7 +268,7 @@ def perform_simple_initialization_analysis(
         )
         logger.info(f"Candidate tensors extracted")
         # Choosing the actual tensors to analyze
-        tensor_wrappers_to_analyze = extracted_tensors
+        tensor_wrappers_to_analyze = [extracted_tensors[0]]
 
         time_log = []
         csv_data = []
