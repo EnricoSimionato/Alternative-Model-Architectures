@@ -1,16 +1,25 @@
 {
-  "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
-  "analysis_type": "sorted_layers_rank_analysis",
-  "original_model_id": "mistralai/Mistral-7B-v0.1",
-  "targets": [
-    "gate_proj",
-    "up_proj",
-    "down_proj"
-  ],
-  "black_list": [],
-  "similarity_guide_name": "down_proj",
-  "explained_variance_threshold": 0.99,
-  "figure_size": [40, 40],
-  "precision": 2,
-  "verbose": 1
+    "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
+    "analysis_type": "sorted_layers_rank_analysis",
+    
+    "original_model_id": "mistralai/Mistral-7B-v0.1",
+    "targets": [
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+    ],
+    "black_list": [],
+
+    "similarity_guide_name": "down_proj",
+
+    "explained_variance_threshold": 0.99,
+
+    "figure_size": [40, 40],
+    
+    "precision": 2,
+    
+    "verbose": 1,
+    "device": "cuda",
+    "seed": 42
 }

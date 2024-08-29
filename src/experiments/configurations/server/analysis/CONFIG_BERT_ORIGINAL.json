@@ -1,7 +1,7 @@
 {
-    "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/rank_analysis",
-
-    "analysis_type": "delta_layers_wrt_average_rank_analysis",
+    "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
+    "analysis_type": "original_layers_rank_analysis",
 
     "original_model_id": "bert-base-uncased",
     "targets": [
@@ -14,7 +14,6 @@
 
     "explained_variance_threshold": 0.8,
 
-    "relative_plot": true,
     "figure_size": [24, 8],
 
     "precision": 2,
