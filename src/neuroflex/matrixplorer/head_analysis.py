@@ -217,12 +217,13 @@ def perform_head_analysis(
                 head_data[f"Head {i} Rank"] = head_rank
                 head_data[f"Head {i} Parameters Count"] = head_parameters_count
 
-            singular_values_heads_average = tensor_wrapper.get_attribute("heads")[0].get_singular_values()
-            for head_wrapper in tensor_wrapper.get_attribute("heads")[1:]:
-                singular_values_heads_average += head_wrapper.get_singular_values()
-            singular_values_heads_average /= len(tensor_wrapper.get_attribute("heads"))
-            axes[1, 0].plot(singular_values_heads_average, color="red", label="Average singular values heads")
-            axes[1, 1].plot(compute_explained_variance(singular_values_heads_average), color="red", label="Average singular values heads")
+            if len(tensor_wrapper.get_attribute("heads")) > 1:
+                singular_values_heads_average = tensor_wrapper.get_attribute("heads")[0].get_singular_values()
+                for head_wrapper in tensor_wrapper.get_attribute("heads")[1:]:
+                    singular_values_heads_average += head_wrapper.get_singular_values()
+                singular_values_heads_average /= len(tensor_wrapper.get_attribute("heads"))
+                axes[1, 0].plot(singular_values_heads_average, color="red", label="Average singular values heads")
+                axes[1, 1].plot(compute_explained_variance(singular_values_heads_average), color="red", label="Average singular values heads")
 
             axes[1, 1].axhline(y=explained_variance_threshold, color="black", linestyle="--", label="Threshold")
             axes[1, 0].legend()
