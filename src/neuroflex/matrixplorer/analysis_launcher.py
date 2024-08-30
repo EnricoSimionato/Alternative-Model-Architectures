@@ -26,7 +26,9 @@ specific_mandatory_keys_mapping = {
     "global_matrices_initialization_analysis": ["rank"],
 
     "head_analysis": ["explained_variance_threshold", "name_num_heads_mapping"],
-    "heads_similarity_analysis": ["grouping"]
+    "heads_similarity_analysis": ["grouping"],
+
+    "query_key_analysis": ["query_label", "key_label"],
 }
 
 

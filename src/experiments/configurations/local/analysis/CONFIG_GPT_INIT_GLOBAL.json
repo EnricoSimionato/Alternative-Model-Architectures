@@ -2,12 +2,12 @@
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
     "analysis_type": "global_matrices_initialization_analysis",
-
-    "original_model_id": "EleutherAI/gpt-neo-1.3B",
+    
+    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
     "targets": [
-        "k_proj"
+        "c_fc"
     ],
     "black_list": [],
 
@@ -15,12 +15,11 @@
 
     "num_epochs": 20000,
     "learning_rate": 0.0001,
-    "batch_size": 64,
+    "batch_size": 1024,
 
     "figure_size": [45, 30],
-    "epoch_cut": 0,
-    "ylim": 25000,
-
+    "y_range": [0, 50000],
+    
     "verbose": 1,
     "device": "mps",
     "seed": 42

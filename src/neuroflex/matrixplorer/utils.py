@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+import pickle as pkl
 
 import numpy as np
 
@@ -11,94 +12,18 @@ import transformers
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 
-from neuroflex.utils.rank_analysis.utils import compute_explained_variance
-from neuroflex.utils.rank_analysis.utils import compute_singular_values
+from neuroflex.utils.experiment_pipeline import Config
+
+from neuroflex.utils.chatbot import load_original_model_for_causal_lm
+
+
+from neuroflex.matrixplorer.rank_analysis_utils import (
+    compute_explained_variance,
+    compute_singular_values,
+    RankAnalysisResult
+)
 
 # Definition of the classes to perform the rank analysis
-
-class RankAnalysisResult:
-    """
-    Class to store the result of the rank analysis. It stores the rank of the tensor and the thresholds used to compute
-    the rank.
-
-    Args:
-        rank (int):
-            The rank of the tensor.
-        explained_variance_threshold (float, optional):
-            The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
-            singular values that explain the threshold fraction of the total variance. Defaults to 0.
-        singular_values_threshold (float, optional):
-            The threshold to use to compute the rank based on singular values. Rank is computed as the number of
-            singular values that are greater than the threshold. Defaults to 0.
-        verbose (Verbose, optional):
-            The verbosity level. Defaults to Verbose.INFO.
-
-    Attributes:
-        rank (int):
-            The rank of the tensor.
-        explained_variance_threshold (float):
-            The threshold on the explained variance to use to compute the rank. Rank is computed as the number of
-            singular values that explain the threshold fraction of the total variance.
-        singular_values_threshold (float):
-            The threshold to use to compute the rank based on singular values. Rank is computed as the number of
-            singular values that are greater than the threshold.
-        verbose (Verbose):
-            The verbosity level.
-    """
-
-    def __init__(
-            self,
-            rank: int,
-            explained_variance_threshold: float = 0,
-            singular_values_threshold: float = 0,
-            verbose: Verbose = Verbose.INFO
-    ) -> None:
-
-        self.rank = rank
-        self.explained_variance_threshold = explained_variance_threshold
-        self.singular_values_threshold = singular_values_threshold
-
-        self.verbose = verbose
-
-    def get_rank(
-            self
-    ) -> int:
-        """
-        Returns the rank of the tensor.
-
-        Returns:
-            int:
-                The rank of the tensor.
-        """
-
-        return self.rank
-
-    def get_explained_variance_threshold(
-            self
-    ) -> float:
-        """
-        Returns the threshold on the explained variance to use to compute the rank.
-
-        Returns:
-            float:
-                The threshold on the explained variance to use to compute the rank.
-        """
-
-        return self.explained_variance_threshold
-
-    def get_singular_values_threshold(
-            self
-    ) -> float:
-        """
-        Returns the threshold to use to compute the rank based on singular values.
-
-        Returns:
-            float:
-                The threshold to use to compute the rank based on singular values.
-        """
-
-        return self.singular_values_threshold
-
 
 class AnalysisTensorWrapper:
     """
@@ -1208,6 +1133,132 @@ class AnalysisModelWrapper(nn.Module):
         """
 
         return self.model(x, *args, **kwargs)
+
+
+def perform_analysis(
+        configuration: Config
+) -> None:
+    """
+    Performs the analysis.
+
+    Args:
+        configuration (Config):
+            The configuration object containing the necessary information to perform the analysis.
+
+    """
+
+    # Getting the parameters related to the paths from the configuration
+    file_available = configuration.get("file_available")
+    file_path = configuration.get("file_path")
+    directory_path = configuration.get("directory_path")
+    file_name_no_format = configuration.get("file_name_no_format")
+
+    if file_available:
+        print(f"The file '{file_path}' is available.")
+        # Loading the data from the file
+        with open(file_path, "rb") as f:
+            data = pkl.load(f)
+    else:
+        # Loading the model
+        model = load_original_model_for_causal_lm(configuration)
+        # Extracting the tensors to be analyzed
+        extracted_tensors = []
+        extract_based_on_path(
+            model,
+            configuration.get("targets"),
+            extracted_tensors,
+            configuration.get("black_list"),
+            verbose=configuration.get_verbose()
+        )
+
+        data = []
+
+        # Saving the data about the analysis to the file
+        with open(file_path, "wb") as f:
+            pkl.dump(data, f)
+
+    # Saving the data about the analysis to the file
+    with open(file_path, "wb") as f:
+        pkl.dump(data, f)
+
+
+def extract_based_on_path(
+        model_tree: [nn.Module | transformers.AutoModel],
+        paths_of_targets: list,
+        extracted_matrices: list,
+        black_list: list = None,
+        path: str = "",
+        verbose: Verbose = Verbose.INFO,
+        **kwargs
+) -> None:
+    """
+    Extracts the matrices from the model tree.
+
+    Args:
+        model_tree ([nn.Module | transformers.AutoModel]):
+            The model tree.
+        paths_of_targets (list):
+            The path of the targets.
+        extracted_matrices (list):
+            The list of extracted matrices.
+        black_list (list, optional):
+            The list of black listed paths. Defaults to None.
+        path (str, optional):
+            The path to the current layer. Defaults to "".
+        verbose (Verbose, optional):
+            The verbosity level. Defaults to Verbose.INFO.
+    """
+
+    for layer_name in model_tree._modules.keys():
+        child = model_tree._modules[layer_name]
+        if len(child._modules) == 0:
+            if verbose > Verbose.INFO:
+                print(f"Checking {layer_name} in {path}")
+
+            if black_list is not None:
+                black_listed = len([
+                    black_listed_string
+                    for black_listed_string in black_list
+                    if black_listed_string in path + "_" + layer_name
+                ]) > 0
+            else:
+                black_listed = False
+
+            targets_in_path = [
+                layer_path_
+                for layer_path_ in paths_of_targets
+                if layer_path_ in path + "_" + layer_name and not black_listed
+            ]
+            if len(targets_in_path) > 0:
+                layer_path = str(max(targets_in_path, key=len))
+                if verbose > Verbose.SILENT:
+                    print(f"Found {layer_path} in {path}")
+
+                list_containing_layer_number = [
+                    sub_path for sub_path in path.split("_") if sub_path.isdigit()
+                ]
+                block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
+                extracted_matrices.append(
+                    AnalysisTensorWrapper(
+                        tensor=child.weight.detach(),
+                        name=layer_name,
+                        label=layer_path,
+                        path=path + "_" + layer_name,
+                        block_index=int(block_index),
+                        layer=child
+                    )
+                )
+        else:
+            # Recursively calling the function
+            extract_based_on_path(
+                model_tree=child,
+                paths_of_targets=paths_of_targets,
+                extracted_matrices=extracted_matrices,
+                black_list=black_list,
+                path=layer_name if path == "" else path + "_" + layer_name,
+                verbose=verbose,
+                **kwargs
+            )
 
 
 def extract_analysis_layer_wrappers(

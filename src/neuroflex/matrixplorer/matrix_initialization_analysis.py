@@ -293,8 +293,8 @@ def perform_simple_initialization_analysis(
             logger.info("Factorizations initialized")
 
             tensor_factorizations = {
-                "U, S, V^T": {"tensors": [vt, us], "init_time": svd_time},
-                "A, B": {"tensors": [b, a], "init_time": ab_time}
+                "A, B SVD initialized": {"tensors": [vt, us], "init_time": svd_time},
+                "A, B randomly initialized": {"tensors": [b, a], "init_time": ab_time}
             }
 
             loss_types = ["activation loss", "tensor loss"]
@@ -379,7 +379,7 @@ def perform_simple_initialization_analysis(
                     end_time = time.time()
                     # Calculating and storing the time elapsed
                     time_elapsed = end_time - start_time
-                    time_string = (f"Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} "
+                    time_string = (f"{tensor_wrapper_to_analyze.get_path()}: Time for training {factorization_label} using {loss_type}: {time_elapsed:.2f} "
                                    f"seconds + {init_time:.2f} seconds to initialize the matrix\n")
                     time_log.append(time_string)
                     verbose.print(time_string, Verbose.INFO)
@@ -475,8 +475,8 @@ def perform_simple_initialization_analysis(
         fig.suptitle(f"Initialization analysis of the tensor: {tensor_to_analyze_label}")
         for label, activation_loss_history in loss_histories_factorizations["activation loss"].items():
             logger.info(f"Plotting the activation loss for {label}")
-            axes[0, 0].plot(activation_loss_history, label=f"{label}")
-            axes[1, 0].plot(activation_loss_history, label=f"{label}")
+            axes[0, 0].plot(activation_loss_history, label=f"{label.replace('U, S, V^T trained', 'A, B SVD initialized trained').replace('A, B trained', 'A, B randomly initialized trained')}")
+            axes[1, 0].plot(activation_loss_history, label=f"{label.replace('U, S, V^T trained', 'A, B SVD initialized trained').replace('A, B trained', 'A, B randomly initialized trained')}")
             if configuration.contains("y_range"):
                 axes[1, 0].set_ylim(configuration.get("y_range"))
             if configuration.contains("x_range"):
@@ -488,8 +488,8 @@ def perform_simple_initialization_analysis(
 
         for label, tensor_loss_history in loss_histories_factorizations["tensor loss"].items():
             logger.info(f"Plotting the tensor loss for {label}")
-            axes[0, 1].plot(tensor_loss_history, label=f"{label}", )
-            axes[1, 1].plot(tensor_loss_history, label=f"{label}")
+            axes[0, 1].plot(tensor_loss_history, label=f"{label.replace('U, S, V^T trained', 'A, B SVD initialized trained').replace('A, B trained', 'A, B randomly initialized trained')}", )
+            axes[1, 1].plot(tensor_loss_history, label=f"{label.replace('U, S, V^T trained', 'A, B SVD initialized trained').replace('A, B trained', 'A, B randomly initialized trained')}")
             if configuration.contains("y_range"):
                 axes[1, 1].set_ylim(configuration.get("y_range"))
             if configuration.contains("x_range"):
@@ -542,7 +542,7 @@ def perform_global_matrices_initialization_analysis(
         print(f"The file '{file_path}' is available.")
         # Loading the data from the file
         with open(file_path, "rb") as f:
-            all_groups_tensor_factorizations_loss_histories, grouped_tensor_wrappers = pkl.load(f)
+            all_groups_tensor_factorizations_loss_histories, all_groups_tensor_factorizations = pkl.load(f)
     else:
         # Loading the model
         model = load_original_model_for_causal_lm(configuration)
@@ -573,6 +573,8 @@ def perform_global_matrices_initialization_analysis(
 
         all_groups_tensor_factorizations_loss_histories = []
         all_groups_tensor_factorizations = []
+        time_log = []
+        csv_data = []
         for tensor_wrappers_group_dict in grouped_tensor_wrappers:
             tensor_wrappers_group = tensor_wrappers_group_dict["tensors"]
             tensor_wrappers_group_label = tensor_wrappers_group_dict["label"]
@@ -590,10 +592,10 @@ def perform_global_matrices_initialization_analysis(
                 [tensor_wrappers_group_label] * len(tensor_wrappers_group), copy.deepcopy(tensor_wrappers_group)
             )
             tensor_wrappers_group_pseudo_inverse_init = AnalysisTensorDict(
-                [tensor_wrappers_group_label]*len(tensor_wrappers_group), copy.deepcopy(tensor_wrappers_group)
+                [tensor_wrappers_group_label] * len(tensor_wrappers_group), copy.deepcopy(tensor_wrappers_group)
             )
             tensor_wrappers_group_svd_init = AnalysisTensorDict(
-                [tensor_wrappers_group_label]*len(tensor_wrappers_group), copy.deepcopy(tensor_wrappers_group)
+                [tensor_wrappers_group_label] * len(tensor_wrappers_group), copy.deepcopy(tensor_wrappers_group)
             )
             tensor_wrappers_group_random_init.set_dtype(torch.float32)
             tensor_wrappers_group_pseudo_inverse_init.set_dtype(torch.float32)
@@ -663,8 +665,6 @@ def perform_global_matrices_initialization_analysis(
             }
             tensor_factorizations_losses = ["tensor loss", "tensor loss", "penalized tensor loss"]
 
-            time_log = []
-            csv_data = []
             tensor_factorizations_loss_histories = {"activation loss": {}, "tensor loss": {}, "penalization term": {}}
 
             for tensor_factorization_index, tensor_factorization_key_value in enumerate(tensor_factorizations_dict.items()):
@@ -764,7 +764,7 @@ def perform_global_matrices_initialization_analysis(
                 # Calculating and storing the time elapsed
                 time_elapsed = end_time - start_time
 
-                time_string = (f"Time for training {factorization_label} using tensor loss: {time_elapsed:.2f} seconds + "
+                time_string = (f"{tensor_wrapper_to_analyze.get_path()}: Time for training {factorization_label} using tensor loss: {time_elapsed:.2f} seconds + "
                                f"{tensor_init_time:.2f} seconds to initialize the factorization\n")
                 time_log.append(time_string)
 
