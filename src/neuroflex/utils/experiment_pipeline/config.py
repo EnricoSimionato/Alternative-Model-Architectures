@@ -16,6 +16,8 @@ class ExperimentStatus(Enum):
     COMPLETED = "Completed"
 
 
+environments = ["local", "server", "colab"]
+
 def get_path_to_configurations(
         environment: str,
         **kwargs

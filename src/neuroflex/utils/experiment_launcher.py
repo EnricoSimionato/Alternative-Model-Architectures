@@ -1,7 +1,7 @@
 import os
 import argparse
 
-from neuroflex.utils.experiment_pipeline.config import Config
+from neuroflex.utils.experiment_pipeline.config import Config, get_path_to_configurations, environments
 from neuroflex.utils.experiment_pipeline.experiment import Experiment
 
 from neuroflex.utils.classification import (
@@ -288,31 +288,23 @@ def main():
     parser.add_argument(
         "config_file_name",
         type=str,
-        help="The name of the configuration file to use for the experiment."
+        help="The name of the configuration file to use for the experiment (e.g., 'CONFIG.json')."
     )
     parser.add_argument(
         "environment",
         type=str,
-        choices=["server", "local"],
-        help="Specify the environment: 'server' or 'local'."
+        choices=environments,
+        help=f"Specify the environment: {' or '.join(environments)}."
     )
-    args = parser.parse_args()
 
+    # Extracting the configuration name and the environment
+    args = parser.parse_args()
     config_file_name = args.config_file_name
     environment = args.environment
-
-    if environment == "local":
-        base_path = "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/configurations/local"
-    elif environment == "server":
-        base_path = "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/configurations/server"
-    elif environment == "colab":
-        base_path = "/content/Alternative-Model-Architectures/src/experiments/configurations/colab"
-    else:
-        raise ValueError("Invalid environment. Choose either 'server' or 'local'.")
-
-    path_to_config = os.path.join(base_path, config_file_name)
-    configuration = Config(path_to_config)
     print(f"Running experiment with configuration: {config_file_name} on {environment} environment")
+
+    # Loading the configuration
+    configuration = Config(os.path.join(get_path_to_configurations(environment), "aa", config_file_name))
 
     if "CLASS" in config_file_name:
         if "AA" in config_file_name:

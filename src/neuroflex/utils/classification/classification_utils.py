@@ -9,7 +9,7 @@ from neuroflex.utils.printing_utils.printing_utils import Verbose
 
 def load_original_model_for_sequence_classification(
         config: Config,
-) -> transformers.AutoModel:
+) -> transformers.AutoModelForSequenceClassification:
     """
     Loads the model to be used in the sequence classification task.
 

@@ -21,7 +21,7 @@ from neuroflex.utils.experiment_pipeline.config import (
     Config
 )
 
-from neuroflex.utils.classification import ClassifierModelWrapper
+from neuroflex.utils.classification.pl_models import ClassifierModelWrapper
 from neuroflex.utils.classification.pl_trainer import get_classification_trainer
 
 from neuroflex.utils.chatbot import ChatbotModelWrapper

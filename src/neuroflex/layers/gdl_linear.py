@@ -555,7 +555,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             average_layers: nn.ModuleDict,
             target_name: str,
             rank: int,
-            initialization_type: str = "random",
+            initialization_type: str = "pseudo-inverse",
             *args,
             **kwargs
     ) -> None:
@@ -635,33 +635,34 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             for params in self.get_layer("local", local_key).parameters():
                 params.requires_grad = self.structure[1]["trainable"]
 
-        device = get_available_device()
+        if initialization_type in ["random",]:
+            device = get_available_device()
 
-        target_weight = target_weight.to(device)
-        self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
-        self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
+            target_weight = target_weight.to(device)
+            self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
+            self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
 
-        optimizer = torch.optim.AdamW(
-            [
-                self.get_layer("local", local_key).weight
-            ],
-            lr=1e-3,
-            eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
-        )
-
-        num_epochs = 100
-
-        for epoch in range(num_epochs):
-            approximated_matrix = torch.matmul(
-                self.get_layer("local", local_key).weight,
-                self.get_layer("global", global_key).weight
+            optimizer = torch.optim.AdamW(
+                [
+                    self.get_layer("local", local_key).weight
+                ],
+                lr=1e-3,
+                eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
             )
 
-            loss = torch.norm((target_weight - approximated_matrix) ** 2)
+            num_epochs = 10000
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            for epoch in range(num_epochs):
+                approximated_matrix = torch.matmul(
+                    self.get_layer("local", local_key).weight,
+                    self.get_layer("global", global_key).weight
+                )
+
+                loss = torch.norm((target_weight - approximated_matrix) ** 2)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
 
 class GlobalFixedBaseLinear(GlobalBaseLinear):

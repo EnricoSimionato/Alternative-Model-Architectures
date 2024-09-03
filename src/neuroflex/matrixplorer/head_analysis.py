@@ -15,8 +15,8 @@ from neuroflex.matrixplorer.rank_analysis_utils import compute_explained_varianc
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
-from neuroflex.utils.rank_analysis.sorted_layers_rank_analysis import compute_cosine
-from neuroflex.utils.rank_analysis.utils import extract_based_on_path, AnalysisTensorWrapper
+from neuroflex.matrixplorer.sorted_layers_rank_analysis import compute_cosine
+from neuroflex.matrixplorer.utils import extract_based_on_path, AnalysisTensorWrapper
 
 
 def extract_heads(

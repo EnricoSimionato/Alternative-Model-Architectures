@@ -1,6 +1,8 @@
 {
   "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+  
   "analysis_type": "original_layers_rank_analysis",
+  
   "original_model_id": "bert-base-uncased",
   "targets": [
     "output_dense",
@@ -9,8 +11,12 @@
   "black_list": [
     "attention"
   ],
-  "explained_variance_threshold": 0.8,
+  
+  "explained_variance_threshold": 0.9,
+  
   "figure_size": [24, 8],
-  "precision": 2,
-  "verbose": 1
+  
+    "verbose": 1,
+    "device": "mps",
+    "seed": 42
 }

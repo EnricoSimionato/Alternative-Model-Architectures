@@ -7,12 +7,15 @@ from neuroflex.utils.experiment_pipeline.config import (
     get_path_to_configurations
 )
 
-from neuroflex.utils.rank_analysis.utils import check_path_to_storage
-from neuroflex.utils.rank_analysis.original_layers_rank_analysis import perform_original_layers_rank_analysis
-from neuroflex.utils.rank_analysis.delta_layers_rank_analysis import perform_delta_consecutive_layers_rank_analysis, \
-    perform_all_delta_layers_rank_analysis
-from neuroflex.utils.rank_analysis.delta_layers_rank_analysis import perform_delta_layers_wrt_average_rank_analysis
-from neuroflex.utils.rank_analysis.sorted_layers_rank_analysis import perform_sorted_layers_rank_analysis
+from neuroflex.matrixplorer.utils import check_path_to_storage
+
+from neuroflex.matrixplorer.original_layers_rank_analysis import perform_original_layers_rank_analysis
+from neuroflex.matrixplorer.delta_layers_rank_analysis import (
+    perform_delta_consecutive_layers_rank_analysis,
+    perform_all_delta_layers_rank_analysis,
+    perform_delta_layers_wrt_average_rank_analysis,
+)
+from neuroflex.matrixplorer.sorted_layers_rank_analysis import perform_sorted_layers_rank_analysis
 
 
 def main():

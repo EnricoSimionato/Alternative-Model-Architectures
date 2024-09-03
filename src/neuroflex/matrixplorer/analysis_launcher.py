@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 
+from neuroflex.matrixplorer.activations_analysis import perform_activations_analysis
 from neuroflex.matrixplorer.head_analysis import perform_head_analysis, perform_heads_similarity_analysis
 from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
@@ -18,7 +19,10 @@ analysis_mapping = {
     "global_matrices_initialization_analysis": perform_global_matrices_initialization_analysis,
 
     "head_analysis": perform_head_analysis,
-    "heads_similarity_analysis": perform_heads_similarity_analysis
+    "heads_similarity_analysis": perform_heads_similarity_analysis,
+
+    "activations_analysis": perform_activations_analysis
+
 }
 
 specific_mandatory_keys_mapping = {
@@ -28,11 +32,17 @@ specific_mandatory_keys_mapping = {
     "head_analysis": ["explained_variance_threshold", "name_num_heads_mapping"],
     "heads_similarity_analysis": ["grouping"],
 
-    "query_key_analysis": ["query_label", "key_label"],
+    "activations_analysis": ["dataset_id"],
+
+    "query_key_analysis": ["query_label", "key_label"]
+}
+
+not_used_keys_mapping = {
+    "query_key_analysis": ["targets", "black_list"],
 }
 
 
-def append_additional_words_to_be_in_the_file_name(
+def adapt_words_to_be_in_the_file_name(
         configuration,
         words_to_be_in_the_file_name
 ) -> list[str]:
@@ -61,6 +71,8 @@ def append_additional_words_to_be_in_the_file_name(
         words_to_be_in_the_file_name += ["rank"] + [str(configuration.get("rank"))]
     elif analysis_type == "head_analysis":
         words_to_be_in_the_file_name += ["explained_variance_threshold"] + [str(configuration.get("explained_variance_threshold"))]
+    elif analysis_type == "activations_analysis":
+        words_to_be_in_the_file_name += ["dataset_id"] + [configuration.get("dataset_id").replace("/", "_")]
     elif analysis_type == "heads_similarity_analysis":
         words_to_be_in_the_file_name += ["grouping"] + [str(configuration.get("grouping"))]
 
@@ -93,6 +105,7 @@ def main():
     ]
     configuration.check_mandatory_keys(mandatory_keys)
     mandatory_keys += specific_mandatory_keys_mapping[configuration.get("analysis_type")]
+    mandatory_keys = list(set(mandatory_keys) - set(not_used_keys_mapping[configuration.get("analysis_type")] if configuration.get("analysis_type") in not_used_keys_mapping.keys() else []))
     configuration.check_mandatory_keys(mandatory_keys)
 
     # Setting the words to be in the file name
@@ -100,7 +113,7 @@ def main():
             ["paths"] + configuration.get("targets") +
             ["black_list"] + configuration.get("black_list")
     )
-    words_to_be_in_the_file_name = append_additional_words_to_be_in_the_file_name(configuration, words_to_be_in_the_file_name)
+    words_to_be_in_the_file_name = adapt_words_to_be_in_the_file_name(configuration, words_to_be_in_the_file_name)
     for index in range(len(words_to_be_in_the_file_name)):
         words_to_be_in_the_file_name[index] = words_to_be_in_the_file_name[index].replace(".", "_").replace("/", "_")
 
@@ -117,11 +130,12 @@ def main():
             "file_path": os.path.join(directory_path, file_name),
             "directory_path": directory_path,
             "file_name": file_name,
-            "file_name_no_format": file_name.split(".")[0]
+            "file_name_no_format": file_name.split(".")[0],
+            "log_path": os.path.join(directory_path, "logs.log")
         }
     )
     # Creating the logger
-    logging.basicConfig(filename=os.path.join(configuration.get("directory_path"), "logs.log"), level=logging.INFO)
+    logging.basicConfig(filename=configuration.get("log_path"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running main in analysis_launcher.py.")
     logger.info(f"Configuration file: {config_name}.")

@@ -1,0 +1,48 @@
+{
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
+    "analysis_type": "activations_analysis",
+
+    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
+    "quantization": null,
+    "dtype": "float32",
+    
+    "num_classes": 2,
+    "id2label": {
+        "0": "negative",
+        "1": "positive"
+    },
+    "label2id": {
+        "negative": 0,
+        "positive": 1
+    },
+
+    "dataset_id": "stanfordnlp/imdb",
+    "max_len_samples": 16384,
+    "split": [
+        0.8,
+        0.1,
+        0.1
+    ],
+    "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
+    "max_len_tokenizer": 512,
+    "num_iterations": 40,
+    "batch_size": 8,
+    "num_workers": 1,
+    "max_len": 512,
+
+    "targets": [
+        "query",
+        "key",
+        "value"
+    ],
+    "black_list": [
+    ],
+    
+    "figure_size": [150, 40],
+    "heatmap_size": [40, 40],
+
+    "verbose": 1,
+    "device": "mps",
+    "seed": 42
+}

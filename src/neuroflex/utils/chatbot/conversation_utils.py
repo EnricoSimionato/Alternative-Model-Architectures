@@ -244,7 +244,7 @@ def load_original_model_for_causal_lm(
     Loads the original model to be used in the causal language modeling.
 
     Args:
-        config:
+        config (Config):
             The configuration parameters to use in the loading.
 
     Returns:
@@ -262,20 +262,20 @@ def load_original_model_for_causal_lm(
             bnb_4bit_compute_dtype=torch.bfloat16
         )
         if config.get_verbose() > Verbose.SILENT:
-            print("Using 4bit quantization\n")
+            print("Loading the model using 4bit quantization\n")
     elif config.contains("quantization") and config.get("quantization") == "8bit":
         # Defining the quantization configuration (8 bits)
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
         )
         if config.get_verbose() > Verbose.SILENT:
-            print("Using 8bit quantization\n")
+            print("Loading the model using 8bit quantization\n")
 
     torch_dtype = torch.float32
     if config.contains("dtype") and config.get("dtype") == "float16":
         torch_dtype = torch.bfloat16
         if config.get_verbose():
-            print("Using float16 dtype\n")
+            print("Loading the model using float16 dtype\n")
 
     model = AutoModelForCausalLM.from_pretrained(
         config.get("original_model_id"),
@@ -283,8 +283,8 @@ def load_original_model_for_causal_lm(
         quantization_config=bnb_config
     )
 
-    if config.get_verbose() > Verbose.SILENT:
-        print(model)
+    config.get_verbose().print("Model loaded", Verbose.INFO)
+    config.get_verbose().print(model, Verbose.INFO)
 
     return model
 
@@ -296,7 +296,7 @@ def load_tokenizer_for_causal_lm(
     Loads the tokenizer to be used in the causal language modeling task.
 
     Args:
-        config (dict):
+        config (Config):
             The configuration parameters to use in the loading.
 
     Returns:
@@ -318,5 +318,7 @@ def load_tokenizer_for_causal_lm(
     tokenizer.chat_template = AutoTokenizer.from_pretrained(
         config.get("tokenizer_id_for_chat_template")
     ).chat_template
+
+    config.get_verbose().print("Tokenizer loaded", Verbose.INFO)
 
     return tokenizer

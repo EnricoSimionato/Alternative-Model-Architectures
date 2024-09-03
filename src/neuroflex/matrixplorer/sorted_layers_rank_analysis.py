@@ -10,14 +10,14 @@ from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config, get_path_to_configurations
 from neuroflex.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
 
-from neuroflex.utils.rank_analysis.delta_layers_rank_analysis import compute_delta_matrices
+from neuroflex.matrixplorer.delta_layers_rank_analysis import compute_delta_matrices
 
-from neuroflex.utils.rank_analysis.utils import (
+from neuroflex.matrixplorer.utils import (
     AnalysisTensorWrapper,
     AnalysisTensorDict,
 )
 
-from neuroflex.utils.rank_analysis.utils import (
+from neuroflex.matrixplorer.utils import (
     extract_based_on_path,
     compute_max_possible_rank,
 

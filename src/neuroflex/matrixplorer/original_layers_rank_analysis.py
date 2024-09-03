@@ -1,22 +1,23 @@
-import pickle
+import os
+import pickle as pkl
+from tqdm import tqdm
+import logging
 
 import numpy as np
-from tqdm import tqdm
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config
 
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
 
-from neuroflex.utils.rank_analysis.utils import (
+from neuroflex.matrixplorer.utils import (
     AnalysisTensorDict,
     extract_based_on_path, plot_heatmap, compute_max_possible_rank
 )
 
 
 def perform_original_layers_rank_analysis(
-        configuration: Config,
-        verbose: Verbose = Verbose.SILENT
+        configuration: Config
 ) -> None:
     """
     Perform the rank analysis of the original layers of a model.
@@ -24,29 +25,37 @@ def perform_original_layers_rank_analysis(
     Args:
         configuration:
             The configuration object containing the necessary information.
-        verbose:
-            The verbosity level. Default is Verbose.SILENT.
     """
 
+    logging.basicConfig(filename=os.path.join(configuration.get("directory_path"), "logs.log"), level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Running perform_simple_initialization_analysis in matrix_initialization_analysis.py.")
+
+    # Getting the parameters related to the paths from the configuration
+    logger.info(f"Getting the parameters related to the paths from the configuration")
+    file_available = configuration.get("file_available")
     file_path = configuration.get("file_path")
+    directory_path = configuration.get("directory_path")
+    file_name = configuration.get("file_name")
+    file_name_no_format = file_name.split(".")[0]
+    logger.info(f"Information retrieved")
     explained_variance_threshold = (
         configuration.get("explained_variance_threshold") if configuration.contains("explained_variance_threshold") else 0
     )
     singular_values_threshold = (
         configuration.get("singular_values_threshold") if configuration.contains("singular_values_threshold") else 0
     )
+    verbose = configuration.get_verbose()
 
-    if configuration.get("file_available"):
+    if file_available:
         print(f"File already exists. Loading data from '{file_path}'...")
 
         # Loading the data
         with open(file_path, "rb") as f:
-            pre_analyzed_tensors = pickle.load(f)
+            data = pkl.load(f)
     else:
         # Loading the model
         model = load_original_model_for_causal_lm(configuration)
-        if verbose > Verbose.SILENT:
-            print(f"Model loaded")
 
         # Extracting the layers to analyze
         extracted_layers = []
@@ -57,8 +66,7 @@ def perform_original_layers_rank_analysis(
             black_list=configuration.get("black_list"),
             verbose=verbose
         )
-        if verbose > Verbose.SILENT:
-            print(f"Layers extracted")
+        verbose.print("Layers extracted", Verbose.SILENT)
 
         # Grouping the extracted layers by block
         extracted_layers_grouped_by_label = {}
@@ -68,8 +76,7 @@ def perform_original_layers_rank_analysis(
                 extracted_layers_grouped_by_label[label] = []
 
             extracted_layers_grouped_by_label[label].append(extracted_layer)
-        if verbose > Verbose.SILENT:
-            print(f"Layers grouped by label")
+        verbose.print("Layers grouped by label", Verbose.SILENT)
 
         pre_analyzed_tensors = AnalysisTensorDict()
 
@@ -80,9 +87,11 @@ def perform_original_layers_rank_analysis(
                     label,
                     matrix
                 )
-                if verbose >= Verbose.DEBUG:
-                    print(f"Singular values for {matrix.get_name()} - {matrix.get_label()} extracted")
+                verbose.print(f"Singular values for {matrix.get_name()} - {matrix.get_label()} extracted", Verbose.DEBUG)
 
+        data = pre_analyzed_tensors
+
+    pre_analyzed_tensors = data
     matrix_types = pre_analyzed_tensors.get_unique_positional_keys(position=0)
     number_of_blocks = len(pre_analyzed_tensors.get_tensor_list(matrix_types[0]))
     ranks = np.zeros(
@@ -113,7 +122,7 @@ def perform_original_layers_rank_analysis(
 
     # Saving the matrix wrappers of the layers used to perform the analysis
     with open(file_path, "wb") as f:
-        pickle.dump(
+        pkl.dump(
             analyzed_tensors,
             f
         )

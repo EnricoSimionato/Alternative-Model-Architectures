@@ -18,7 +18,7 @@
     "batch_size": 1024,
 
     "figure_size": [45, 30],
-    "y_range": [0, 50000],
+    "y_range": [800000, 10000000],
     
     "verbose": 1,
     "device": "mps",

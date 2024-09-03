@@ -17,9 +17,10 @@ from neuroflex.utils.experiment_pipeline import Config
 
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
 
-from neuroflex.utils.rank_analysis.utils import extract_based_on_path
-
-from neuroflex.utils.rank_analysis.utils import AnalysisTensorDict
+from neuroflex.matrixplorer.utils import (
+    AnalysisTensorDict,
+    extract_based_on_path
+)
 
 
 def tensor_loss(
@@ -510,6 +511,7 @@ def perform_simple_initialization_analysis(
         logger.info(f"Plot saved for the tensor: {tensor_to_analyze_label}")
 
 
+# TODO FIX THIS FUNCTION
 def perform_global_matrices_initialization_analysis(
         configuration: Config,
 ) -> None:
@@ -764,7 +766,7 @@ def perform_global_matrices_initialization_analysis(
                 # Calculating and storing the time elapsed
                 time_elapsed = end_time - start_time
 
-                time_string = (f"{tensor_wrapper_to_analyze.get_path()}: Time for training {factorization_label} using tensor loss: {time_elapsed:.2f} seconds + "
+                time_string = (f"{tensor_wrappers_group_label}: Time for training {factorization_label} using tensor loss: {time_elapsed:.2f} seconds + "
                                f"{tensor_init_time:.2f} seconds to initialize the factorization\n")
                 time_log.append(time_string)
 

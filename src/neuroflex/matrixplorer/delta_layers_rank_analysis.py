@@ -11,12 +11,12 @@ from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
 
 
-from neuroflex.utils.rank_analysis.utils import (
+from neuroflex.matrixplorer.utils import (
     AnalysisTensorWrapper,
     AnalysisTensorDict
 )
 
-from neuroflex.utils.rank_analysis.utils import (
+from neuroflex.matrixplorer.utils import (
     extract_based_on_path,
     compute_max_possible_rank,
 
