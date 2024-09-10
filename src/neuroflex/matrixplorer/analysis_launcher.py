@@ -2,8 +2,9 @@ import os
 import sys
 import logging
 
-from neuroflex.matrixplorer.activations_analysis import perform_activations_analysis
+from neuroflex.matrixplorer.activations_analysis import perform_activations_analysis, perform_delta_activations_analysis
 from neuroflex.matrixplorer.head_analysis import perform_head_analysis, perform_heads_similarity_analysis
+from neuroflex.matrixplorer.sorted_layers_rank_analysis import perform_sorted_layers_rank_analysis
 from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
 from neuroflex.utils.experiment_pipeline.storage_utils import check_path_to_storage
@@ -18,21 +19,26 @@ analysis_mapping = {
     "simple_initialization_analysis": perform_simple_initialization_analysis,
     "global_matrices_initialization_analysis": perform_global_matrices_initialization_analysis,
 
+    "sorted_layers_rank_analysis": perform_sorted_layers_rank_analysis,
+
     "head_analysis": perform_head_analysis,
     "heads_similarity_analysis": perform_heads_similarity_analysis,
 
-    "activations_analysis": perform_activations_analysis
-
+    "activations_analysis": perform_activations_analysis,
+    "delta_activations_analysis": perform_delta_activations_analysis
 }
 
 specific_mandatory_keys_mapping = {
     "simple_initialization_analysis": ["rank"],
     "global_matrices_initialization_analysis": ["rank"],
 
+    "sorted_layers_rank_analysis": ["explained_variance_threshold"],
+
     "head_analysis": ["explained_variance_threshold", "name_num_heads_mapping"],
     "heads_similarity_analysis": ["grouping"],
 
     "activations_analysis": ["dataset_id"],
+    "delta_activations_analysis": ["dataset_id"],
 
     "query_key_analysis": ["query_label", "key_label"]
 }
@@ -42,44 +48,7 @@ not_used_keys_mapping = {
 }
 
 
-def adapt_words_to_be_in_the_file_name(
-        configuration,
-        words_to_be_in_the_file_name
-) -> list[str]:
-    """
-    Appends the additional words to be in the file name to the list of words to be in the file name.
-
-    Args:
-        configuration (Config):
-            The configuration object containing the necessary information to perform the analysis.
-        words_to_be_in_the_file_name (list[str]):
-            The list of words to be in the file name.
-
-    Returns:
-        list[str]:
-            The updated list of words to be in the file name.
-
-    """
-
-    analysis_type = configuration.get("analysis_type")
-
-    if analysis_type not in analysis_mapping.keys():
-        raise Exception("The analysis type is not recognized.")
-    if analysis_type == "simple_initialization_analysis":
-        words_to_be_in_the_file_name += ["rank"] + [str(configuration.get("rank"))]
-    elif analysis_type == "global_matrices_initialization_analysis":
-        words_to_be_in_the_file_name += ["rank"] + [str(configuration.get("rank"))]
-    elif analysis_type == "head_analysis":
-        words_to_be_in_the_file_name += ["explained_variance_threshold"] + [str(configuration.get("explained_variance_threshold"))]
-    elif analysis_type == "activations_analysis":
-        words_to_be_in_the_file_name += ["dataset_id"] + [configuration.get("dataset_id").replace("/", "_")]
-    elif analysis_type == "heads_similarity_analysis":
-        words_to_be_in_the_file_name += ["grouping"] + [str(configuration.get("grouping"))]
-
-    return words_to_be_in_the_file_name
-
-
-def main():
+def main() -> None:
     """
     Main method to start the various types of analyses on a deep model.
     """
@@ -108,21 +77,12 @@ def main():
     mandatory_keys = list(set(mandatory_keys) - set(not_used_keys_mapping[configuration.get("analysis_type")] if configuration.get("analysis_type") in not_used_keys_mapping.keys() else []))
     configuration.check_mandatory_keys(mandatory_keys)
 
-    # Setting the words to be in the file name
-    words_to_be_in_the_file_name = (
-            ["paths"] + configuration.get("targets") +
-            ["black_list"] + configuration.get("black_list")
-    )
-    words_to_be_in_the_file_name = adapt_words_to_be_in_the_file_name(configuration, words_to_be_in_the_file_name)
-    for index in range(len(words_to_be_in_the_file_name)):
-        words_to_be_in_the_file_name[index] = words_to_be_in_the_file_name[index].replace(".", "_").replace("/", "_")
-
     # Checking the path to the storage
     file_available, directory_path, file_name = check_path_to_storage(
         configuration.get("path_to_storage"),
         configuration.get("analysis_type"),
         configuration.get("original_model_id").split("/")[-1],
-        tuple(words_to_be_in_the_file_name)
+        configuration.get("version") if configuration.contains("version") else None,
     )
     configuration.update(
         {
@@ -134,18 +94,27 @@ def main():
             "log_path": os.path.join(directory_path, "logs.log")
         }
     )
+    # Storing the configuration
+    configuration.store(configuration.get("directory_path"))
+
     # Creating the logger
     logging.basicConfig(filename=configuration.get("log_path"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running main in analysis_launcher.py.")
     logger.info(f"Configuration file: {config_name}.")
-    logger.info(f"File available: {file_available}.")
+    logger.info(f"Environment: {environment}.")
 
-    logger.info(f"Starting the analysis {configuration.get('analysis_type')}.")
-    # Performing the analysis
+    # Checking if the analysis type is recognized
     if configuration.get("analysis_type") not in analysis_mapping.keys():
+        logger.error(f"The analysis type is not recognized.")
         raise Exception("The analysis type is not recognized.")
+
+    # Performing the analysis
+    logger.info(f"Starting the analysis {configuration.get('analysis_type')}.")
     analysis_mapping[configuration.get("analysis_type")](configuration)
+
+    # Storing the configuration
+    configuration.store(configuration.get("directory_path"))
 
 
 if __name__ == "__main__":
