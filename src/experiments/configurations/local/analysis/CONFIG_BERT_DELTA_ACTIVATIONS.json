@@ -1,9 +1,9 @@
 {
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
-    "analysis_type": "activations_analysis",
+    "analysis_type": "delta_activations_analysis",
 
-    "version": "0",
+    "version": "1",
     
     "original_model_id": "bert-base-uncased",
     "quantization": null,
@@ -28,7 +28,7 @@
     ],
     "tokenizer_id": "bert-base-uncased",
     "max_len_tokenizer": 512,
-    "num_iterations": 40,
+    "num_iterations": 50,
     "batch_size": 8,
     "num_workers": 1,
     "max_len": 512,
@@ -40,8 +40,7 @@
         "attention"
     ],
     
-    "figure_size": [1000, 100],
-    "heatmap_size": [40, 40],
+    "figure_size": [20, 20],
 
     "verbose": 1,
     "device": "mps",

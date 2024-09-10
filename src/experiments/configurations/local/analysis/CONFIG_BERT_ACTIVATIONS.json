@@ -3,6 +3,8 @@
     
     "analysis_type": "activations_analysis",
 
+    "version": "0",
+    
     "original_model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
@@ -32,11 +34,10 @@
     "max_len": 512,
 
     "targets": [
-        "query",
-        "key",
-        "value"
+        "output_dense"
     ],
     "black_list": [
+        "attention"
     ],
     
     "figure_size": [1000, 100],

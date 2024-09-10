@@ -1,10 +1,10 @@
 import os
 import time
 import csv
-from tqdm import tqdm
 import pickle as pkl
 import copy
 import logging
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
@@ -218,6 +218,7 @@ def perform_simple_initialization_analysis(
         configuration (Config):
             The configuration object.
     """
+
     logging.basicConfig(filename=os.path.join(configuration.get("directory_path"), "logs.log"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_simple_initialization_analysis in matrix_initialization_analysis.py.")
@@ -228,7 +229,7 @@ def perform_simple_initialization_analysis(
     file_path = configuration.get("file_path")
     directory_path = configuration.get("directory_path")
     file_name = configuration.get("file_name")
-    file_name_no_format = file_name.split(".")[0]
+    file_name_no_format = configuration.get("file_name_no_format")
     logger.info(f"Information retrieved")
 
 
