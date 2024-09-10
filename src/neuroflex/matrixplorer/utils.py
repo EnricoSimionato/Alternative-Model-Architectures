@@ -97,6 +97,8 @@ class AnalysisTensorWrapper:
 
         self.singular_values = None
         self.rank_analysis_results = []
+        
+        self.norm = None
 
         self.attributes = {}
 
@@ -286,6 +288,21 @@ class AnalysisTensorWrapper:
 
         return self.tensor.shape
 
+    def get_norm(
+            self
+    ) -> torch.Tensor:
+        """
+        Returns the norm of the tensor.
+
+        Returns:
+            torch.Tensor:
+                The norm of the tensor.
+        """
+
+        if self.norm is None:
+            self.norm = torch.norm(self.tensor)
+        return self.norm
+    
     def get_attribute(
             self,
             key: str
@@ -559,7 +576,7 @@ class AnalysisTensorWrapper:
         """
 
         if self.singular_values is None:
-            raise ValueError("Singular values not computed.")
+            self.compute_singular_values()
 
         if explained_variance_threshold <= 0. or explained_variance_threshold > 1.:
             raise ValueError("The threshold on the explained variance must be between 0 and 1.")
@@ -864,6 +881,7 @@ class AnalysisLayerWrapper(nn.Module):
             self,
             layer: nn.Module,
             label: str = None,
+            store_activations: bool = False,
             *args,
             **kwargs
     ) -> None:
@@ -872,7 +890,7 @@ class AnalysisLayerWrapper(nn.Module):
         self.layer = layer
         self.label = label
 
-        self.store_activations = False
+        self.store_activations = store_activations
 
         self.activations = []
         self.num_activations = None
@@ -983,6 +1001,7 @@ class AnalysisLayerWrapper(nn.Module):
         """
 
         return {
+            "path": self.label,
             "activations": self.activations,
             "mean_activations": self.get_mean_activations(),
             "variance_activations": self.get_variance_activations()
@@ -1016,6 +1035,18 @@ class AnalysisLayerWrapper(nn.Module):
 
         self.activations = activations
 
+    def reset_activations(
+            self
+    ) -> None:
+        """
+        Resets the activations.
+        """
+
+        self.activations = []
+        self.num_activations = None
+        self.sum_activations = None
+        self.sum_squared_activations = None
+
     def forward(
             self,
             *args,
@@ -1037,17 +1068,16 @@ class AnalysisLayerWrapper(nn.Module):
 
         if self.store_activations:
             self.activations.append(output.detach().cpu())
-        else:
 
-            flattened_output = output.detach().view(-1, output.shape[-1])
-            if self.num_activations is None:
-                self.num_activations = int(flattened_output.shape[0])
-                self.sum_activations = torch.sum(flattened_output, dim=0)
-                self.sum_squared_activations = torch.sum(flattened_output ** 2, dim=0)
-            else:
-                self.num_activations += int(flattened_output.shape[0])
-                self.sum_activations.add_(torch.sum(flattened_output, dim=0))
-                self.sum_squared_activations.add_(torch.sum(flattened_output ** 2, dim=0))
+        flattened_output = output.detach().view(-1, output.shape[-1])
+        if self.num_activations is None:
+            self.num_activations = int(flattened_output.shape[0])
+            self.sum_activations = torch.sum(flattened_output, dim=0)
+            self.sum_squared_activations = torch.sum(flattened_output ** 2, dim=0)
+        else:
+            self.num_activations += int(flattened_output.shape[0])
+            self.sum_activations.add_(torch.sum(flattened_output, dim=0))
+            self.sum_squared_activations.add_(torch.sum(flattened_output ** 2, dim=0))
 
         return output
 
@@ -1074,6 +1104,7 @@ class AnalysisModelWrapper(nn.Module):
             model: [nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
             targets: list,
             black_list: list = None,
+            store_activations: bool = True,
             *args,
             **kwargs
     ) -> None:
@@ -1086,7 +1117,7 @@ class AnalysisModelWrapper(nn.Module):
 
         self.wrap_model(self.model, self.targets, self.black_list)
 
-        self.store_activations = False
+        self.store_activations = store_activations
         self.set_store_activations(self.store_activations)
 
     def wrap_model(
@@ -1247,7 +1278,8 @@ class AnalysisModelWrapper(nn.Module):
                 structure[layer_name] = child.get_stats()
             elif len(child._modules) == 0:
                 structure[layer_name] = {
-                    "activations": [],
+                    "path": None,
+                    "activations": None,
                     "mean_activations": None,
                     "variance_activations": None
                 }
@@ -1255,6 +1287,36 @@ class AnalysisModelWrapper(nn.Module):
                 structure[layer_name] = self._get_activations(child)
 
         return structure
+
+    def reset_activations(
+            self
+    ) -> None:
+        """
+        Resets the activations.
+        """
+
+        self._reset_activations(self.model)
+
+    def _reset_activations(
+            self,
+            module_tree: nn.Module
+    ) -> None:
+        """
+        Resets the activations.
+
+        Args:
+            module_tree (nn.Module):
+                Model or module containing layers.
+        """
+
+        for layer_name in module_tree._modules.keys():
+            child = module_tree._modules[layer_name]
+            if issubclass(type(child), AnalysisLayerWrapper):
+                child.reset_activations()
+            elif len(child._modules) == 0:
+                pass
+            else:
+                self._reset_activations(child)
 
 
 def perform_analysis(
@@ -1785,105 +1847,3 @@ def plot_heatmap(
         plt.show()
 
     plt.close()
-
-
-# Definition of the functions to manage and check the storage
-
-def check_path_to_storage(
-        path_to_storage: str,
-        type_of_analysis: str,
-        model_name: str,
-        strings_to_be_in_the_name: tuple
-) -> tuple[bool, str, str]:
-    """
-    Checks if the path to the storage exists.
-    If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
-    If the path does not exist, the method returns a negative flag and creates the path for the experiment returning it.
-
-    Args:
-        path_to_storage (str):
-            The path to the storage where the experiments data have been stored or will be stored.
-        type_of_analysis (str):
-            The type of analysis to be performed on the model.
-        model_name (str):
-            The name of the model to analyze.
-        strings_to_be_in_the_name (tuple):
-            The strings to be used to create the name or to find in the name of the stored data of the considered
-            experiment.
-
-    Returns:
-        bool:
-            A flag indicating if the path to the storage of the specific experiment already exists.
-        str:
-            The path to the storage of the specific experiment.
-        str:
-            The name of the file to store the data.
-
-    Raises:
-        Exception:
-            If the path to the storage does not exist.
-    """
-
-    if not os.path.exists(path_to_storage):
-        raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
-
-    # Checking if the path to the storage of the specific experiment already exists
-    exists_directory_path = os.path.exists(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.exists(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    )
-
-    exists_file = False
-    directory_path = os.path.join(
-        path_to_storage, model_name, type_of_analysis
-    )
-    file_name = None
-    if exists_directory_path:
-        try:
-            files_and_dirs = os.listdir(
-                directory_path
-            )
-
-            # Extracting the files
-            files = [
-                f
-                for f in files_and_dirs
-                if os.path.isfile(os.path.join(path_to_storage, model_name, type_of_analysis, f))
-            ]
-
-            # Checking if some file ame contains the required strings
-            for f_name in files:
-                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
-                if names_contained:
-                    exists_file = True
-                    file_name = f_name
-                    break
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return False, "", ""
-
-    else:
-        os.makedirs(
-            os.path.join(
-                directory_path
-            )
-        )
-
-    if not exists_file:
-        file_name = "_".join(strings_to_be_in_the_name)
-
-    return exists_file, directory_path, str(file_name)

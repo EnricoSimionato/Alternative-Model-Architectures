@@ -1,4 +1,5 @@
 import os
+from copy import copy
 from datetime import datetime
 import json
 from typing import Any
@@ -17,6 +18,7 @@ class ExperimentStatus(Enum):
 
 
 environments = ["local", "server", "colab"]
+
 
 def get_path_to_configurations(
         environment: str,
@@ -357,6 +359,27 @@ class Config:
         if self.end_time is None:
             self.end_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
+    def store(
+            self,
+            path: str = None
+    ) -> None:
+        """
+        Stores the configuration file.
+
+        Args:
+            path (str):
+                The path to store the configuration file.
+        """
+
+        if path is None:
+            path = self.get("path_to_experiment")
+
+        path = os.path.join(path, "config.json")
+        with open(path, "w") as f:
+            config_dict = copy(self.__dict__)
+            config_dict.pop("verbose")
+            json.dump(config_dict, f, indent=4)
+
     @property
     def status(
             self
@@ -375,14 +398,6 @@ class Config:
             return ExperimentStatus.RUNNING
         else:
             return ExperimentStatus.COMPLETED
-
-    def show_config(
-            self
-    ) -> None:
-        import pandas as pd
-        config_df = pd.DataFrame(list(self.__dict__.items()), columns=['Attribute', 'Value'])
-
-        return config_df
 
     def __str__(
             self

@@ -18,11 +18,11 @@ def check_path_to_storage(
         path_to_storage: str,
         type_of_analysis: str,
         model_name: str,
-        strings_to_be_in_the_name: tuple,
-        format: str = "pkl"
+        version: str | int = None
 ) -> tuple[bool, str, str]:
     """
-    Checks if the path to the storage exists.
+    Checks if the path to the storage exists. It looks for the path to the storage of the specific experiment and then
+    checks if the version of the experiment exists and if the file 'main_storage.pkl' is present.
     If the path exists, the method returns a positive flag and the path to the storage of the experiment data.
     If the path does not exist, the method returns a negative flag and creates the path for the experiment returning it.
 
@@ -33,11 +33,8 @@ def check_path_to_storage(
             The type of analysis to be performed on the model.
         model_name (str):
             The name of the model to analyze.
-        strings_to_be_in_the_name (tuple):
-            The strings to be used to create the name or to find in the name of the stored data of the considered
-            experiment.
-        format (str, optional):
-            The format of the file to store the data. Defaults to "pkl".
+        version (str | int, optional):
+            The version of the model to analyze. Defaults to None.
 
     Returns:
         bool:
@@ -55,69 +52,44 @@ def check_path_to_storage(
     if not os.path.exists(path_to_storage):
         raise Exception(f"The path to the storage '{path_to_storage}' does not exist.")
 
-    strings_to_be_in_the_name = [el for el in strings_to_be_in_the_name]
-    strings_to_be_in_the_name.append(f".{format}")
-
     # Checking if the path to the storage of the specific experiment already exists
-    exists_directory_path = os.path.exists(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name
-        )
-    ) & os.path.exists(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    ) & os.path.isdir(
-        os.path.join(
-            path_to_storage, model_name, type_of_analysis
-        )
-    )
+    exists_directory_path = (os.path.exists(os.path.join(path_to_storage, model_name))
+                             & os.path.isdir(os.path.join(path_to_storage, model_name))
+                             & os.path.exists(os.path.join(path_to_storage, model_name, type_of_analysis))
+                             & os.path.isdir(os.path.join(path_to_storage, model_name, type_of_analysis)))
 
-    exists_file = False
-    directory_path = os.path.join(
-        path_to_storage, model_name, type_of_analysis
-    )
-    file_name = None
-    if exists_directory_path:
-        try:
-            files_and_dirs = os.listdir(
-                directory_path
-            )
+    directory_path = os.path.join(path_to_storage, model_name, type_of_analysis)
+    if not exists_directory_path:
+        os.makedirs(directory_path)
 
-            # Extracting the files
-            files = [
-                f
-                for f in files_and_dirs
-                if os.path.isfile(os.path.join(path_to_storage, model_name, type_of_analysis, f))
-            ]
+    # Defining the version of the experiment if not set
+    if version is None:
+        # Getting the names of the directories inside the path
+        directories_names = os.listdir(directory_path)
 
-            # Checking if some file ame contains the required strings
-            for f_name in files:
-                names_contained = all(string in f_name for string in strings_to_be_in_the_name)
-                if names_contained:
-                    exists_file = True
-                    file_name = f_name
-                    break
+        # Checking if the directories are versions of the experiment
+        versions = [
+            int(directory_name.split("_")[1])
+            for directory_name in directories_names
+            if directory_name.startswith("version_")
+        ]
+        # Finding the first free number
+        version = 0
+        while version in versions:
+            version += 1
 
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return False, "", ""
+    # Checking if the path to the storage of the specific version of the experiment already exists
+    directory_path = os.path.join(directory_path, f"version_{str(version)}")
+    exists_directory_path = (os.path.exists(directory_path) & os.path.isdir(directory_path))
+    if not exists_directory_path:
+        os.makedirs(directory_path)
 
-    else:
-        os.makedirs(
-            os.path.join(
-                directory_path
-            )
-        )
+    # Checking if the file 'main_storage.pkl' exists
+    file_name = "storage.pkl"
+    exists_file = (os.path.exists(os.path.join(directory_path, file_name))
+                   & os.path.isfile(os.path.join(directory_path, file_name)))
 
-    if not exists_file:
-        file_name = "_".join(strings_to_be_in_the_name[:-1]) + strings_to_be_in_the_name[-1]
-
-    return exists_file, directory_path, str(file_name)
+    return exists_file, directory_path, file_name
 
 
 def store_model_and_info(
