@@ -219,6 +219,10 @@ lm_eval_task_args = {
 def perform_layer_redundancy_analysis_launcher(
         config: Config,
 ) -> None:
+    logging.basicConfig(filename=config.get("log_path"), level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Running perform_layer_redundancy_analysis_launcher in redundancy_hunter.py.")
+
     # Getting the parameters related to the paths from the configuration
     file_available, file_path, directory_path, file_name, file_name_no_format = [
         config.get(name)
@@ -240,6 +244,7 @@ def perform_layer_redundancy_analysis(
         config: Config,
         data: Any = None,
 ) -> None:
+    logging.basicConfig(filename=config.get("log_path"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_layer_redundancy_analysis in redundancy_hunter.py.")
 
@@ -262,16 +267,17 @@ def perform_layer_redundancy_analysis(
             for j in range(num_layers) if (i != j or (i == 0 and j== 0))
         ]
 
-        # TODO improve the wrapping and unwrapping of the model
         for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list:
             logger.info(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
             # Loading the model and the tokenizer
             base_model = load_original_model_for_causal_lm(config)
-            print(base_model)
+            logger.info(f"Model loaded.")
             tokenizer = load_tokenizer_for_causal_lm(config)
+            logger.info(f"Tokenizer loaded.")
 
             # Wrapping the model to move the layers
             model_wrapper = LayerSwitchingWrapperModel(base_model, destination_layer_path_source_layer_path_mapping)
+            logger.info(f"Model wrapped.")
 
             # Defining the evaluation parameters
             evaluation_args = {
@@ -280,6 +286,7 @@ def perform_layer_redundancy_analysis(
                 "device": device
             }
 
+            logger.info(f"Starting the evaluation of the model.")
             # Evaluating the model
             results = lm_eval.simple_evaluate(
                 model="hf",
@@ -287,5 +294,15 @@ def perform_layer_redundancy_analysis(
                 tasks=config.get("dataset_id"),
                 device=evaluation_args["device"]
             )
+            logger.info(f"Model evaluated.")
+            print(results)
+            logger.info(f"Results: {results}")
 
             performance_dict[str(destination_layer_path_source_layer_path_mapping)] = results
+
+        data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
+        logger.info("Trying to store the data.")
+        # Saving the data
+        with open(config.get("file_path"), "wb") as f:
+            pkl.dump(data, f)
+        logger.info("Data stored.")

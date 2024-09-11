@@ -14,7 +14,7 @@
     ],
 
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
-    "batch_size": 16,
+    "batch_size": 32,
     "max_len": 512,
 
     "targets": [
