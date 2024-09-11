@@ -7,15 +7,14 @@
     
     "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
     "quantization": null,
-    "dtype": "float16",
+    "dtype": "float32",
 
     "dataset_id": [
-        "mmlu"
+        "truthfulqa_mc1"
     ],
 
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
-    "batch_size": 32,
-    "max_len": 512,
+    "batch_size": 8,
 
     "targets": [
         ["layer_index", "mlp", "c_fc"],

@@ -7,10 +7,10 @@
     
     "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
-    "dtype": "float16",
+    "dtype": "float32",
 
     "dataset_id": [
-        "mmlu"
+        "truthfulqa_mc1"
     ],
 
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",

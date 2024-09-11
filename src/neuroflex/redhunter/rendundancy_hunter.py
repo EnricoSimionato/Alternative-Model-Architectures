@@ -289,7 +289,7 @@ def perform_layer_redundancy_analysis(
             # Evaluating the model
             results = lm_eval.simple_evaluate(
                 model="hf",
-                model_args={"pretrained": model_wrapper.get_model(), "tokenizer": tokenizer, "backend": "causal"},
+                model_args={"pretrained": model_wrapper.get_model().to(get_available_device(device)), "tokenizer": tokenizer, "backend": "causal"},
                 tasks=config.get("dataset_id"),
                 batch_size=evaluation_args["batch_size"],
                 device=evaluation_args["device"]
