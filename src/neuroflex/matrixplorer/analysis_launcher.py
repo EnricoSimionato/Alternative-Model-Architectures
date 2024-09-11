@@ -97,7 +97,7 @@ def main() -> None:
             "log_path": os.path.join(directory_path, "logs.log")
         }
     )
-    print(configuration.get("log_path"))
+
     # Storing the configuration
     configuration.store(configuration.get("directory_path"))
 

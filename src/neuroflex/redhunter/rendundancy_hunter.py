@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import copy
 import logging
 import pickle as pkl
@@ -18,6 +19,52 @@ from neuroflex.utils.chatbot import load_original_model_for_causal_lm, load_toke
 import lm_eval
 
 from neuroflex.utils.plotting_utils.heatmap import plot_heatmap
+
+import numpy as np
+import re
+from collections import OrderedDict
+
+
+def process_complex_dictionary(
+        input_dict: dict[tuple[str, str], dict[str, dict[str, float]]]
+) -> tuple:
+    # Helper function to extract tuples from string
+    def extract_tuples(s):
+        return re.findall(r"\('(.*?)', '(.*?)', '(.*?)'\)", s)
+
+    # Initializing OrderedDicts to maintain order and uniqueness
+    first_elements = OrderedDict()
+    second_elements = OrderedDict()
+    tasks = list(next(iter(input_dict.values())).keys())
+
+    # Collecting unique elements and their order
+    for key, value in input_dict.items():
+        first_tuples = extract_tuples(key[0])
+        second_tuples = extract_tuples(key[1])
+
+        for t in first_tuples:
+            if t[0] not in first_elements:
+                first_elements[t[0]] = len(first_elements)
+        for t in second_tuples:
+            if t[0] not in second_elements:
+                second_elements[t[0]] = len(second_elements)
+
+    # Initialize performance arrays
+    performance_arrays = {task: np.full((len(first_elements), len(second_elements)), np.nan) for task in tasks}
+
+    # Second pass: fill in the performance arrays
+    for key, value in input_dict.items():
+        first_tuples = extract_tuples(key[0])
+        second_tuples = extract_tuples(key[1])
+
+        for first in first_tuples:
+            for second in second_tuples:
+                row = first_elements[first[0]]
+                col = second_elements[second[0]]
+                for task in tasks:
+                    performance_arrays[task][row, col] = value[task]['metric']
+
+    return list(first_elements.keys()), list(second_elements.keys()), performance_arrays
 
 
 class LayerSwitchingWrapperModel:
@@ -282,6 +329,7 @@ def perform_layer_redundancy_analysis(
         # Loading the model and the tokenizer
         base_model = load_original_model_for_causal_lm(config)
         logger.info(f"Model loaded.")
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         tokenizer = load_tokenizer_for_causal_lm(config)
         logger.info(f"Tokenizer loaded.")
 
@@ -318,6 +366,7 @@ def perform_layer_redundancy_analysis(
 
             logger.info(f"Starting the evaluation of the model.")
             # Evaluating the model
+
             results = lm_eval.simple_evaluate(
                 model="hf",
                 model_args={"pretrained": model_wrapper.get_model().to(get_available_device(device)), "tokenizer": tokenizer, "backend": "causal"},
@@ -329,9 +378,13 @@ def perform_layer_redundancy_analysis(
             filtered_results = results["results"]
             logger.info(f"Results: {filtered_results}")
 
-            performance_dict[str(destination_layer_path_source_layer_path_mapping)] = filtered_results
+            #filtered_results = {"task": {"metric": 0.0}}
+
+            performance_dict[(str(destination_layer_path_source_layer_path_mapping.keys()), str(destination_layer_path_source_layer_path_mapping.values()))] = filtered_results
+            logger.info(f"Performance dictionary updated with the results.")
 
             model_wrapper.reset_switch()
+            logger.info(f"Layers reset.")
 
         data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
         logger.info("Trying to store the data.")
@@ -340,29 +393,19 @@ def perform_layer_redundancy_analysis(
             pkl.dump(data, f)
         logger.info("Data stored.")
 
-    destination_layer_path_source_layer_path_mapping_list, performance_dict = data
+    destination_layer_path_source_layer_path_mapping_list, destination_layer_path_source_layer_path_mapping_list = data
+
+    #row_labels = [str(destination_layer_path_source_layer_path_mapping) for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list]
+    #column_labels = []
+
+    """
+    for task in config.get("dataset_id"):
+        results_matrix = []
+        logger.info(f"Printing the results for task: {task}")
+        destination_layer_path_source_layer_path_mapping_list
+        plot_heatmap(
+            [[]]
+       )
+    """
 
 
-    #for task in config.get("dataset_id"):
-    #    logger.info(f"Printing the results for task: {task}")
-    #    destination_layer_path_source_layer_path_mapping_list
-    #    plot_heatmap(
-    #        [[]]
-    #    )
-
-
-if __name__ == "__main__":
-
-    model = transformers.AutoModelForCausalLM.from_pretrained("bert-base-uncased")
-    print(model.bert.encoder.layer[0].output.dense.weight)
-    print(model.bert.encoder.layer[1].output.dense.weight)
-    destination_layer_path_source_layer_path_mapping = {
-        ("0", "output", "dense"): ("1", "output", "dense")
-    }
-
-    model_wrapper = LayerSwitchingWrapperModel(model, destination_layer_path_source_layer_path_mapping)
-    print(model_wrapper.get_model().bert.encoder.layer[0].output.dense.weight)
-    print(model_wrapper.get_model().bert.encoder.layer[1].output.dense.weight)
-    model_wrapper.reset_switch()
-    print(model_wrapper.get_model().bert.encoder.layer[0].output.dense.weight)
-    print(model_wrapper.get_model().bert.encoder.layer[1].output.dense.weight)
