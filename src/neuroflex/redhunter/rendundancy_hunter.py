@@ -295,10 +295,10 @@ def perform_layer_redundancy_analysis(
                 device=evaluation_args["device"]
             )
             logger.info(f"Model evaluated.")
-            print(results)
-            logger.info(f"Results: {results}")
+            filtered_results = results["results"]
+            logger.info(f"Results: {filtered_results}")
 
-            performance_dict[str(destination_layer_path_source_layer_path_mapping)] = results
+            performance_dict[str(destination_layer_path_source_layer_path_mapping)] = filtered_results
 
         data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
         logger.info("Trying to store the data.")
