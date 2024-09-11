@@ -17,6 +17,9 @@ from neuroflex.utils.chatbot import load_original_model_for_causal_lm, load_toke
 
 import lm_eval
 
+from neuroflex.utils.plotting_utils.heatmap import plot_heatmap
+
+
 class LayerSwitchingWrapperModel:
     """
     Class to switch layers in a model.
@@ -37,13 +40,15 @@ class LayerSwitchingWrapperModel:
     def __init__(
             self,
             model: [transformers.PreTrainedModel | transformers.AutoModel],
-            destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple],
+            destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple] = None,
     ) -> None:
 
         self.model = model
         self.destination_layer_path_source_layer_path_mapping = destination_layer_path_source_layer_path_mapping
+        self.overwritten_layers = {}
 
-        self.switch_layers()
+        if self.destination_layer_path_source_layer_path_mapping is not None:
+            self.switch_layers()
 
     def get_model(
             self
@@ -84,7 +89,8 @@ class LayerSwitchingWrapperModel:
         """
 
         self.model = model
-        self.switch_layers()
+        if self.destination_layer_path_source_layer_path_mapping is not None:
+            self.switch_layers()
 
     def set_destination_layer_path_source_layer_path_mapping(
             self,
@@ -99,7 +105,8 @@ class LayerSwitchingWrapperModel:
         """
 
         self.destination_layer_path_source_layer_path_mapping = destination_layer_path_source_layer_path_mapping
-        self.switch_layers()
+        if self.destination_layer_path_source_layer_path_mapping is not None:
+            self.switch_layers()
 
     def switch_layers(
             self
@@ -189,6 +196,12 @@ class LayerSwitchingWrapperModel:
             if any(destination_paths_in_current_path):
                 # Setting the new layer from the source path in the destination layer
                 destination_path = destination_paths[destination_paths_in_current_path.index(True)]
+                ########################################################################################################
+                # Storing the overwritten layer in order be able to reset the switch.
+                # For future changes: the very same method is used to reset the switch, passing a COPY of the dictionary
+                # overwritten_layers, using the very same instance the reset does not work.
+                self.overwritten_layers[destination_path] = module_tree._modules[layer_name]
+                ########################################################################################################
                 module_tree._modules[layer_name] = destination_layer_path_source_layer_mapping[destination_path]
             elif len(child._modules) == 0:
                 # If the child has no children, we reached a leaf node and we do nothing
@@ -201,6 +214,19 @@ class LayerSwitchingWrapperModel:
                     destination_layer_path_source_layer_mapping,
                     new_path
                 )
+
+    def reset_switch(
+            self
+    ) -> None:
+        """
+        Resets the switch.
+        """
+
+        if len(self.overwritten_layers) == 0:
+            raise Exception("The layers have not been switched.")
+
+        self._fill_destination_layers(self.model, copy.copy(self.overwritten_layers))
+        self.overwritten_layers = {}
 
     def __str__(self):
         """
@@ -253,6 +279,13 @@ def perform_layer_redundancy_analysis(
 
         performance_dict = {}
 
+        # Loading the model and the tokenizer
+        base_model = load_original_model_for_causal_lm(config)
+        logger.info(f"Model loaded.")
+        tokenizer = load_tokenizer_for_causal_lm(config)
+        logger.info(f"Tokenizer loaded.")
+
+        # Setting the parameters for the layer switching
         targets_lists = config.get("targets")
         num_layers = config.get("num_layers")
         destination_layer_path_source_layer_path_mapping_list = [
@@ -265,18 +298,16 @@ def perform_layer_redundancy_analysis(
             for j in range(num_layers) if (i != j or (i == 0 and j== 0))
         ]
 
+        # Wrapping the model to move the layers
+        model_wrapper = LayerSwitchingWrapperModel(base_model, None)
+        logger.info(f"Model wrapped.")
+
         for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list:
             logger.info(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
             print(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
-            # Loading the model and the tokenizer
-            base_model = load_original_model_for_causal_lm(config)
-            logger.info(f"Model loaded.")
-            tokenizer = load_tokenizer_for_causal_lm(config)
-            logger.info(f"Tokenizer loaded.")
 
-            # Wrapping the model to move the layers
-            model_wrapper = LayerSwitchingWrapperModel(base_model, destination_layer_path_source_layer_path_mapping)
-            logger.info(f"Model wrapped.")
+            model_wrapper.set_destination_layer_path_source_layer_path_mapping(destination_layer_path_source_layer_path_mapping)
+            logger.info(f"Layers switched.")
 
             # Defining the evaluation parameters
             evaluation_args = {
@@ -300,9 +331,38 @@ def perform_layer_redundancy_analysis(
 
             performance_dict[str(destination_layer_path_source_layer_path_mapping)] = filtered_results
 
+            model_wrapper.reset_switch()
+
         data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
         logger.info("Trying to store the data.")
         # Saving the data
         with open(config.get("file_path"), "wb") as f:
             pkl.dump(data, f)
         logger.info("Data stored.")
+
+    destination_layer_path_source_layer_path_mapping_list, performance_dict = data
+
+
+    #for task in config.get("dataset_id"):
+    #    logger.info(f"Printing the results for task: {task}")
+    #    destination_layer_path_source_layer_path_mapping_list
+    #    plot_heatmap(
+    #        [[]]
+    #    )
+
+
+if __name__ == "__main__":
+
+    model = transformers.AutoModelForCausalLM.from_pretrained("bert-base-uncased")
+    print(model.bert.encoder.layer[0].output.dense.weight)
+    print(model.bert.encoder.layer[1].output.dense.weight)
+    destination_layer_path_source_layer_path_mapping = {
+        ("0", "output", "dense"): ("1", "output", "dense")
+    }
+
+    model_wrapper = LayerSwitchingWrapperModel(model, destination_layer_path_source_layer_path_mapping)
+    print(model_wrapper.get_model().bert.encoder.layer[0].output.dense.weight)
+    print(model_wrapper.get_model().bert.encoder.layer[1].output.dense.weight)
+    model_wrapper.reset_switch()
+    print(model_wrapper.get_model().bert.encoder.layer[0].output.dense.weight)
+    print(model_wrapper.get_model().bert.encoder.layer[1].output.dense.weight)
