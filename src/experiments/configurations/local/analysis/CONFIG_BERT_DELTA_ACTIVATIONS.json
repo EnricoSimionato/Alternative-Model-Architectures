@@ -28,7 +28,7 @@
     ],
     "tokenizer_id": "bert-base-uncased",
     "max_len_tokenizer": 512,
-    "num_iterations": 50,
+    "num_iterations": 1,
     "batch_size": 8,
     "num_workers": 1,
     "max_len": 512,

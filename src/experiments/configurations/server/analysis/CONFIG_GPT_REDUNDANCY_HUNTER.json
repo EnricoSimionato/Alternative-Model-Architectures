@@ -1,0 +1,30 @@
+{
+    "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
+    "analysis_type": "layer_redundancy_analysis",
+
+    "version": "0",
+    
+    "original_model_id": "EleutherAI/gpt-neo-1.3B",
+    "quantization": null,
+    "dtype": "float16",
+
+    "dataset_id": [
+        "mmlu"
+    ],
+
+    "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
+    "batch_size": 16,
+
+    "targets": [
+        ["layer_index", "mlp", "c_fc"],
+        ["layer_index", "mlp", "c_proj"]
+    ],
+    "num_layers": 24,
+    
+    "figure_size": [30, 30],
+
+    "verbose": 1,
+    "device": "cuda",
+    "seed": 42
+}

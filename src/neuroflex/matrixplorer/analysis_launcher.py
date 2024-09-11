@@ -5,6 +5,7 @@ import logging
 from neuroflex.matrixplorer.activations_analysis import perform_activations_analysis, perform_delta_activations_analysis
 from neuroflex.matrixplorer.head_analysis import perform_head_analysis, perform_heads_similarity_analysis
 from neuroflex.matrixplorer.sorted_layers_rank_analysis import perform_sorted_layers_rank_analysis
+from neuroflex.redhunter.rendundancy_hunter import perform_layer_redundancy_analysis_launcher
 from neuroflex.utils.experiment_pipeline import Config
 from neuroflex.utils.experiment_pipeline.config import get_path_to_configurations
 from neuroflex.utils.experiment_pipeline.storage_utils import check_path_to_storage
@@ -25,7 +26,9 @@ analysis_mapping = {
     "heads_similarity_analysis": perform_heads_similarity_analysis,
 
     "activations_analysis": perform_activations_analysis,
-    "delta_activations_analysis": perform_delta_activations_analysis
+    "delta_activations_analysis": perform_delta_activations_analysis,
+
+    "layer_redundancy_analysis": perform_layer_redundancy_analysis_launcher
 }
 
 specific_mandatory_keys_mapping = {
@@ -40,7 +43,8 @@ specific_mandatory_keys_mapping = {
     "activations_analysis": ["dataset_id"],
     "delta_activations_analysis": ["dataset_id"],
 
-    "query_key_analysis": ["query_label", "key_label"]
+    "query_key_analysis": ["query_label", "key_label"],
+    "layer_redundancy_analysis": ["num_layers"]
 }
 
 not_used_keys_mapping = {
@@ -73,7 +77,7 @@ def main() -> None:
         "original_model_id",
     ]
     configuration.check_mandatory_keys(mandatory_keys)
-    mandatory_keys += specific_mandatory_keys_mapping[configuration.get("analysis_type")]
+    mandatory_keys += specific_mandatory_keys_mapping[configuration.get("analysis_type")] if configuration.get("analysis_type") in specific_mandatory_keys_mapping.keys() else []
     mandatory_keys = list(set(mandatory_keys) - set(not_used_keys_mapping[configuration.get("analysis_type")] if configuration.get("analysis_type") in not_used_keys_mapping.keys() else []))
     configuration.check_mandatory_keys(mandatory_keys)
 

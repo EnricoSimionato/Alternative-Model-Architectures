@@ -3,10 +3,10 @@ import os
 from typing import Any
 import pickle as pkl
 
-import numpy as np
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -16,11 +16,9 @@ import transformers
 import re
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
-
 from neuroflex.utils.experiment_pipeline import Config
 
 from neuroflex.utils.chatbot import load_original_model_for_causal_lm
-
 
 from neuroflex.matrixplorer.rank_analysis_utils import (
     compute_explained_variance,
@@ -1207,6 +1205,57 @@ class AnalysisModelWrapper(nn.Module):
 
         return self.model(*args, **kwargs)
 
+    def feed_input_activation(
+            self,
+            activations: torch.Tensor,
+            reset_before_feeding: bool = True
+    ) -> dict:
+        """
+        Feeds the input activation to the wrapped layers of the model and returns the activations.
+
+        Args:
+            activations (torch.Tensor):
+                The input activation.
+            reset_before_feeding (bool, optional):
+                Whether to reset the activations before feeding the input activation. Defaults to True.
+
+        Returns:
+            dict:
+                The activations.
+        """
+
+        if reset_before_feeding:
+            self.reset_activations()
+
+        # Recursively feeding the input activation to the model
+        self._feed_input_activation(self.model, activations)
+
+        return self.get_activations()
+
+    def _feed_input_activation(
+            self,
+            module_tree,
+            activations: torch.Tensor
+    ) -> None:
+        """
+        Feeds the input activation to the wrapped layers of the model.
+
+        Args:
+            module_tree (nn.Module):
+                Model or module containing layers.
+            activations (torch.Tensor):
+                The input activation.
+        """
+
+        for layer_name in module_tree._modules.keys():
+            child = module_tree._modules[layer_name]
+            if issubclass(type(child), AnalysisLayerWrapper):
+                child.forward(activations)
+            elif len(child._modules) == 0:
+                pass
+            else:
+                self._feed_input_activation(child, activations)
+
     def set_store_activations(
             self,
             store_activations: bool
@@ -1319,6 +1368,8 @@ class AnalysisModelWrapper(nn.Module):
                 self._reset_activations(child)
 
 
+# Definition of the function to perform various types of analysis
+
 def perform_analysis(
         configuration: Config
 ) -> None:
@@ -1366,163 +1417,7 @@ def perform_analysis(
         pkl.dump(data, f)
 
 
-def extract_based_on_path(
-        model_tree: [nn.Module | transformers.AutoModel],
-        paths_of_targets: list,
-        extracted_matrices: list,
-        black_list: list = None,
-        path: str = "",
-        verbose: Verbose = Verbose.INFO,
-        **kwargs
-) -> None:
-    """
-    Extracts the matrices from the model tree.
-
-    Args:
-        model_tree ([nn.Module | transformers.AutoModel]):
-            The model tree.
-        paths_of_targets (list):
-            The path of the targets.
-        extracted_matrices (list):
-            The list of extracted matrices.
-        black_list (list, optional):
-            The list of black listed paths. Defaults to None.
-        path (str, optional):
-            The path to the current layer. Defaults to "".
-        verbose (Verbose, optional):
-            The verbosity level. Defaults to Verbose.INFO.
-    """
-
-    for layer_name in model_tree._modules.keys():
-        child = model_tree._modules[layer_name]
-        if len(child._modules) == 0:
-            if verbose > Verbose.INFO:
-                print(f"Checking {layer_name} in {path}")
-
-            if black_list is not None:
-                black_listed = len([
-                    black_listed_string
-                    for black_listed_string in black_list
-                    if black_listed_string in path + "_" + layer_name
-                ]) > 0
-            else:
-                black_listed = False
-
-            targets_in_path = [
-                layer_path_
-                for layer_path_ in paths_of_targets
-                if layer_path_ in path + "_" + layer_name and not black_listed
-            ]
-            if len(targets_in_path) > 0:
-                layer_path = str(max(targets_in_path, key=len))
-                if verbose > Verbose.SILENT:
-                    print(f"Found {layer_path} in {path}")
-
-                list_containing_layer_number = [
-                    sub_path for sub_path in path.split("_") if sub_path.isdigit()
-                ]
-                block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
-                extracted_matrices.append(
-                    AnalysisTensorWrapper(
-                        tensor=child.weight.detach(),
-                        name=layer_name,
-                        label=layer_path,
-                        path=path + "_" + layer_name,
-                        block_index=int(block_index),
-                        layer=child
-                    )
-                )
-        else:
-            # Recursively calling the function
-            extract_based_on_path(
-                model_tree=child,
-                paths_of_targets=paths_of_targets,
-                extracted_matrices=extracted_matrices,
-                black_list=black_list,
-                path=layer_name if path == "" else path + "_" + layer_name,
-                verbose=verbose,
-                **kwargs
-            )
-
-
-def extract_analysis_layer_wrappers(
-        module_tree: [nn.Module | transformers.AutoModel],
-        paths_of_targets: list,
-        extracted_matrices: list,
-        black_list: list = None,
-        path: str = "",
-        verbose: Verbose = Verbose.INFO,
-        **kwargs
-) -> None:
-    """
-    Extracts the matrices from the model tree.
-
-    Args:
-        module_tree ([nn.Module | transformers.AutoModel]):
-            The model tree.
-        paths_of_targets (list):
-            The path of the targets.
-        extracted_matrices (list):
-            The list of extracted matrices.
-        black_list (list, optional):
-            The list of blacklisted paths. Defaults to None.
-        path (str, optional):
-            The path to the current layer. Defaults to "".
-        verbose (Verbose, optional):
-            The verbosity level. Default to Verbose.INFO.
-    """
-
-    for layer_name in module_tree._modules.keys():
-        child = module_tree._modules[layer_name]
-        if issubclass(type(child), AnalysisLayerWrapper):
-            if verbose > Verbose.INFO:
-                print(f"Checking {layer_name} in {path}")
-
-            if black_list is not None:
-                black_listed = len([
-                    black_listed_string
-                    for black_listed_string in black_list
-                    if black_listed_string in path + "_" + layer_name
-                ]) > 0
-            else:
-                black_listed = False
-
-            targets_in_path = [
-                layer_path_
-                for layer_path_ in paths_of_targets
-                if layer_path_ in path + "_" + layer_name and not black_listed
-            ]
-            if len(targets_in_path) > 0:
-                layer_path = str(max(targets_in_path, key=len))
-                if verbose > Verbose.SILENT:
-                    print(f"Found {layer_path} in {path}")
-
-                list_containing_layer_number = [
-                    sub_path for sub_path in path.split("_") if sub_path.isdigit()
-                ]
-                block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
-                extracted_matrices.append(
-                    AnalysisTensorWrapper(
-                        tensor=child.weight.detach(),
-                        name=layer_name,
-                        label=layer_path,
-                        path=path,
-                        block_index=int(block_index),
-                        layer=child
-                    )
-                )
-        else:
-            # Recursively calling the function
-            extract_analysis_layer_wrappers(
-                module_tree=child,
-                paths_of_targets=paths_of_targets,
-                extracted_matrices=extracted_matrices,
-                black_list=black_list,
-                path=path + "_" + layer_name,
-                verbose=verbose,
-                **kwargs
-            )
-
+# Definition of the functions to compute the rank of a matrix
 
 def compute_rank(
         singular_values: dict,
@@ -1727,6 +1622,85 @@ def extract_based_on_path(
                 extracted_matrices=extracted_matrices,
                 black_list=black_list,
                 path=layer_name if path == "" else path + "_" + layer_name,
+                verbose=verbose,
+                **kwargs
+            )
+
+
+def extract_analysis_layer_wrappers(
+        module_tree: [nn.Module | transformers.AutoModel],
+        paths_of_targets: list,
+        extracted_matrices: list,
+        black_list: list = None,
+        path: str = "",
+        verbose: Verbose = Verbose.INFO,
+        **kwargs
+) -> None:
+    """
+    Extracts the matrices from the model tree.
+
+    Args:
+        module_tree ([nn.Module | transformers.AutoModel]):
+            The model tree.
+        paths_of_targets (list):
+            The path of the targets.
+        extracted_matrices (list):
+            The list of extracted matrices.
+        black_list (list, optional):
+            The list of blacklisted paths. Defaults to None.
+        path (str, optional):
+            The path to the current layer. Defaults to "".
+        verbose (Verbose, optional):
+            The verbosity level. Default to Verbose.INFO.
+    """
+
+    for layer_name in module_tree._modules.keys():
+        child = module_tree._modules[layer_name]
+        if issubclass(type(child), AnalysisLayerWrapper):
+            if verbose > Verbose.INFO:
+                print(f"Checking {layer_name} in {path}")
+
+            if black_list is not None:
+                black_listed = len([
+                    black_listed_string
+                    for black_listed_string in black_list
+                    if black_listed_string in path + "_" + layer_name
+                ]) > 0
+            else:
+                black_listed = False
+
+            targets_in_path = [
+                layer_path_
+                for layer_path_ in paths_of_targets
+                if layer_path_ in path + "_" + layer_name and not black_listed
+            ]
+            if len(targets_in_path) > 0:
+                layer_path = str(max(targets_in_path, key=len))
+                if verbose > Verbose.SILENT:
+                    print(f"Found {layer_path} in {path}")
+
+                list_containing_layer_number = [
+                    sub_path for sub_path in path.split("_") if sub_path.isdigit()
+                ]
+                block_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
+                extracted_matrices.append(
+                    AnalysisTensorWrapper(
+                        tensor=child.weight.detach(),
+                        name=layer_name,
+                        label=layer_path,
+                        path=path,
+                        block_index=int(block_index),
+                        layer=child
+                    )
+                )
+        else:
+            # Recursively calling the function
+            extract_analysis_layer_wrappers(
+                module_tree=child,
+                paths_of_targets=paths_of_targets,
+                extracted_matrices=extracted_matrices,
+                black_list=black_list,
+                path=path + "_" + layer_name,
                 verbose=verbose,
                 **kwargs
             )

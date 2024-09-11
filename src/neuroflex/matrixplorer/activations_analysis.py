@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 import os
-import pickle as pkl
 import logging
-
-import numpy as np
+import pickle as pkl
 from tqdm import tqdm
 
 from matplotlib import pyplot as plt
-import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import numpy as np
 
 import torch
 
-from neuroflex.utils.plotting_utils.heatmap import set_axis_labels, get_label_from_list, get_text_color, plot_heatmap
 from neuroflex.utils.printing_utils.printing_utils import Verbose
+from neuroflex.utils.plotting_utils.heatmap import plot_heatmap
 from neuroflex.utils.experiment_pipeline import Config
 
 from neuroflex.utils.classification.pl_datasets import IMDBDataModule
@@ -218,7 +217,6 @@ def perform_delta_activations_analysis(
             The configuration object containing the necessary information to perform the analysis.
     """
 
-    logging.basicConfig(filename=os.path.join(config.get("directory_path"), "logs.log"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_sorted_layers_rank_analysis in sorted_layers_rank_analysis.py.")
 
@@ -351,6 +349,148 @@ def perform_delta_activations_analysis(
     logger.info(f"Activations' analysis completed.")
 
 
+def perform_delta_activations_same_inputs_analysis(
+        config: Config,
+) -> None:
+    """
+    Performs the activations' analysis.
+
+    Args:
+        config (Config):
+            The configuration object containing the necessary information to perform the analysis.
+    """
+
+    logging.basicConfig(filename=os.path.join(config.get("directory_path"), "logs.log"), level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Running perform_sorted_layers_rank_analysis in sorted_layers_rank_analysis.py.")
+
+    # Getting the parameters related to the paths from the configuration
+    logger.info(f"Getting the parameters related to the paths from the configuration")
+    file_available, file_path, directory_path, file_name, file_name_no_format = [
+        config.get(name)
+        for name in ["file_available", "file_path", "directory_path", "file_name", "file_name_no_format"]
+    ]
+    logger.info(f"Information retrieved")
+
+    # Getting the parameters related to the analysis from the configuration
+    verbose = config.get_verbose()
+    fig_size = config.get("figure_size") if config.contains("figure_size") else (20, 20)
+    num_iterations = config.get("num_iterations") if config.contains("num_iterations") else 1
+    batch_size = config.get("batch_size") if config.contains("batch_size") else 64
+    num_workers = config.get("num_workers") if config.contains("num_workers") else 1
+    seed = config.get("seed") if config.contains("seed") else 42
+    max_len = config.get("max_len") if config.contains("max_len") else 512
+
+    # Load the data if the file is available, otherwise process the model
+    if file_available:
+        print(f"The file '{file_path}' is available.")
+        logger.info(f"The file '{file_path}' is available.")
+        with open(file_path, "rb") as f:
+            data = pkl.load(f)
+        logger.info(f"Data loaded from the file '{file_path}'.")
+    else:
+        # Loading the model
+        model = load_original_model_for_sequence_classification(config)
+        logger.info(f"Model loaded.")
+        # Loading the tokenizer
+        tokenizer = load_tokenizer_for_sequence_classification(config)
+        logger.info(f"Tokenizer loaded.")
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        # Wrapping the model
+        model_wrapper = AnalysisModelWrapper(model, config.get("targets"),
+                                             config.get("black_list") if config.contains("black_list") else None)
+        logger.info(f"Model wrapped.")
+        print(model_wrapper)
+
+        if config.get("dataset_id") == "stanfordnlp/imdb":
+            # Loading the dataset
+            dataset = IMDBDataModule(
+                tokenizer=tokenizer,
+                max_len=max_len,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                split=(0.8, 0.1, 0.1),
+                seed=seed
+            )
+            dataset.setup()
+        else:
+            raise Exception("The dataset is not recognized.")
+        logger.info(f"Dataset loaded.")
+
+        # Performing the activation analysis
+        data_loader = dataset.train_dataloader()
+        verbose.print("Staring to feed the inputs to the model.", Verbose.SILENT)
+        delta_activations = {}
+        layer_path_labels = None
+        for batch_index in tqdm(range(num_iterations)):
+            logger.info(f"Batch {batch_index + 1} out of {num_iterations}.")
+
+            batch = next(iter(data_loader))
+
+            # Preparing the inputs
+            inputs = {
+                "input_ids": batch["input_ids"],
+                "attention_mask": batch["attention_mask"],
+                "labels": batch.get("labels")
+            }
+
+            # Forward pass through the model
+            _ = model_wrapper.forward(**inputs)
+
+            # Getting the activations
+            activations = model_wrapper.get_activations()
+            # Flattening the activations
+            flattened_activations = {}
+            flatten_dictionary(flattened_activations, activations)
+            flattened_activations = [flattened_activation for flattened_activation in flattened_activations.values() if flattened_activation["activations"] is not None]
+            if layer_path_labels is None:
+                layer_path_labels = [flattened_activation["path"] for flattened_activation in flattened_activations]
+
+            num_activations = len(flattened_activations)
+            for index_activation_1 in range(num_activations):
+                for index_activation_2 in range(num_activations):
+                    stacked_activation_1 = torch.stack(flattened_activations[index_activation_1]["activations"])
+                    stacked_activation_2 = torch.stack(flattened_activations[index_activation_2]["activations"])
+
+                    delta_activation = stacked_activation_1 - stacked_activation_2
+                    previous_mean = delta_activations[(index_activation_1, index_activation_2)]["activations_mean"] if (index_activation_1, index_activation_2) in delta_activations else 0
+                    previous_num = delta_activations[(index_activation_1, index_activation_2)]["activations_num"] if (index_activation_1, index_activation_2) in delta_activations else 0
+
+                    current_mean = torch.mean(torch.norm(delta_activation, dim=-1) / torch.sqrt(torch.norm(stacked_activation_1, dim=-1) * torch.norm(stacked_activation_2, dim=-1)))
+                    current_num = delta_activation.shape[0] * delta_activation.shape[1] * delta_activation.shape[2]
+
+                    delta_activations[(index_activation_1, index_activation_2)] = {
+                        "activations_mean": (previous_num * previous_mean + current_num * current_mean) / (previous_num + current_num),
+                        "activations_num": previous_num + current_num
+                    }
+
+            model_wrapper.reset_activations()
+
+        logger.info(f"Activations and difference between activations computed")
+
+        data = (model_wrapper, delta_activations, layer_path_labels)
+
+        # Saving the activations
+        logger.info(f"Storing the data for future usage.")
+        with open(f"{file_path}", "wb") as f:
+            pkl.dump(data, f)
+        logger.info(f"Data saved to the file '{file_path}'.")
+
+    # Extracting the activations
+    model_wrapper, delta_activations, layer_path_labels = data
+
+    labels = set([key[0] for key in delta_activations.keys()])
+    delta_activations_formatted = np.zeros((len(labels), len(labels)))
+    for key, value in delta_activations.items():
+        delta_activations_formatted[key[0], key[1]] = value["activations_mean"]
+
+    plot_heatmap(
+        [[delta_activations_formatted, ],], os.path.join(directory_path, "delta_activations.png"),
+        "Delta activations' statistics", ["Delta activations' statistics",], "Layer index", "Layer index",
+        [layer_path_labels, ], [layer_path_labels, ], fig_size=fig_size)
+
+    logger.info(f"Activations' analysis completed.")
 
 
 def print_nested_dictionary(

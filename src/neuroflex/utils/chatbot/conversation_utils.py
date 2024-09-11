@@ -315,6 +315,37 @@ def load_tokenizer_for_causal_lm(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    config.get_verbose().print("Tokenizer loaded", Verbose.INFO)
+
+    return tokenizer
+
+
+def load_tokenizer_for_chatbot(
+        config
+) -> transformers.AutoModelForCausalLM:
+    """
+    Loads the tokenizer to be used in the causal language modeling task.
+
+    Args:
+        config (Config):
+            The configuration parameters to use in the loading.
+
+    Returns:
+        transformers.AutoTokenizer:
+            The tokenizer for causal language modeling.
+    """
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.get("tokenizer_id")
+    )
+
+    if "bert" in config.get("tokenizer_id"):
+        tokenizer.bos_token = "[CLS]"
+        tokenizer.eos_token = "[SEP]"
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+
     tokenizer.chat_template = AutoTokenizer.from_pretrained(
         config.get("tokenizer_id_for_chat_template")
     ).chat_template

@@ -1,0 +1,31 @@
+{
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+    
+    "analysis_type": "layer_redundancy_analysis",
+
+    "version": "0",
+    
+    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
+    "quantization": null,
+    "dtype": "float16",
+
+    "dataset_id": [
+        "mmlu"
+    ],
+
+    "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
+    "batch_size": 16,
+    "max_len": 512,
+
+    "targets": [
+        ["layer_index", "mlp", "c_fc"],
+        ["layer_index", "mlp", "c_proj"]
+    ],
+    "num_layers": 12,
+    
+    "figure_size": [30, 30],
+
+    "verbose": 1,
+    "device": "mps",
+    "seed": 42
+}
