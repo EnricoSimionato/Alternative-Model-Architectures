@@ -219,14 +219,13 @@ lm_eval_task_args = {
 def perform_layer_redundancy_analysis_launcher(
         config: Config,
 ) -> None:
-    logging.basicConfig(filename=config.get("log_path"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_layer_redundancy_analysis_launcher in redundancy_hunter.py.")
 
     # Getting the parameters related to the paths from the configuration
-    file_available, file_path, directory_path, file_name, file_name_no_format = [
+    file_available, file_path, directory_path = [
         config.get(name)
-        for name in ["file_available", "file_path", "directory_path", "file_name", "file_name_no_format"]
+        for name in ["file_available", "file_path", "directory_path"]
     ]
 
     # Load the data if the file is available, otherwise process the model
@@ -244,7 +243,6 @@ def perform_layer_redundancy_analysis(
         config: Config,
         data: Any = None,
 ) -> None:
-    logging.basicConfig(filename=config.get("log_path"), level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_layer_redundancy_analysis in redundancy_hunter.py.")
 
@@ -269,6 +267,7 @@ def perform_layer_redundancy_analysis(
 
         for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list:
             logger.info(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
+            print(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
             # Loading the model and the tokenizer
             base_model = load_original_model_for_causal_lm(config)
             logger.info(f"Model loaded.")
@@ -292,6 +291,7 @@ def perform_layer_redundancy_analysis(
                 model="hf",
                 model_args={"pretrained": model_wrapper.get_model(), "tokenizer": tokenizer, "backend": "causal"},
                 tasks=config.get("dataset_id"),
+                batch_size=evaluation_args["batch_size"],
                 device=evaluation_args["device"]
             )
             logger.info(f"Model evaluated.")

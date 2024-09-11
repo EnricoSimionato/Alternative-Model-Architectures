@@ -94,16 +94,24 @@ def main() -> None:
             "file_path": os.path.join(directory_path, file_name),
             "directory_path": directory_path,
             "file_name": file_name,
-            "file_name_no_format": file_name.split(".")[0],
             "log_path": os.path.join(directory_path, "logs.log")
         }
     )
+    print(configuration.get("log_path"))
     # Storing the configuration
     configuration.store(configuration.get("directory_path"))
 
     # Creating the logger
-    logging.basicConfig(filename=configuration.get("log_path"), level=logging.INFO)
-    logger = logging.getLogger(__name__)
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(configuration.get("log_path"))
+        ]
+    )
+    logger = logging.getLogger()
     logger.info(f"Running main in analysis_launcher.py.")
     logger.info(f"Configuration file: {config_name}.")
     logger.info(f"Environment: {environment}.")
