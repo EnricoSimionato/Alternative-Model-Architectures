@@ -20,7 +20,7 @@ from neuroflex.utils.classification.pl_datasets import IMDBDataModule
 
 from neuroflex.matrixplorer.sorted_layers_rank_analysis import compute_cosine
 from neuroflex.utils.classification.classification_utils import (
-    load_original_model_for_sequence_classification,
+    load_model_for_sequence_classification,
     load_tokenizer_for_sequence_classification,
 )
 

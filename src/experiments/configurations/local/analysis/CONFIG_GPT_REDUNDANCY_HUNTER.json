@@ -5,16 +5,26 @@
 
     "version": "0",
     
-    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
+    "model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
 
-    "dataset_id": [
-        "truthfulqa_mc1"
-    ],
-
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
-    "batch_size": 16,
+
+    "benchmark_ids": [
+        "truthfulqa_mc1",
+        "arc_challenge"
+    ],
+    "evaluation_args": {
+        "truthfulqa_mc1": {
+            "batch_size": 8,
+            "limit": 1
+        },
+        "arc_challenge": {
+            "batch_size": 8,
+            "limit": 1
+        }
+    },
 
     "targets": [
         ["layer_index", "mlp", "c_fc"],

@@ -237,11 +237,11 @@ def start_conversation_loop(
     return dialogue
 
 
-def load_original_model_for_causal_lm(
+def load_model_for_causal_lm(
         config,
 ) -> transformers.AutoModelForCausalLM:
     """
-    Loads the original model to be used in the causal language modeling.
+    Loads the model to be used in the causal language modeling.
 
     Args:
         config (Config):
@@ -278,7 +278,7 @@ def load_original_model_for_causal_lm(
             print("Loading the model using float16 dtype\n")
 
     model = AutoModelForCausalLM.from_pretrained(
-        config.get("original_model_id"),
+        config.get("model_id"),
         torch_dtype=torch_dtype,
         quantization_config=bnb_config
     )

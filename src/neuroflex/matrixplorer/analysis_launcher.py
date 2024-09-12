@@ -44,7 +44,7 @@ specific_mandatory_keys_mapping = {
     "delta_activations_analysis": ["dataset_id"],
 
     "query_key_analysis": ["query_label", "key_label"],
-    "layer_redundancy_analysis": ["num_layers"]
+    "layer_redundancy_analysis": ["benchmark_ids", "num_layers"]
 }
 
 not_used_keys_mapping = {
@@ -74,7 +74,7 @@ def main() -> None:
         "path_to_storage",
         "analysis_type",
         "targets",
-        "original_model_id",
+        "model_id",
     ]
     configuration.check_mandatory_keys(mandatory_keys)
     mandatory_keys += specific_mandatory_keys_mapping[configuration.get("analysis_type")] if configuration.get("analysis_type") in specific_mandatory_keys_mapping.keys() else []
@@ -85,7 +85,7 @@ def main() -> None:
     file_available, directory_path, file_name = check_path_to_storage(
         configuration.get("path_to_storage"),
         configuration.get("analysis_type"),
-        configuration.get("original_model_id").split("/")[-1],
+        configuration.get("model_id").split("/")[-1],
         configuration.get("version") if configuration.contains("version") else None,
     )
     configuration.update(
@@ -107,9 +107,7 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(configuration.get("log_path"))
-        ]
+        handlers=[logging.FileHandler(configuration.get("log_path"))]
     )
     logger = logging.getLogger()
     logger.info(f"Running main in analysis_launcher.py.")

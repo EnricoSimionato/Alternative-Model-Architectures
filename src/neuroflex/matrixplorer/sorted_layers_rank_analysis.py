@@ -13,7 +13,7 @@ import torch
 
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline.config import Config
-from neuroflex.utils.chatbot.conversation_utils import load_original_model_for_causal_lm
+from neuroflex.utils.chatbot.conversation_utils import load_model_for_causal_lm
 
 from neuroflex.matrixplorer.delta_layers_rank_analysis import compute_delta_matrices
 

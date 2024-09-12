@@ -15,7 +15,7 @@ from neuroflex.utils.device_utils import get_available_device
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 from neuroflex.utils.experiment_pipeline import Config
 
-from neuroflex.utils.chatbot import load_original_model_for_causal_lm
+from neuroflex.utils.chatbot import load_model_for_causal_lm
 
 from neuroflex.matrixplorer.utils import (
     AnalysisTensorDict,

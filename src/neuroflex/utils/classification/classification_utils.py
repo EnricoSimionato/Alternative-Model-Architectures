@@ -7,7 +7,7 @@ from neuroflex.utils.experiment_pipeline.config import Config
 from neuroflex.utils.printing_utils.printing_utils import Verbose
 
 
-def load_original_model_for_sequence_classification(
+def load_model_for_sequence_classification(
         config: Config,
 ) -> transformers.AutoModelForSequenceClassification:
     """
@@ -23,7 +23,7 @@ def load_original_model_for_sequence_classification(
     """
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        config.get("original_model_id"),
+        config.get("model_id"),
         num_labels=config.get("num_classes"),
         id2label=config.get("id2label"),
         label2id=config.get("label2id"),
@@ -53,7 +53,7 @@ def load_tokenizer_for_sequence_classification(
         config.get("tokenizer_id")
     )
 
-    if "bert" in config.get("original_model_id"):
+    if "bert" in config.get("model_id"):
         tokenizer.bos_token = "[CLS]"
         tokenizer.eos_token = "[SEP]"
 
