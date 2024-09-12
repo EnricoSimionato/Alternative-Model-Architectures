@@ -14,13 +14,13 @@
     ],
 
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
-    "batch_size": 8,
+    "batch_size": 16,
 
     "targets": [
         ["layer_index", "mlp", "c_fc"],
         ["layer_index", "mlp", "c_proj"]
     ],
-    "num_layers": 12,
+    "num_layers": 24,
     
     "figure_size": [30, 30],
 

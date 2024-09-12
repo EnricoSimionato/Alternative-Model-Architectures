@@ -25,48 +25,6 @@ import re
 from collections import OrderedDict
 
 
-def process_complex_dictionary(
-        input_dict: dict[tuple[str, str], dict[str, dict[str, float]]]
-) -> tuple:
-    # Helper function to extract tuples from string
-    def extract_tuples(s):
-        return re.findall(r"\('(.*?)', '(.*?)', '(.*?)'\)", s)
-
-    # Initializing OrderedDicts to maintain order and uniqueness
-    first_elements = OrderedDict()
-    second_elements = OrderedDict()
-    tasks = list(next(iter(input_dict.values())).keys())
-
-    # Collecting unique elements and their order
-    for key, value in input_dict.items():
-        first_tuples = extract_tuples(key[0])
-        second_tuples = extract_tuples(key[1])
-
-        for t in first_tuples:
-            if t[0] not in first_elements:
-                first_elements[t[0]] = len(first_elements)
-        for t in second_tuples:
-            if t[0] not in second_elements:
-                second_elements[t[0]] = len(second_elements)
-
-    # Initialize performance arrays
-    performance_arrays = {task: np.full((len(first_elements), len(second_elements)), np.nan) for task in tasks}
-
-    # Second pass: fill in the performance arrays
-    for key, value in input_dict.items():
-        first_tuples = extract_tuples(key[0])
-        second_tuples = extract_tuples(key[1])
-
-        for first in first_tuples:
-            for second in second_tuples:
-                row = first_elements[first[0]]
-                col = second_elements[second[0]]
-                for task in tasks:
-                    performance_arrays[task][row, col] = value[task]['metric']
-
-    return list(first_elements.keys()), list(second_elements.keys()), performance_arrays
-
-
 class LayerSwitchingWrapperModel:
     """
     Class to switch layers in a model.
@@ -283,10 +241,52 @@ class LayerSwitchingWrapperModel:
         return self.model.__str__()
 
 
-lm_eval_task_args = {
-    "mmlu": {"subset": "high_school_mathematics"},
-    "hellaswag": {}
+dataset_id_metric_name_mapping = {
+    "truthfulqa_mc1": "acc,none",
+    "truthfulqa_mc2": "acc,none"
 }
+
+
+def post_process_result_dictionary(
+        input_dict: dict[tuple[str, str], dict[str, dict[str, float]]]
+) -> tuple:
+    # Helper function to extract tuples from string
+    def extract_tuples(s):
+        return re.findall(r"\('(.*?)', '(.*?)', '(.*?)'\)", s)
+
+    # Initializing OrderedDicts to maintain order and uniqueness
+    first_elements = OrderedDict()
+    second_elements = OrderedDict()
+    tasks = list(next(iter(input_dict.values())).keys())
+
+    # Collecting unique elements and their order
+    for key, value in input_dict.items():
+        first_tuples = extract_tuples(key[0])
+        second_tuples = extract_tuples(key[1])
+
+        for t in first_tuples:
+            if t[0] not in first_elements:
+                first_elements[t[0]] = len(first_elements)
+        for t in second_tuples:
+            if t[0] not in second_elements:
+                second_elements[t[0]] = len(second_elements)
+
+    # Initializing performance arrays
+    performance_arrays = {task: np.full((len(first_elements), len(second_elements)), np.nan) for task in tasks}
+
+    # Filling in the performance arrays
+    for key, value in input_dict.items():
+        first_tuples = extract_tuples(key[0])
+        second_tuples = extract_tuples(key[1])
+
+        for first in first_tuples:
+            for second in second_tuples:
+                row = first_elements[first[0]]
+                col = second_elements[second[0]]
+                for task in tasks:
+                    performance_arrays[task][row, col] = value[task][dataset_id_metric_name_mapping[task]]
+
+    return list(first_elements.keys()), list(second_elements.keys()), performance_arrays
 
 
 def perform_layer_redundancy_analysis_launcher(
@@ -319,93 +319,127 @@ def perform_layer_redundancy_analysis(
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_layer_redundancy_analysis in redundancy_hunter.py.")
 
-    if data is None:
-        # Getting the parameters from the configuration
-        device = get_available_device(config.get("device") if config.contains("device") else None, just_string=True)
-        batch_size = config.get("batch_size") if config.contains("batch_size") else 4
+    fig_size = config.get("figure_size") if config.contains("figure_size") else (20, 20)
 
-        performance_dict = {}
+    #if data is None:
+    # Getting the parameters from the configuration
+    device = get_available_device(config.get("device") if config.contains("device") else None, just_string=True)
+    batch_size = config.get("batch_size") if config.contains("batch_size") else 4
 
-        # Loading the model and the tokenizer
-        base_model = load_original_model_for_causal_lm(config)
-        logger.info(f"Model loaded.")
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        tokenizer = load_tokenizer_for_causal_lm(config)
-        logger.info(f"Tokenizer loaded.")
+    performance_dict = {}
 
-        # Setting the parameters for the layer switching
-        targets_lists = config.get("targets")
-        num_layers = config.get("num_layers")
-        destination_layer_path_source_layer_path_mapping_list = [
-            {
-                tuple(el if el != "layer_index" else f"{i}" for el in targets):
-                    tuple(el if el != "layer_index" else f"{j}" for el in targets)
-                for targets in targets_lists
-            }
-            for i in range(num_layers)
-            for j in range(num_layers) if (i != j or (i == 0 and j== 0))
-        ]
+    # Loading the model and the tokenizer
+    base_model = load_original_model_for_causal_lm(config)
+    logger.info(f"Model loaded.")
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    tokenizer = load_tokenizer_for_causal_lm(config)
+    logger.info(f"Tokenizer loaded.")
 
-        # Wrapping the model to move the layers
-        model_wrapper = LayerSwitchingWrapperModel(base_model, None)
-        logger.info(f"Model wrapped.")
+    # Setting the parameters for the layer switching
+    targets_lists = config.get("targets")
+    num_layers = config.get("num_layers")
+    destination_layer_path_source_layer_path_mapping_list = [
+        {
+            tuple(el if el != "layer_index" else f"{i}" for el in targets):
+                tuple(el if el != "layer_index" else f"{j}" for el in targets)
+            for targets in targets_lists
+        }
+        for i in range(num_layers)
+        for j in range(num_layers) if (i != j or (i == 0 and j == 0))
+    ]
+    redundant_layer_path_source_layer_path_mapping_list = [
+        {
+            tuple(el if el != "layer_index" else f"{i}" for el in targets):
+                tuple(el if el != "layer_index" else f"{i}" for el in targets)
+            for targets in targets_lists
+        }
+        for i in range(num_layers) if i != 0
+    ]
+    original_model_layer_path_source_layer_path_mapping = {
+        tuple(el if el != "layer_index" else f"{0}" for el in targets):
+            tuple(el if el != "layer_index" else f"{0}" for el in targets)
+        for targets in targets_lists
+    }
 
-        for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list:
-            logger.info(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
-            print(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
+    # Wrapping the model to move the layers
+    model_wrapper = LayerSwitchingWrapperModel(base_model, None)
+    logger.info(f"Model wrapped.")
 
-            model_wrapper.set_destination_layer_path_source_layer_path_mapping(destination_layer_path_source_layer_path_mapping)
-            logger.info(f"Layers switched.")
+    start_from = 0
+    try:
+        with open(config.get("file_path"), "rb") as f:
+            destination_layer_path_source_layer_path_mapping_list, already_created_performance_dict = pkl.load(f)
+            performance_dict.update(already_created_performance_dict)
+            start_from = len(performance_dict.keys())
+            logger.info(f"Previous data loaded. Starting from index: {start_from}\n"
+                        f"Loaded data: {performance_dict}")
+            print(f"Previous data loaded. Starting from index: {start_from}")
+    except FileNotFoundError:
+        pass
 
-            # Defining the evaluation parameters
-            evaluation_args = {
-                "num_fewshot": 5,
-                "batch_size": batch_size,
-                "device": device
-            }
+    for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list[start_from:]:
+        logger.info(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
+        print(f"Evaluating the variance destination_layer_path_source_layer_path_mapping: {destination_layer_path_source_layer_path_mapping}")
 
-            logger.info(f"Starting the evaluation of the model.")
-            # Evaluating the model
+        model_wrapper.set_destination_layer_path_source_layer_path_mapping(destination_layer_path_source_layer_path_mapping)
+        logger.info(f"Layers switched.")
 
-            results = lm_eval.simple_evaluate(
-                model="hf",
-                model_args={"pretrained": model_wrapper.get_model().to(get_available_device(device)), "tokenizer": tokenizer, "backend": "causal"},
-                tasks=config.get("dataset_id"),
-                batch_size=evaluation_args["batch_size"],
-                device=evaluation_args["device"]
-            )
-            logger.info(f"Model evaluated.")
-            filtered_results = results["results"]
-            logger.info(f"Results: {filtered_results}")
+        # Defining the evaluation parameters
+        evaluation_args = {
+            "num_fewshot": 5,
+            "batch_size": batch_size,
+            "device": device
+        }
 
-            #filtered_results = {"task": {"metric": 0.0}}
+        logger.info(f"Starting the evaluation of the model.")
+        # Evaluating the model
+        results = lm_eval.simple_evaluate(
+            model="hf",
+            model_args={"pretrained": model_wrapper.get_model().to(get_available_device(device)), "tokenizer": tokenizer, "backend": "causal"},
+            tasks=config.get("dataset_id"),
+            batch_size=evaluation_args["batch_size"],
+            device=evaluation_args["device"]
+        )
+        logger.info(f"Model evaluated.")
+        filtered_results = results["results"]
+        logger.info(f"Results: {filtered_results}")
 
-            performance_dict[(str(destination_layer_path_source_layer_path_mapping.keys()), str(destination_layer_path_source_layer_path_mapping.values()))] = filtered_results
-            logger.info(f"Performance dictionary updated with the results.")
+        performance_dict[(str(destination_layer_path_source_layer_path_mapping.keys()), str(destination_layer_path_source_layer_path_mapping.values()))] = filtered_results
+        logger.info(f"Performance dictionary updated with the results.")
 
-            model_wrapper.reset_switch()
-            logger.info(f"Layers reset.")
+        model_wrapper.reset_switch()
+        logger.info(f"Layers reset.")
 
-        data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
-        logger.info("Trying to store the data.")
-        # Saving the data
         with open(config.get("file_path"), "wb") as f:
-            pkl.dump(data, f)
-        logger.info("Data stored.")
+            pkl.dump((destination_layer_path_source_layer_path_mapping_list, performance_dict), f)
+        logger.info(f"Partial data stored.")
+
+    redundant_performance_dict = {
+        (str(redundant_layer_path_source_layer_path_mapping.keys()), str(redundant_layer_path_source_layer_path_mapping.values())): performance_dict[str(original_model_layer_path_source_layer_path_mapping.keys()), str(original_model_layer_path_source_layer_path_mapping.values())]
+        for redundant_layer_path_source_layer_path_mapping in redundant_layer_path_source_layer_path_mapping_list
+    }
+    performance_dict.update(redundant_performance_dict)
+
+    data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
+    logger.info("Trying to store the data.")
+    # Saving the data
+    with open(config.get("file_path"), "wb") as f:
+        pkl.dump(data, f)
+    logger.info("All data stored.")
 
     destination_layer_path_source_layer_path_mapping_list, destination_layer_path_source_layer_path_mapping_list = data
+    rows_labels, columns_labels, post_processed_results = post_process_result_dictionary(destination_layer_path_source_layer_path_mapping_list)
 
-    #row_labels = [str(destination_layer_path_source_layer_path_mapping) for destination_layer_path_source_layer_path_mapping in destination_layer_path_source_layer_path_mapping_list]
-    #column_labels = []
-
-    """
-    for task in config.get("dataset_id"):
-        results_matrix = []
-        logger.info(f"Printing the results for task: {task}")
-        destination_layer_path_source_layer_path_mapping_list
+    for dataset_id in post_processed_results.keys():
+        logger.info(f"Printing the results for task: {dataset_id}")
         plot_heatmap(
-            [[]]
+            [[post_processed_results[dataset_id]]],
+            os.path.join(config.get("directory_path"), f"heatmap_{dataset_id}.png"),
+            f"Results for the model {config.get('original_model_id').split('/')[-1]} on the task {dataset_id}",
+            x_title="Substituted layers",
+            y_title="Source layers",
+            x_labels=[rows_labels],
+            y_labels=[columns_labels],
+            fig_size=fig_size,
+            precision=4
        )
-    """
-
-

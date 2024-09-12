@@ -10,7 +10,7 @@
     "dtype": "float32",
 
     "dataset_id": [
-        "mmlu"
+        "truthfulqa_mc1"
     ],
 
     "tokenizer_id": "bert-base-uncased",
