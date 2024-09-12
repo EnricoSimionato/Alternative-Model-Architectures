@@ -4,7 +4,6 @@ import os
 import logging
 import pickle as pkl
 from typing import Any
-from collections import OrderedDict
 
 import numpy as np
 
@@ -45,7 +44,21 @@ benchmark_id_eval_args_default_mapping = {
 
 def post_process_result_dictionary(
     input_dict: dict[str, dict[tuple[str, str], dict[str, float]]]
-) -> tuple:
+) -> tuple[dict[str, list[str]], dict[str, list[str]], dict[str, np.ndarray]]:
+    """
+    Post-processes the result dictionary to extract the unique grouped elements and the performance arrays for each
+    task.
+
+    Args:
+        input_dict (dict[str, dict[tuple[str, str], dict[str, float]]]):
+            The input dictionary containing the results for each task.
+
+    Returns:
+        tuple[dict[str, list[tuple[str, str]]], dict[str, list[tuple[str, str]]], dict[str, np.ndarray]]:
+            A tuple containing the task-specific unique grouped elements for the first and second elements, and the
+            performance arrays for each task
+    """
+
     # Helper function to extract tuples from string
     def extract_tuples(s):
         return re.findall(r"\('(.*?)', '(.*?)', '(.*?)'\)", s)
@@ -66,9 +79,9 @@ def post_process_result_dictionary(
 
             # Adding unique groups for the first and second elements
             if first_tuples not in first_groups:
-                first_groups.append(first_tuples)
+                first_groups.append(str(first_tuples))
             if second_tuples not in second_groups:
-                second_groups.append(second_tuples)
+                second_groups.append(str(second_tuples))
 
         task_specific_first_elements[task] = first_groups
         task_specific_second_elements[task] = second_groups
@@ -243,7 +256,9 @@ def perform_layer_redundancy_analysis(
     logger.info("All data stored.")
 
     destination_layer_path_source_layer_path_mapping_list, destination_layer_path_source_layer_path_mapping_list = data
-    rows_labels_list, columns_labels_list, post_processed_results_list = post_process_result_dictionary(destination_layer_path_source_layer_path_mapping_list)
+    rows_labels_list, columns_labels_list, post_processed_results_list = post_process_result_dictionary(
+        destination_layer_path_source_layer_path_mapping_list
+    )
 
     for benchmark_id in post_processed_results_list.keys():
         logger.info(f"Printing the results for task: {benchmark_id}")
