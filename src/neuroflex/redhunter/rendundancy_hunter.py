@@ -43,7 +43,7 @@ benchmark_id_eval_args_default_mapping = {
 
 
 def post_process_result_dictionary(
-    input_dict: dict[str, dict[tuple[str, str], dict[str, float]]]
+    input_dict: dict[str, dict[tuple[str, str], dict[str, dict[str, float]]]]
 ) -> tuple[dict[str, list[str]], dict[str, list[str]], dict[str, np.ndarray]]:
     """
     Post-processes the result dictionary to extract the unique grouped elements and the performance arrays for each
@@ -74,14 +74,14 @@ def post_process_result_dictionary(
 
         # Collecting grouped elements for each task
         for (key1, key2), _ in task_dict.items():
-            first_tuples = extract_tuples(key1)
-            second_tuples = extract_tuples(key2)
+            first_tuples = str(extract_tuples(key1))
+            second_tuples = str(extract_tuples(key2))
 
             # Adding unique groups for the first and second elements
             if first_tuples not in first_groups:
-                first_groups.append(str(first_tuples))
+                first_groups.append(first_tuples)
             if second_tuples not in second_groups:
-                second_groups.append(str(second_tuples))
+                second_groups.append(second_tuples)
 
         task_specific_first_elements[task] = first_groups
         task_specific_second_elements[task] = second_groups
@@ -89,13 +89,13 @@ def post_process_result_dictionary(
         performance_array = np.full((len(first_groups), len(second_groups)), np.nan)
         # Filling the performance array with the metrics for this task
         for (key1, key2), value in task_dict.items():
-            first_tuples = extract_tuples(key1)
-            second_tuples = extract_tuples(key2)
+            first_tuples = str(extract_tuples(key1))
+            second_tuples = str(extract_tuples(key2))
 
             # Finding the correct row and column by the group index
             row = first_groups.index(first_tuples)
             col = second_groups.index(second_tuples)
-            performance_array[row, col] = value[benchmark_id_metric_name_mapping[task]]
+            performance_array[row, col] = value[task][benchmark_id_metric_name_mapping[task]]
 
         performance_arrays[task] = performance_array
 
@@ -249,11 +249,13 @@ def perform_layer_redundancy_analysis(
             pkl.dump(data, f)
 
     data = (destination_layer_path_source_layer_path_mapping_list, performance_dict)
+
     logger.info(f"Trying to store all the data...")
     # Saving the data
     with open(config.get("file_path"), "wb") as f:
         pkl.dump(data, f)
     logger.info("All data stored.")
+    performance_dict["task"] = performance_dict[list(performance_dict.keys())[0]]
 
     destination_layer_path_source_layer_path_mapping_list, destination_layer_path_source_layer_path_mapping_list = data
     rows_labels_list, columns_labels_list, post_processed_results_list = post_process_result_dictionary(
@@ -265,11 +267,11 @@ def perform_layer_redundancy_analysis(
         plot_heatmap(
             [[post_processed_results_list[benchmark_id]]],
             os.path.join(config.get("directory_path"), f"heatmap_{benchmark_id}.png"),
-            f"Results for the model {config.get('original_model_id').split('/')[-1]} on the task {benchmark_id}",
+            f"Results for the model {config.get('model_id').split('/')[-1]} on the task {benchmark_id}",
             x_title="Substituted layers",
             y_title="Source layers",
             x_labels=[columns_labels_list[benchmark_id]],
             y_labels=[rows_labels_list[benchmark_id]],
             fig_size=fig_size,
             precision=4
-       )
+        )

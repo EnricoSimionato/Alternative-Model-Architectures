@@ -8,14 +8,21 @@
     "original_model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
+    
+    "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
 
-    "dataset_id": [
+    "benchmark_ids": [
         "truthfulqa_mc1"
     ],
-
-    "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
-    "batch_size": 8,
-
+    "evaluation_args": {
+        "truthfulqa_mc1": {
+            "batch_size": 16
+        },
+        "arc_challenge": {
+            "batch_size": 16
+        }
+    },
+    
     "targets": [
         ["layer_index", "mlp", "c_fc"],
         ["layer_index", "mlp", "c_proj"]

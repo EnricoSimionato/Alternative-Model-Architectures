@@ -12,8 +12,7 @@
     "tokenizer_id": "EleutherAI/gpt-neo-1.3B",
 
     "benchmark_ids": [
-        "truthfulqa_mc1",
-        "arc_challenge"
+        "truthfulqa_mc1"
     ],
     "evaluation_args": {
         "truthfulqa_mc1": {
