@@ -211,7 +211,11 @@ def perform_layer_redundancy_analysis(
             evaluation_args = default_evaluation_args
             logger.info(f"Evaluation args: {evaluation_args}")
 
+
             logger.info(f"Starting the evaluation of the model.")
+            logger.info(str(get_available_device(device)))
+            logger.info((str(model_wrapper.get_model().to(get_available_device(device)).device)))
+            logger.info(f"Device string {device}")
             # Evaluating the model
             results = lm_eval.simple_evaluate(
                 model="hf",
