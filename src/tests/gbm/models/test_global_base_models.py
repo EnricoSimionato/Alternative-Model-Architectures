@@ -7,7 +7,7 @@ from transformers import (
     AutoModelForSequenceClassification, AutoModelForCausalLM,
 )
 
-from neuroflex.models.global_dependent_model import GlobalBaseModel
+from neuroflex.models.factorized_model import GlobalBaseModel
 
 import pytest
 

@@ -9,7 +9,7 @@ from neuroflex import (
 )
 
 from neuroflex.utils.experiment_pipeline.config import Config
-from neuroflex.models.global_dependent_model import update_config_with_model_parameters
+from neuroflex.models.factorized_model import update_config_with_model_parameters, LocalHadamardModel
 
 regularized_training_keys = [
     "initial_regularization_weight",
@@ -89,6 +89,11 @@ def get_factorized_model(
             **alternative_architectures_arguments,
             **regularized_training_arguments,
             **glam_svd_training_arguments
+        )
+    elif factorization_method == "hadamard":
+        factorized_model = LocalHadamardModel(
+            model,
+            **alternative_architectures_arguments,
         )
     else:
         raise ValueError("Factorization method not recognized")

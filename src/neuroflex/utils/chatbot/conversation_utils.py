@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional
 
 import torch
@@ -291,7 +293,7 @@ def load_model_for_causal_lm(
 
 def load_tokenizer_for_causal_lm(
         config
-) -> transformers.AutoModelForCausalLM:
+) -> [transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
     """
     Loads the tokenizer to be used in the causal language modeling task.
 
@@ -300,7 +302,7 @@ def load_tokenizer_for_causal_lm(
             The configuration parameters to use in the loading.
 
     Returns:
-        transformers.AutoTokenizer:
+        (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
             The tokenizer for causal language modeling.
     """
 
@@ -322,7 +324,7 @@ def load_tokenizer_for_causal_lm(
 
 def load_tokenizer_for_chatbot(
         config
-) -> transformers.AutoModelForCausalLM:
+) -> [transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
     """
     Loads the tokenizer to be used in the causal language modeling task.
 
@@ -331,7 +333,7 @@ def load_tokenizer_for_chatbot(
             The configuration parameters to use in the loading.
 
     Returns:
-        transformers.AutoTokenizer:
+        (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
             The tokenizer for causal language modeling.
     """
 

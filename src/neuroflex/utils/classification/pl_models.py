@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 
 import transformers
 
-from neuroflex.models.global_dependent_model import RegularizedTrainingInterface, LoggingInterface
+from neuroflex.models.factorized_model import RegularizedTrainingInterface, LoggingInterface
 from neuroflex.utils.classification.pl_metrics import ClassificationStats
 from neuroflex.utils.pl_utils.utility_mappings import optimizers_mapping
 

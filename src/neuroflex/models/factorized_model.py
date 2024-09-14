@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, Callable, Union, Any
 
+import transformers
+
 import src.peft as peft
 import torch
 import torch.nn as nn
@@ -17,17 +19,18 @@ from neuroflex.utils.printing_utils.printing_utils import Verbose
 from src.peft import PeftModel
 from torch import device
 
-from neuroflex.layers.global_dependent_layer import (
+from neuroflex.layers.factorized_layer import (
     MergeableLayer, StructureSpecificGlobalDependent
 )
-from neuroflex.layers.gdl_linear import (
+from neuroflex.layers.factorized_linear_layer import (
     LocalSVDLinear,
     GlobalBaseLinear,
     GlobalFixedBaseLinear,
-    GLAMSVDLinear
+    GLAMSVDLinear,
+    LocalHadamardLinear
 )
 
-from neuroflex.layers.gdl_embedding import (
+from neuroflex.layers.factorized_embedding_layer import (
     LocalSVDEmbedding,
     GlobalBaseEmbedding,
     GlobalFixedBaseEmbedding
@@ -1399,6 +1402,88 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         return conversions
 
 
+class LocalHadamardModel(GlobalDependentModel):
+    """
+    Model with that uses the Hadamard decomposition to compress the model.
+
+    Args:
+        pretrained_model (PreTrainedModel):
+            Pretrained model.
+        target_layers (dict):
+            Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
+            rank of the decomposition for the layer.
+            >> Example:
+            >> {
+            >>     "layer_name_1": {"rank": 10},
+            >>     "layer_name_2": {"rank": 20},
+            >> }
+        use_names_as_keys (bool):
+            Whether to use the names of the layers in the keys of the global layers, having different global layers
+            for layers having different roles in the original model.
+        mapping_layer_name_key (dict):
+            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
+            names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
+        verbose (int):
+            Verbosity level.
+        **kwargs:
+            Additional keyword arguments.
+    """
+
+    def __init__(
+            self,
+            pretrained_model=None,
+            target_layers: dict = None,
+            use_names_as_keys: bool = False,
+            mapping_layer_name_key: dict = None,
+            remove_average: bool = False,
+            from_pretrained: bool = False,
+            preserve_original_model: bool = False,
+            verbose: int = 0,
+            **kwargs
+    ) -> None:
+        GlobalDependentModel.__init__(
+            self,
+            pretrained_model,
+            target_layers,
+            use_names_as_keys=use_names_as_keys,
+            mapping_layer_name_key=mapping_layer_name_key,
+            remove_average=remove_average,
+            from_pretrained=from_pretrained,
+            preserve_original_model=preserve_original_model,
+            verbose=verbose,
+            **kwargs
+        )
+
+    def define_conversion(
+            self,
+            **kwargs
+    ) -> dict:
+        """
+        Defines the conversion of layers into global-base layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Dictionary mapping layer types to corresponding global-base layer classes.
+        """
+
+        conversions = {
+            nn.Linear: LocalHadamardLinear,
+            #nn.Embedding: LocalHadamardEmbedding
+        }
+
+        return conversions
+
+
 class ThresholdingStrategy(Enum):
     ABSOLUTE = "absolute"
     RELATIVE = "relative"
@@ -2234,3 +2319,29 @@ def update_config_with_model_parameters(
 
     parameters_info = model.get_parameters_info()
     config.update(parameters_info)
+
+
+if __name__ == "__main__":
+    # Testing the implementation of the models
+
+    base_model = transformers.AutoModelForCausalLM.from_pretrained("bert-base-uncased")
+    kwargs = {
+        "learning_rte": 0.01,
+        "max_iterations": 10000
+    }
+    model = LocalHadamardModel(
+        base_model,
+        target_layers={
+            "query": {"rank": 10}
+        },
+        **kwargs
+    )
+
+    import pickle as pkl
+    with open("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/model.pkl", "wb") as f:
+        pkl.dump(model, f)
+
+    input_x = torch.randint(0, 100, (1, 10))
+    output = model(input_x)
+    print(output)
+    print(model)

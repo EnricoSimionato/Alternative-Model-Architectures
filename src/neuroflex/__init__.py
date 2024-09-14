@@ -26,12 +26,12 @@ __all__ = [
     "KFCTrainedModel"
 ]
 
-from neuroflex.layers.global_dependent_layer import (
+from neuroflex.layers.factorized_layer import (
     GlobalDependent,
     StructureSpecificGlobalDependent
 )
 
-from neuroflex.layers.gdl_linear import (
+from neuroflex.layers.factorized_linear_layer import (
     GlobalDependentLinear,
     StructureSpecificGlobalDependentLinear,
     GlobalBaseLinear,
@@ -40,7 +40,7 @@ from neuroflex.layers.gdl_linear import (
     GLAMSVDLinear
 )
 
-from neuroflex.layers.gdl_embedding import (
+from neuroflex.layers.factorized_embedding_layer import (
     GlobalDependentEmbedding,
     StructureSpecificGlobalDependentEmbedding,
     LocalSVDEmbedding,
@@ -48,7 +48,7 @@ from neuroflex.layers.gdl_embedding import (
     GlobalFixedBaseEmbedding
 )
 
-from neuroflex.models.global_dependent_model import (
+from neuroflex.models.factorized_model import (
     GlobalDependentModel,
 
     RegularizedTrainingInterface,

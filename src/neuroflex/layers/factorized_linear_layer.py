@@ -7,10 +7,41 @@ from torch import nn
 import numpy as np
 import math
 
+from cloned_modified_packages.HadamardDecomposition.alternating_gradient_descent import \
+    scaled_alternating_gradient_descent_hadDec
+from cloned_modified_packages.HadamardDecomposition.minibatch_stochastic_gradient_descent import \
+    mb_stochastic_gradient_descent_hadDec
 from neuroflex.utils.device_utils import get_available_device
 
-from neuroflex.layers.global_dependent_layer import GlobalDependent, StructureSpecificGlobalDependent
+from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
 
+
+class FactorizedLinearLayer(ABC, nn.Module):
+    """
+    Abstract class that implements a linear layer on which is performed matrix decomposition.
+
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            target_name,
+            **kwargs
+    ):
+        super(FactorizedLinearLayer, self).__init__()
+
+        self.target_name = target_name
+        self.factorized_layer = None
+
+        self.factorize_layer(target_layer, **kwargs)
+
+    @abstractmethod
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def factorize_layer(self, target_layer, **kwargs):
+        pass
 
 class GlobalDependentLinear(GlobalDependent):
     """
@@ -519,6 +550,212 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
                         params.requires_grad = layer["trainable"]
 
             self.get_layer("local", "US").bias = target_layer.bias
+
+
+# TODO here the Hadamard decomposition cannot be trained since the matrices A_i are multuplied and the matrices B_i are multiplied
+# TODO so only equal ranks
+class LocalHadamardLinear(StructureSpecificGlobalDependentLinear):
+    """
+    Implementation of a Linear layer on which is performed SVD decomposition.
+
+    The layer is decomposed in two matrices:
+    - a local matrix of shape (in_features, rank), that is the product between the matrix of the left singular vectors U
+        and the matrix of the singular values S matrices of the truncated SVD;
+    - a local matrix of shape (rank, out_features), that is the matrix of the right singular vectors V^T.
+
+    Args:
+        target_layer (nn.Module):
+            Target layer to be transformed in the factorized version.
+        global_layers (nn.ModuleDict):
+            Dictionary containing the global matrices.
+        rank (int):
+            Rank of the global matrix.
+        target_name (str):
+            Name of the target layer.
+        *args:
+            Variable length argument list.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        global_dependent_layer (GlobalDependentLinear):
+            Linear layer with dependencies on global matrices.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
+            rank: int,
+            method: str = "alternating gradient",
+            learning_rate: float = 0.01,
+            max_iterations: int = 1000,
+            *args,
+            **kwargs
+    ) -> None:
+        kwargs.update({
+            "rank": rank,
+            "method": method,
+            "learning_rate": learning_rate,
+            "max_iterations": max_iterations
+        })
+        super().__init__(
+            target_layer,
+            global_layers,
+            average_layers,
+            target_name,
+            *args,
+            **kwargs
+        )
+
+    def define_structure(
+            self,
+            **kwargs
+    ) -> Any:
+        """
+        Defines the structure of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        rank = kwargs["rank"]
+        min_dim = min(target_layer.in_features, target_layer.out_features)
+
+        return (
+            {"scope": "local",
+             "shape": (target_layer.in_features, min(min_dim, rank)),
+             "key": "B",
+             "trainable": True},
+            {"scope": "local",
+             "shape": (min(min_dim, rank), target_layer.out_features),
+             "key": "A",
+             "trainable": True}
+        )
+
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+
+        Args:
+            **kwargs:
+                Arbitrary keyword arguments.
+        """
+
+        target_layer = kwargs["target_layer"]
+        min_dim = min(target_layer.in_features, target_layer.out_features)
+        dtype = target_layer.weight.data.numpy().dtype
+        rank = kwargs["rank"]
+        method = kwargs["method"]
+        learning_rate = kwargs["learning_rate"]
+        max_iterations = kwargs["max_iterations"]
+
+        _, _, [A1, B1, A2, B2], _, _ = scaled_alternating_gradient_descent_hadDec(
+            target_layer.weight.detach().numpy().astype(np.float32), rank, learning_rate, max_iterations
+        ) if method == "alternating gradient" else mb_stochastic_gradient_descent_hadDec(
+            target_layer.weight.data.detach().numpy().astype(np.float32), rank, learning_rate, max_iterations
+        )
+
+        with torch.no_grad():
+            self.get_layer("local", "A").weight.data = torch.tensor((A1 * A2).astype(dtype))
+            self.get_layer("local", "B").weight.data = torch.tensor((B1 * B2).astype(dtype))
+
+            for layer in self.structure:
+                if "trainable" in layer.keys() and layer["scope"] == "local":
+                    for params in self.get_layer("local", layer["key"]).parameters():
+                        params.requires_grad = layer["trainable"]
+
+            self.get_layer("local", "A").bias = target_layer.bias
+
+
+# TODO integrate with global layers and to write
+class HadamardLinearLayer(FactorizedLinearLayer):
+    """
+    Implementation of a Linear layer on which is performed Hadamard decomposition.
+
+    The layer is decomposed in two matrices:
+    - a local matrix of shape (in_features, rank), that is the product between the matrix of the left singular vectors U
+        and the matrix of the singular values S matrices of the truncated SVD;
+    - a local matrix of shape (rank, out_features), that is the matrix of the right singular vectors V^T.
+
+    Args:
+        target_layer (nn.Module):
+            Target layer to be transformed in the factorized version.
+        global_layers (nn.ModuleDict):
+            Dictionary containing the global matrices.
+        rank (int):
+            Rank of the global matrix.
+        target_name (str):
+            Name of the target layer.
+        *args:
+            Variable length argument list.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        global_dependent_layer (GlobalDependentLinear):
+            Linear layer with dependencies on global matrices.
+    """
+
+    def __init__(
+            self,
+            target_layer: nn.Module,
+            target_name: str,
+            rank_1: int,
+            rank_2: int,
+            learning_rate: float,
+            max_iterations: int,
+            **kwargs
+    ) -> None:
+        kwargs.update({
+            "rank_1": rank_1,
+            "rank_2": rank_2,
+            "learning_rate": learning_rate,
+            "max_iterations": max_iterations
+        })
+        super().__init__(
+            target_layer,
+            target_name,
+            **kwargs
+        )
+
+        self.rank_1 = rank_1
+        self.rank_2 = rank_2
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the layer.
+
+        Args:
+            x (torch.Tensor):
+                Input tensor.
+
+        Returns:
+            torch.Tensor:
+                Output tensor.
+        """
+
+        A_1 = self.factorized_layer["A_1"]
+        A_2 = self.factorized_layer["A_2"]
+        B_1 = self.factorized_layer["B_1"]
+        B_2 = self.factorized_layer["B_2"]
+
+        y = torch.matmul(A_1, torch.matmul(B_1, x)) * torch.matmul(A_2, torch.matmul(B_2, x))
+        return y
+
+    def factorize_layer(self, target_layer, **kwargs):
+        pass
 
 
 class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
