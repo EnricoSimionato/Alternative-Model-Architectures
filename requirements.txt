@@ -13,3 +13,4 @@ packaging
 safetensors
 tqdm
 seaborn
+lm_eval
