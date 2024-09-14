@@ -140,7 +140,6 @@ def perform_layer_redundancy_analysis(
         start_from_benchmark = 0
         start_from_swap = 0
     """
-    logger.info(f"The GPU is avliable: {torch.cuda.is_available()}")
     # Getting the parameters from the configuration
     device = get_available_device(config.get("device") if config.contains("device") else None, just_string=True)
     targets_lists = config.get("targets")
@@ -212,15 +211,12 @@ def perform_layer_redundancy_analysis(
             evaluation_args = default_evaluation_args
             logger.info(f"Evaluation args: {evaluation_args}")
 
-
-            logger.info(f"Starting the evaluation of the model.")
-            logger.info(str(get_available_device(device)))
-            logger.info((str(model_wrapper.get_model().to(get_available_device(device)).device)))
-            logger.info(f"Device string {device}")
+            model = model_wrapper.get_model().to(get_available_device(device))
+            logger.info(f"Starting the evaluation of the model on the device {model.device}.")
             # Evaluating the model
             results = lm_eval.simple_evaluate(
                 model="hf",
-                model_args={"pretrained": model_wrapper.get_model().to(get_available_device(device)), "tokenizer": tokenizer, "backend": "causal"},
+                model_args={"pretrained": model, "tokenizer": tokenizer, "backend": "causal"},
                 tasks=[benchmark_id],
                 device=device,
                 **evaluation_args
