@@ -3,7 +3,9 @@
   
     "analysis_type": "delta_consecutive_layers_rank_analysis",
   
-    "original_model_id": "bert-base-uncased",
+    "version": "0",
+    
+    "model_id": "bert-base-uncased",
     "targets": [
         "output_dense",
         "intermediate_dense"

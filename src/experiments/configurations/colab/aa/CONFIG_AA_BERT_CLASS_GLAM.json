@@ -1,11 +1,11 @@
 {
     "path_to_storage": "drive/MyDrive/Thesis",
-    "keys_for_naming": [
-        "factorization_method",
-        "original_model_id"
-    ],
+    
+    "experiment_type": "classification_fine-tuning",
+    
+    "version": "0",
 
-    "original_model_id": "bert-base-uncased",
+    "model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
 

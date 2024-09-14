@@ -1,11 +1,11 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    
     "analysis_type": "simple_initialization_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
+    
+    "version": "0",
 
-    "original_model_id": "mistralai/Mistral-7B-Instruct-v0.1",
+    "model_id": "mistralai/Mistral-7B-Instruct-v0.1",
     "quantization": null,
     "dtype": "float16",
 

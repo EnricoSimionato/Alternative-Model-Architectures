@@ -1,11 +1,11 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    
     "analysis_type": "simple_initialization_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
+    
+    "version": "0",
 
-    "original_model_id": "google/gemma-2b",
+    "model_id": "google/gemma-2b",
     "quantization": null,
     "dtype": "float16",
 

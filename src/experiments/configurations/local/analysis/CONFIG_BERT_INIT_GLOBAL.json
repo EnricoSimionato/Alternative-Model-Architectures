@@ -3,9 +3,12 @@
     
     "analysis_type": "global_matrices_initialization_analysis",
 
-    "original_model_id": "bert-base-uncased",
+    "version": "0",
+    
+    "model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
+    
     "targets": [
         "output_dense",
         "intermediate_dense"

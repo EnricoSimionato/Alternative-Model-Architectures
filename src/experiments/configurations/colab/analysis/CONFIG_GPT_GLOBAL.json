@@ -1,11 +1,11 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    
     "analysis_type": "global_matrices_initialization_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
+    
+    "version": "0",
 
-    "original_model_id": "EleutherAI/gpt-neo-1.3B",
+    "model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
 

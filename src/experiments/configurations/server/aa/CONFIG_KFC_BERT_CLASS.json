@@ -1,11 +1,11 @@
 {
     "path_to_storage": "/home/enricosimionato/thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/aa",
-    "keys_for_naming": [
-        "kfc_label",
-        "original_model_id"
-    ],
 
-    "original_model_id": "bert-base-uncased",
+    "experiment_type": "classification_fine-tuning",
+    
+    "version": "0",
+
+    "model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
 

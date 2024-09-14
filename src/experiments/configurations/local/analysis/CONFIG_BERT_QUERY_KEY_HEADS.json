@@ -2,10 +2,13 @@
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
     "analysis_type": "head_analysis",
+
+    "version": "0",
     
-    "original_model_id": "EleutherAI/gpt-neo-1.3B",
+    "model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
+    
     "targets": [
         "q_proj",
         "k_proj",

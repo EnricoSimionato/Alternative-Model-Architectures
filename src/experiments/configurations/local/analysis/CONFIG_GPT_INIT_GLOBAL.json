@@ -3,9 +3,12 @@
     
     "analysis_type": "global_matrices_initialization_analysis",
     
-    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
+    "version": "0",
+    
+    "model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
+    
     "targets": [
         "c_fc"
     ],

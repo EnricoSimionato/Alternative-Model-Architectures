@@ -2,8 +2,11 @@
     "path_to_storage": "/home/enricosimionato/Thesis/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
     "analysis_type": "original_layers_rank_analysis",
+    
+    "version": "0",
 
-    "original_model_id": "bert-base-uncased",
+    "model_id": "bert-base-uncased",
+    
     "targets": [
         "output_dense",
         "intermediate_dense"

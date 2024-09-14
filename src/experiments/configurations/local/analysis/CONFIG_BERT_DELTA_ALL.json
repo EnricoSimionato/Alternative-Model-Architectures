@@ -1,15 +1,23 @@
 {
-  "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
-  "analysis_type": "all_delta_layers_rank_analysis",
-  "original_model_id": "bert-base-uncased",
-  "targets": [
-    "output_dense",
-    "intermediate_dense"
-  ],
-  "black_list": [
-    "attention"
-  ],
-  "explained_variance_threshold": 0.8,
-  "figure_size": [26, 26],
-  "verbose": 1
+    "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
+  
+    "analysis_type": "all_delta_layers_rank_analysis",
+  
+    "version": "0",
+  
+    "model_id": "bert-base-uncased",
+  
+    "targets": [
+        "output_dense",
+        "intermediate_dense"
+    ],
+    "black_list": [
+        "attention"
+    ],
+  
+    "explained_variance_threshold": 0.8,
+  
+    "figure_size": [26, 26],
+  
+    "verbose": 1
 }

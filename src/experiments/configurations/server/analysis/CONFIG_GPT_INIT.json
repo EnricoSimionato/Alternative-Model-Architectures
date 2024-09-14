@@ -3,9 +3,12 @@
     
     "analysis_type": "simple_initialization_analysis",
 
-    "original_model_id": "EleutherAI/gpt-neo-1.3B",
+    "version": "0",
+    
+    "model_id": "EleutherAI/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
+    
     "targets": [
         "c_fc",
         "c_proj"

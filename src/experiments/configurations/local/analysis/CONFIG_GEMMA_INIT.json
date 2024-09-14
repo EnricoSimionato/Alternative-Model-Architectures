@@ -2,10 +2,13 @@
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
     "analysis_type": "simple_initialization_analysis",
+    
+    "version": "0",
 
-    "original_model_id": "google/gemma-2b",
+    "model_id": "google/gemma-2b",
     "quantization": null,
     "dtype": "float16",
+    
     "targets": [
         "c_fc",
         "c_proj"

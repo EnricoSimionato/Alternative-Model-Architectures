@@ -2,10 +2,13 @@
     "path_to_storage": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/performed_experiments/analysis",
     
     "analysis_type": "simple_initialization_analysis",
+    
+    "version": "0",
 
-    "original_model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
+    "model_id": "/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/experiments/models/gpt-neo-1.3B",
     "quantization": null,
     "dtype": "float32",
+    
     "targets": [
         "c_fc",
         "c_proj"

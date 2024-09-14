@@ -1,11 +1,11 @@
 {
     "path_to_storage": "/content/drive/MyDrive/Thesis",
+    
     "analysis_type": "head_analysis",
-    "keys_for_naming": [
-        "original_model_id"
-    ],
+    
+    "version": "0",
 
-    "original_model_id": "bert-base-uncased",
+    "model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
 

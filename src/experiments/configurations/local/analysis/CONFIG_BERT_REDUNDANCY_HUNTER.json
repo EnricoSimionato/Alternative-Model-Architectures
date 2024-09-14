@@ -5,7 +5,7 @@
 
     "version": "0",
     
-    "original_model_id": "bert-base-uncased",
+    "model_id": "bert-base-uncased",
     "quantization": null,
     "dtype": "float32",
 
