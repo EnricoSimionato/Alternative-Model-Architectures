@@ -140,6 +140,7 @@ def perform_layer_redundancy_analysis(
         start_from_benchmark = 0
         start_from_swap = 0
     """
+    logger.info(f"The GPU is avliable: {torch.cuda.is_available()}")
     # Getting the parameters from the configuration
     device = get_available_device(config.get("device") if config.contains("device") else None, just_string=True)
     targets_lists = config.get("targets")
