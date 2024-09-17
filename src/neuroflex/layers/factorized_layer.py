@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
-from neuroflex.utils.printing_utils.printing_utils import Verbose
+from exporch import Verbose
 
 
 class MergeableLayer:

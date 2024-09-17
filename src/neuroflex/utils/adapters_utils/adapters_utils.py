@@ -2,16 +2,16 @@ from typing import Union
 
 import transformers
 
+from exporch import Config
+
 from peft import PeftModel, PeftMixedModel
-from src.peft import (
+from imports.peft import (
     LoraConfig,
     VeraConfig,
     prepare_model_for_kbit_training,
     get_peft_model
 )
-from src.peft.tuners.kfc.config import KFCLoraConfig
-
-from neuroflex.utils.experiment_pipeline.config import Config
+from imports.peft.tuners.kfc.config import KFCLoraConfig
 
 
 def get_adapted_model(

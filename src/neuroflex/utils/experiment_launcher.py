@@ -8,8 +8,8 @@ import pickle as pkl
 
 import torch
 
-from neuroflex.utils.experiment_pipeline.storage_utils import check_path_to_storage
-from neuroflex.utils.lm_eval_pipeline.lm_eval_pipeline import evaluate_model_on_benchmark
+from exporch import check_path_to_storage
+from exporch.experiment import evaluate_model_on_benchmark
 
 """
 Old
@@ -17,16 +17,14 @@ Old
 
 import argparse
 
-from neuroflex.utils.device_utils import get_available_device
-from neuroflex.utils.experiment_pipeline.config import Config, get_path_to_configurations, environments
-from neuroflex.utils.experiment_pipeline.experiment import Experiment
+from exporch import Config, Experiment, get_available_device
 
-from neuroflex.utils.classification import (
+from exporch.utils.classification import (
     load_model_for_sequence_classification,
     load_tokenizer_for_sequence_classification,
     IMDBDataModule
 )
-from neuroflex.utils.chatbot import (
+from exporch.utils.causal_language_modeling import (
     load_model_for_causal_lm,
     load_tokenizer_for_causal_lm,
     OpenAssistantGuanacoDataModule
@@ -37,7 +35,7 @@ from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
 from neuroflex.utils.factorized_models_utils.factorized_models_utils import get_factorized_model
 
 from neuroflex.models.factorized_model import KFCTrainedModel, KFCAlphaTrainedModel
-from neuroflex.utils.plotting_utils.heatmap import create_heatmap_global_layers
+from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
 
 keys_for_regularized_training = [
     "initial_regularization_weight",

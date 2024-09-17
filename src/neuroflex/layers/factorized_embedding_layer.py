@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from neuroflex.utils.device_utils import get_available_device
+from exporch import get_available_device
 from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
 
 

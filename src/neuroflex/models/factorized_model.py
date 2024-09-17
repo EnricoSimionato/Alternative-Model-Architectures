@@ -8,16 +8,19 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, Callable, Union, Any
 
-import transformers
-
-import src.peft as peft
 import torch
 import torch.nn as nn
-
-from neuroflex.utils.plotting_utils.heatmap import create_heatmap_global_layers
-from neuroflex.utils.printing_utils.printing_utils import Verbose
-from src.peft import PeftModel
 from torch import device
+
+import transformers
+from transformers import AutoModel
+
+from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
+
+from exporch import Config, Verbose
+
+import imports.peft as peft
+from imports.peft import PeftModel
 
 from neuroflex.layers.factorized_layer import (
     MergeableLayer, StructureSpecificGlobalDependent
@@ -36,9 +39,6 @@ from neuroflex.layers.factorized_embedding_layer import (
     GlobalFixedBaseEmbedding
 )
 
-from transformers import AutoModel
-
-import neuroflex
 from neuroflex.utils.parameters_count import count_parameters
 
 
@@ -2304,7 +2304,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
 
 
 def update_config_with_model_parameters(
-        config: neuroflex.utils.experiment_pipeline.config.Config,
+        config: Config,
         model: GlobalDependentModel
 ) -> None:
     """

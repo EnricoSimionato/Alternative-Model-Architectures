@@ -8,7 +8,8 @@ from neuroflex import (
     GLAMSVDModel
 )
 
-from neuroflex.utils.experiment_pipeline.config import Config
+from exporch import Config
+
 from neuroflex.models.factorized_model import update_config_with_model_parameters, LocalHadamardModel
 
 regularized_training_keys = [

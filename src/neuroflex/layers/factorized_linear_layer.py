@@ -7,11 +7,12 @@ from torch import nn
 import numpy as np
 import math
 
-from cloned_modified_packages.HadamardDecomposition.alternating_gradient_descent import \
+from exporch import get_available_device
+
+from imports.HadamardDecomposition.alternating_gradient_descent import \
     scaled_alternating_gradient_descent_hadDec
-from cloned_modified_packages.HadamardDecomposition.minibatch_stochastic_gradient_descent import \
+from imports.HadamardDecomposition.minibatch_stochastic_gradient_descent import \
     mb_stochastic_gradient_descent_hadDec
-from neuroflex.utils.device_utils import get_available_device
 
 from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
 
