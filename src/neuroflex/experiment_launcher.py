@@ -1,23 +1,21 @@
 """
 New
 """
-import os
-import sys
 import logging
+import gc
+import os
 import pickle as pkl
+import sys
+from typing import Any
 
 import torch
 
-from exporch import check_path_to_storage
+from exporch import Config, Experiment, get_available_device, check_path_to_storage
 from exporch.experiment import evaluate_model_on_benchmark
 
 """
 Old
 """
-
-import argparse
-
-from exporch import Config, Experiment, get_available_device
 
 from exporch.utils.classification import (
     load_model_for_sequence_classification,
@@ -300,9 +298,9 @@ benchmark_id_eval_args_default_mapping = {
 }
 
 
-def launch_benchmark_evaluation(
+def perform_benchmark_evaluation(
         config: Config,
-        data: dict
+        data: Any = None
 ) -> None:
     """
     Launches the benchmark evaluation on a model.
@@ -316,101 +314,101 @@ def launch_benchmark_evaluation(
 
     logger = logging.getLogger(__name__)
     logger.info(f"Running perform_layer_redundancy_analysis in redundancy_hunter.py.")
+    gc.collect()
+
     benchmark_ids = config.get("benchmark_ids")
 
+    # Getting the parameters from the configuration
+    device = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
+    evaluation_args = (config.get("evaluation_args")
+                       if config.contains("evaluation_args")
+                       else {benchmark_id: {} for benchmark_id in benchmark_ids})
+    performance_dict = {benchmark_id: {} for benchmark_id in benchmark_ids}
+
     if data is None:
-        # Getting the parameters from the configuration
-        device = get_available_device(config.get("device") if config.contains("device") else None, just_string=True)
-        evaluation_args = (config.get("evaluation_args")
-                           if config.contains("evaluation_args")
-                           else {benchmark_id: {} for benchmark_id in benchmark_ids})
-
-        performance_dict = {benchmark_id: {} for benchmark_id in benchmark_ids}
-
         # Loading the model and the tokenizer
         base_model = load_model_for_causal_lm(config)
         logger.info(f"Model loaded.")
-        print(base_model)
         prepared_model = get_factorized_model(base_model, config)
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        tokenizer = load_tokenizer_for_causal_lm(config)
-        logger.info(f"Tokenizer loaded.")
-
-        already_created_performance_dict = data
+    else:
+        already_created_performance_dict = data[0]
         performance_dict.update(already_created_performance_dict)
         logger.info(f"Previous data loaded.\nLoaded data: {performance_dict}")
         print("Previous data loaded.")
+        prepared_model = data[1]
 
-        for benchmark_id in benchmark_ids:
-            logger.info(f"Starting the evaluation for the benchmark: {benchmark_id}.")
-            print(f"Starting the evaluation for the benchmark: {benchmark_id}.")
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    tokenizer = load_tokenizer_for_causal_lm(config)
+    logger.info(f"Tokenizer loaded.")
 
-            # Defining the evaluation parameters
-            default_evaluation_args = (benchmark_id_eval_args_default_mapping[benchmark_id]
-                                       if benchmark_id in benchmark_id_eval_args_default_mapping.keys() else {})
-            default_evaluation_args.update(
-                evaluation_args[benchmark_id] if benchmark_id in evaluation_args.keys() else {}
-            )
-            evaluation_args = default_evaluation_args
-            logger.info(f"Evaluation args: {evaluation_args}")
+    for benchmark_id in benchmark_ids:
+        logger.info(f"Starting the evaluation for the benchmark: {benchmark_id}.")
+        print(f"Starting the evaluation for the benchmark: {benchmark_id}.")
 
-            # Evaluating the model
-            results = evaluate_model_on_benchmark(prepared_model, tokenizer, benchmark_id, evaluation_args, device)
+        # Defining the evaluation parameters
+        benchmark_evaluation_args = evaluation_args[benchmark_id] if benchmark_id in evaluation_args.keys() else {}
+        logger.info(f"Chosen evaluation args: {evaluation_args}")
 
-            performance_dict[benchmark_id] = results
-            logger.info(f"Performance dictionary updated with the results.")
+        # Evaluating the model
+        logger.info(f"Starting the evaluation of the model on the device {prepared_model.device}.")
+        results = evaluate_model_on_benchmark(prepared_model, tokenizer, benchmark_id, benchmark_evaluation_args, device)
+        logger.info(f"Results: {results}")
+        gc.collect()
 
-            logger.info(f"Trying to store the data for benchmark {benchmark_id}...")
-            # Saving the data
-            with open(config.get("file_path"), "wb") as f:
-                pkl.dump((performance_dict, prepared_model), f)
-            logger.info(f"Partial data stored.")
+        performance_dict[benchmark_id] = results
+        logger.info(f"Performance dictionary updated with the results.")
 
-            torch.cuda.empty_cache()
-
-        logger.info(f"Trying to store all the data...")
+        data = (performance_dict, prepared_model)
         # Saving the data
+        logger.info(f"Trying to store the data for benchmark {benchmark_id}...")
         with open(config.get("file_path"), "wb") as f:
-            pkl.dump((performance_dict, prepared_model), f)
+            pkl.dump(data, f)
+        logger.info(f"Partial data stored.")
+
+        torch.cuda.empty_cache()
+        gc.collect()
+
+    data = (performance_dict, prepared_model)
+    # Saving the data
+    logger.info(f"Trying to store all the data...")
+    with open(config.get("file_path"), "wb") as f:
+        pkl.dump(data, f)
+    logger.info("All data stored.")
 
     performance_dict, prepared_model = data
 
     # Printing the results
-    print("The configuration of the experiment is the following")
-    print(config)
+    print(f"The configuration of the experiment is the following\n{config}")
     for benchmark_id in performance_dict:
         print(f"The performance of the model on the benchmark {benchmark_id} is {performance_dict[benchmark_id]}")
 
 
 experiment_mapping = {
-    "benchmark_evaluation": launch_benchmark_evaluation,
+    "benchmark_evaluation": perform_benchmark_evaluation,
 }
 
 specific_mandatory_keys_mapping = {
-
+    "benchmark_evaluation": ["benchmark_ids", "num_layers"]
 }
 
 not_used_keys_mapping = {
-
 }
 
 
 def main() -> None:
     """
-    Main method to start the various types of analyses on a deep model.
+    Main method to start the various types of experiments on a deep model.
     """
 
-    if len(sys.argv) < 3:
-        raise Exception("Please provide the name of the configuration file and the environment.\n"
-                        "Example: python rank_analysis_launcher.py config_name environment"
-                        "'environment' can be 'local' or 'server' or 'colab'.")
+    if len(sys.argv) < 2:
+        raise Exception("Please provide the name of the configuration file.\n"
+                        "Example: python src/neuroflex/experiment_launcher.py config_name")
 
     # Extracting the configuration name and the environment
-    config_name = sys.argv[1]
-    environment = sys.argv[2]
+    config_file_name = sys.argv[1]
 
     # Loading the configuration
-    configuration = Config(os.path.join(get_path_to_configurations(environment), "aa", config_name))
+    configuration = Config(f"src/experiments/configurations/{config_file_name}")
 
     # Checking if the configuration file contains the necessary keys
     mandatory_keys = [
@@ -419,13 +417,11 @@ def main() -> None:
         "model_id",
     ]
     configuration.check_mandatory_keys(mandatory_keys)
-    experiment_type = configuration.get("experiment_type")
-    mandatory_keys += (specific_mandatory_keys_mapping[experiment_type]
-                       if experiment_type in specific_mandatory_keys_mapping.keys()
-                       else [])
-    not_used_keys = not_used_keys_mapping[experiment_type] if experiment_type in not_used_keys_mapping.keys() else []
-    mandatory_keys = list(set(mandatory_keys) - set(not_used_keys))
+    mandatory_keys += specific_mandatory_keys_mapping[configuration.get("experiment_type")] if configuration.get("experiment_type") in specific_mandatory_keys_mapping.keys() else []
+    mandatory_keys = list(set(mandatory_keys) - set(not_used_keys_mapping[configuration.get("experiment_type")] if configuration.get("experiment_type") in not_used_keys_mapping.keys() else []))
     configuration.check_mandatory_keys(mandatory_keys)
+
+    experiment_type = configuration.get("experiment_type")
 
     # Checking the path to the storage
     file_available, directory_path, file_name = check_path_to_storage(
@@ -457,8 +453,7 @@ def main() -> None:
     )
     logger = logging.getLogger()
     logger.info(f"Running main in experiment_launcher.py.")
-    logger.info(f"Environment: {environment}.")
-    logger.info(f"Configuration file: {config_name}.")
+    logger.info(f"Configuration file: {config_file_name}.")
 
     # Checking if the analysis type is recognized
     if experiment_type not in experiment_mapping.keys():
@@ -466,12 +461,11 @@ def main() -> None:
         raise Exception("The experiment type is not recognized.")
 
     # Loading the data if the file is available, otherwise process the model
+    data = None
     if file_available:
         print(f"The file '{configuration.get('file_path')}' is available.")
         with open(configuration.get('file_path'), "rb") as f:
             data = pkl.load(f)
-    else:
-        data = None
 
     # Performing the analysis
     logger.info(f"Starting the experiment {experiment_type}.")

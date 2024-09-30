@@ -12,7 +12,7 @@ dtype: "float32"
 tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 benchmark_ids:
-    - "truthfulqa_mc1"
+    - "hellaswag"
 evaluation_args:
     truthfulqa_mc1:
         batch_size: 1
