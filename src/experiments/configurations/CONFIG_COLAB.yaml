@@ -1,34 +1,51 @@
+########################################    General configuration parameters    ########################################
 path_to_storage: "/content/drive/MyDrive/Thesis"
 
-experiment_type: ""
+experiment_type: "factorization_benchmark_evaluation"
 
-version: "0"
-
-# model_id: "mistralai/Mistral-7B-v0.3" # model_id: "bert-base-uncased"
-model_id: "EleutherAI/gpt-neo-1.3B"
-quantization: null
-dtype: "float32"
-
-tokenizer_id: "EleutherAI/gpt-neo-1.3B"
-
-benchmark_ids:
-    - "truthfulqa_mc1"
-evaluation_args:
-    truthfulqa_mc1:
-        batch_size: 8
-        limit: 4
-    arc_challenge:
-        batch_size: 8
-        limit: 4
-
-targets:
-    - ["layer_index", "mlp", "c_fc"]
-    - ["layer_index", "mlp", "c_proj"]
-
-num_layers: 24
-
-figure_size: [30, 30]
+version: 0
+#just_plot: True
 
 verbose: 1
 device: "cuda"
 seed: 42
+
+########################################     Model configuration parameters     ########################################
+model_id: "mistralai/Mistral-7B-v0.3"
+dtype: "float16"
+
+########################################   Tokenizer configuration parameters   ########################################
+tokenizer_id: "mistralai/Mistral-7B-v0.3"
+
+########################################        Visualization parameters        ########################################
+#figure_size: [40, 20]
+
+########################################     Layers factorization parameters    ########################################
+factorization_method: "Hadamard"
+
+target_layers:
+    q_proj:
+        rank: 512
+        learning_rate: 0.01
+        max_iterations: 1000
+    k_proj:
+        rank: 512
+        learning_rate: 0.01
+        max_iterations: 1000
+    v_proj:
+        rank: 512
+        learning_rate: 0.01
+        max_iterations: 1000
+
+########################################          Benchmarks parameters         ########################################
+benchmark_ids:
+    - "hellaswag"
+#    - "truthfulqa_mc1"
+#    - "arc_challenge"
+evaluation_args:
+    truthfulqa_mc1:
+        batch_size: 32
+    arc_challenge:
+        batch_size: 32
+    hellaswag:
+        batch_size: 32

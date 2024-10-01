@@ -3,19 +3,19 @@ path_to_storage: "src/experiments/results"
 
 experiment_type: "factorization_benchmark_evaluation"
 
-version: 0
-just_plot: True
+version: 20
+#just_plot: True
 
 verbose: 1
 device: "mps"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "EleutherAI/gpt-neo-1.3B"
 dtype: "float16"
 
 ########################################   Tokenizer configuration parameters   ########################################
-tokenizer_id: "mistralai/Mistral-7B-v0.3"
+tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 #figure_size: [40, 20]
@@ -27,15 +27,15 @@ target_layers:
     q_proj:
         rank: 512
         learning_rate: 0.01
-        max_iterations: 1000
+        max_iterations: 1
     k_proj:
         rank: 512
         learning_rate: 0.01
-        max_iterations: 1000
+        max_iterations: 1
     v_proj:
         rank: 512
         learning_rate: 0.01
-        max_iterations: 1000
+        max_iterations: 1
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
