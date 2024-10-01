@@ -7,6 +7,8 @@ WORKDIR /Alternative-Model-Architectures
 COPY . .
 # Installing dependencies
 RUN pip install -r requirements.txt
+# Logging in to the Hugging Face model hub
+RUN huggingface-cli login --token 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
 # Setting the command to run the script
 CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
 
