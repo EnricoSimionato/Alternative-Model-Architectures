@@ -1,6 +1,9 @@
-opencv-python
+numba
 numpy
+#opencv-python
+protobuf
 seaborn
+sentencepiece
 torch
 transformers
 
