@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 
@@ -53,7 +54,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 return
 
         # Getting the parameters from the configuration
-        device = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
+        device_str = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
+        self.config.set("device", "cpu")
         evaluation_args = (config.get("evaluation_args") if config.contains("evaluation_args")
                            else {benchmark_id: {} for benchmark_id in benchmark_ids})
 
@@ -65,7 +67,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Tokenizer loaded.")
 
         # Preparing the model
-        prepared_models = self.prepare_models(base_model)
+        prepared_models = self.prepare_models(copy.deepcopy(base_model))
         self.log(f"Models prepared.")
 
         # Storing the models
@@ -74,6 +76,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         # Storing the tokenizer
         self.store(tokenizer, "tokenizer.pt", "pt")
 
+        self.config.set("device", device_str)
         for benchmark_id in remaining_benchmark_ids:
             for model_key, model in prepared_models.items():
                 logging.info(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
@@ -85,7 +88,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device)
+                results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
                 # results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}")
                 print(f"Results of the model {model_key}: {results}")
