@@ -32,7 +32,7 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
         self.log(f"The prepared model is the model factorized using {self.config.get("factorization_method")}.")
         self.log(f"The prepared models are the original one and the factorized one.")
 
-        loaded_model = self.load(f"{self.config.get('factorization_method')}.pt")
+        loaded_model = self.load(f"{self.config.get('factorization_method')}.pt", "pt")
 
         return {
             "factorized_model": loaded_model if loaded_model is not None else get_factorized_model(base_model, self.config).get_model(),
