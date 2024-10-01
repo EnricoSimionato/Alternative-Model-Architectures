@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from peft.import_utils import is_bnb_4bit_available, is_bnb_available, is_eetq_available
+from imports.peft.import_utils import is_bnb_4bit_available, is_bnb_available, is_eetq_available
 
-from peft.tuners.kfc.config import KFCLoftQConfig, KFCLoraConfig, KFCLoraRuntimeConfig
-from peft.tuners.kfc.gptq import QuantLinear
-from peft.tuners.kfc.layer import Conv2d, Embedding, Linear, KFCLoraLayer
-from peft.tuners.kfc.model import KFCLoraModel
+from imports.peft.tuners.kfc.config import KFCLoftQConfig, KFCLoraConfig, KFCLoraRuntimeConfig
+from imports.peft.tuners.kfc.gptq import QuantLinear
+from imports.peft.tuners.kfc.layer import Conv2d, Embedding, Linear, KFCLoraLayer
+from imports.peft.tuners.kfc.model import KFCLoraModel
 
 
 __all__ = [

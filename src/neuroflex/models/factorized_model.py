@@ -417,7 +417,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
-                raise ValueError("Both target_model or target_layers must be provided.")
+                raise ValueError("Both target_model and target_layers must be provided.")
 
             self.target_layers = target_layers
             if mapping_layer_name_key is None and use_names_as_keys:
@@ -480,6 +480,19 @@ class GlobalDependentModel(ABC, nn.Module):
                 print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
                 print()
                 print("Model converted")
+
+    def get_model(
+            self
+    ) -> nn.Module:
+        """
+        Returns the model.
+
+        Returns:
+            nn.Module:
+                Model.
+        """
+
+        return self.model
 
     def get_parameters_info(
             self,

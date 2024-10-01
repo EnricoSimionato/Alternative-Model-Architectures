@@ -23,12 +23,12 @@ import torch.nn.functional as F
 from torch import svd_lowrank
 from transformers.pytorch_utils import Conv1D
 
-from peft.tuners.tuners_utils import BaseTunerLayer, check_adapters_to_merge
-from peft.utils.integrations import dequantize_module_weight, gather_params_ctx
-from peft.utils.other import transpose
+from imports.peft.tuners.tuners_utils import BaseTunerLayer, check_adapters_to_merge
+from imports.peft.utils.integrations import dequantize_module_weight, gather_params_ctx
+from imports.peft.utils.other import transpose
 
-from peft.tuners.kfc.config import KFCLoraConfig
-from peft.tuners.kfc.dora import DoraConv2dLayer, DoraLinearLayer
+from imports.peft.tuners.kfc.config import KFCLoraConfig
+from imports.peft.tuners.kfc.dora import DoraConv2dLayer, DoraLinearLayer
 
 
 class KFCLoraLayer(BaseTunerLayer):

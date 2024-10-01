@@ -44,6 +44,7 @@ class FactorizedLinearLayer(ABC, nn.Module):
     def factorize_layer(self, target_layer, **kwargs):
         pass
 
+
 class GlobalDependentLinear(GlobalDependent):
     """
     Implementation of a Linear layer decomposed in the matrix product of many global and local matrices.
@@ -553,7 +554,7 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
             self.get_layer("local", "US").bias = target_layer.bias
 
 
-# TODO here the Hadamard decomposition cannot be trained since the matrices A_i are multuplied and the matrices B_i are multiplied
+# TODO here the Hadamard decomposition cannot be trained since the matrices A_i are multiplied and the matrices B_i are multiplied
 # TODO so only equal ranks
 class LocalHadamardLinear(StructureSpecificGlobalDependentLinear):
     """
@@ -653,22 +654,22 @@ class LocalHadamardLinear(StructureSpecificGlobalDependentLinear):
         """
 
         target_layer = kwargs["target_layer"]
-        min_dim = min(target_layer.in_features, target_layer.out_features)
-        dtype = target_layer.weight.data.numpy().dtype
+        dtype = target_layer.weight.data.dtype
+        device = target_layer.weight.data.device
         rank = kwargs["rank"]
         method = kwargs["method"]
         learning_rate = kwargs["learning_rate"]
         max_iterations = kwargs["max_iterations"]
 
         _, _, [A1, B1, A2, B2], _, _ = scaled_alternating_gradient_descent_hadDec(
-            target_layer.weight.detach().numpy().astype(np.float32), rank, learning_rate, max_iterations
+            target_layer.weight.data.cpu().to(torch.float32).numpy(), rank, learning_rate, max_iterations
         ) if method == "alternating gradient" else mb_stochastic_gradient_descent_hadDec(
-            target_layer.weight.data.detach().numpy().astype(np.float32), rank, learning_rate, max_iterations
+            target_layer.weight.data.cpu().to(torch.float32).numpy(), rank, learning_rate, max_iterations
         )
 
         with torch.no_grad():
-            self.get_layer("local", "A").weight.data = torch.tensor((A1 * A2).astype(dtype))
-            self.get_layer("local", "B").weight.data = torch.tensor((B1 * B2).astype(dtype))
+            self.get_layer("local", "A").weight.data = torch.tensor(A1 * A2).to(dtype).to(device)
+            self.get_layer("local", "B").weight.data = torch.tensor(B1 * B2).to(dtype).to(device)
 
             for layer in self.structure:
                 if "trainable" in layer.keys() and layer["scope"] == "local":

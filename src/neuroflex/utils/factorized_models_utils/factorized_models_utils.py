@@ -5,12 +5,13 @@ from neuroflex import (
     LocalSVDModel,
     GlobalBaseModel,
     GlobalFixedBaseModel,
-    GLAMSVDModel
+    GLAMSVDModel,
+    LocalHadamardModel
 )
 
 from exporch import Config
 
-from neuroflex.models.factorized_model import update_config_with_model_parameters, LocalHadamardModel
+from neuroflex.models.factorized_model import update_config_with_model_parameters
 
 regularized_training_keys = [
     "initial_regularization_weight",
