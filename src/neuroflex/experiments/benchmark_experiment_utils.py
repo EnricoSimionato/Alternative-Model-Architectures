@@ -41,38 +41,38 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         # Initializing the dictionary to store the performance results
         benchmark_ids = config.get("benchmark_ids")
+        device_str = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
         performance_dict = {benchmark_id: {} for benchmark_id in benchmark_ids}
-        remaining_benchmark_ids = benchmark_ids
 
         if self.data is not None:
             already_created_performance_dict, = self.data
             performance_dict.update(already_created_performance_dict)
             self.log(f"Previous data loaded.\nLoaded data: {performance_dict}")
-            #analyzed_benchmark_ids = list(benchmark_id for benchmark_id in performance_dict.keys() if len(performance_dict[benchmark_id]) > 0)
-            #remaining_benchmark_ids = list(set(benchmark_ids) - set(analyzed_benchmark_ids))
-
-            #if len(remaining_benchmark_ids) == 0:
-            #    self.log(f"Computation is not needed, the analysis has already been performed.")
-            #    return
-
-        # Getting the parameters from the configuration
-        device_str = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
-        self.config.set("device", "cpu")
-        evaluation_args = (config.get("evaluation_args") if config.contains("evaluation_args")
-                           else {benchmark_id: {} for benchmark_id in benchmark_ids})
 
         # Loading and preparing the models
         prepared_models, tokenizer = self._prepare_models()
-        self.log(f"Models prepared.")
-        print(prepared_models.keys())
-        
-        self.config.set("device", device_str)
-        for benchmark_id in remaining_benchmark_ids:
+        model_ids = list(prepared_models.keys())
+
+        # Constructing a analysis that have not been evaluated yet
+        remaining_analysis = {benchmark_id: copy.deepcopy(model_ids) for benchmark_id in benchmark_ids}
+        # Evaluating if the analysis has already been done
+        for benchmark_id in benchmark_ids:
+            for model_key in model_ids:
+                if model_key in performance_dict[benchmark_id]:
+                    remaining_analysis[benchmark_id].remove(model_key)
+            if len(remaining_analysis[benchmark_id]) == 0:
+                del remaining_analysis[benchmark_id]
+
+        evaluation_args = (config.get("evaluation_args") if config.contains("evaluation_args")
+                           else {benchmark_id: {} for benchmark_id in benchmark_ids})
+
+        for benchmark_id in remaining_analysis.keys():
             # Defining the evaluation parameters
             benchmark_evaluation_args = evaluation_args[benchmark_id]
             self.log(f"Chosen evaluation args for the benchmark {benchmark_id}: {benchmark_evaluation_args}")
 
-            for model_key, model in prepared_models.items():
+            for model_key in remaining_analysis[benchmark_id]:
+                model = prepared_models[model_key]
                 logging.info(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
                 print(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
 
@@ -86,6 +86,9 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 # Storing the results in the dictionary
                 performance_dict[benchmark_id][model_key] = results
                 self.log(f"Performance dictionary updated with the results.")
+
+                # Moving the model to the CPU in order to be able to evaluate the next model
+                model.cpu()
 
             # Storing the data
             self.data = (performance_dict,)
@@ -109,6 +112,9 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 The prepared models to be evaluated.
         """
 
+        device = self.config.get("device") if self.config.contains("device") else "cpu"
+        self.config.set("device", "cpu")
+
         # Preparing the models
         original_model = self.load("original_model.pt", "pt")
         if original_model is None:
@@ -123,8 +129,11 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         prepared_models.update(self.prepare_models(copy.deepcopy(original_model), tokenizer))
 
+        self.config.set("device", device)
+
         for model_key in prepared_models.keys():
             self.log(f"Model {model_key} prepared.")
+            self.log(f"Model {model_key} is on device: {prepared_models[model_key].device}")
 
         # Storing the models
         for model_key, model in prepared_models.items():
@@ -135,6 +144,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         if not self.exists_file("tokenizer.pt"):
             self.store(tokenizer, "tokenizer.pt", "pt")
             self.log(f"Tokenizer stored.")
+
+        self.log(f"All models and tokenizer prepared.")
 
         return prepared_models, tokenizer
 
