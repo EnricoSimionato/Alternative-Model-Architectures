@@ -537,10 +537,8 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
 
         with torch.no_grad():
             self.get_layer("local", "US").weight.data = torch.tensor(
-                U[:, :min(min_dim, rank)].astype(dtype)
-            ) @ np.diag(
-                S[:min(min_dim, rank)].astype(dtype)
-            )
+                U[:, :min(min_dim, rank)] @ np.diag(S[:min(min_dim, rank)])
+            ).to(dtype)
 
             self.get_layer("local", "VT").weight.data = torch.tensor(VT[:min(min_dim, rank), :]).to(dtype)
 
