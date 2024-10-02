@@ -61,15 +61,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         evaluation_args = (config.get("evaluation_args") if config.contains("evaluation_args")
                            else {benchmark_id: {} for benchmark_id in benchmark_ids})
 
-        # Loading the model and the tokenizer
-        base_model = load_model_for_causal_lm(config)
-        self.log(f"Model loaded.")
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        tokenizer = load_tokenizer_for_causal_lm(config)
-        self.log(f"Tokenizer loaded.")
-
-        # Preparing the model
-        prepared_models = self.prepare_models(copy.deepcopy(base_model), tokenizer)
+        # Loading and preparing the models
+        prepared_models, tokenizer = self._prepare_models()
         self.log(f"Models prepared.")
 
         self.config.set("device", device_str)
@@ -105,18 +98,10 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         print("The analysis has been completed.")
 
     def _prepare_models(
-            self,
-            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
-            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
-    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+            self
+    ) -> [dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel], transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
         """
         Gets, stores and returns the prepared models to be evaluated.
-
-        Args:
-            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
-                The original model to be prepared.
-            tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
-                The tokenizer of the model.
 
         Returns:
             dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
@@ -124,8 +109,18 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         """
 
         # Preparing the models
-        prepared_models = {"original_model": base_model}
-        prepared_models.update(self.prepare_models(base_model, tokenizer))
+        original_model = self.load("original_model.pt", "pt")
+        if original_model is None:
+            original_model = load_model_for_causal_lm(self.config)
+        prepared_models = {"original_model": original_model}
+        self.log(f"Original model loaded.")
+
+        tokenizer = self.load("tokenizer.pt", "pt")
+        if tokenizer is None:
+            tokenizer = load_tokenizer_for_causal_lm(self.config)
+        self.log(f"Tokenizer loaded.")
+
+        prepared_models.update(self.prepare_models(copy.deepcopy(original_model), tokenizer))
 
         for model_key in prepared_models.keys():
             self.log(f"Model {model_key} prepared.")
@@ -140,7 +135,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             self.store(tokenizer, "tokenizer.pt", "pt")
             self.log(f"Tokenizer stored.")
 
-        return prepared_models
+        return prepared_models, tokenizer
 
     def prepare_models(
             self,
@@ -164,8 +159,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         return {}
 
     def _plot_results(
-            self,
-
+            self
     ) -> None:
         """
         Plots the results of the experiment.
