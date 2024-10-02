@@ -1,7 +1,8 @@
 import copy
 import logging
 import os
-from abc import abstractmethod
+
+import matplotlib.pyplot as plt
 
 import torch
 import transformers
@@ -172,8 +173,17 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         performance_dict = self.data[0]
 
+        # Printing the results
         for benchmark_id in performance_dict:
             for model_key in performance_dict[benchmark_id]:
                 results = performance_dict[benchmark_id][model_key]
                 self.log(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
                 print(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
+
+
+        # Plotting histograms of the results
+        fig, axes = plt.subplots(1, len(list(performance_dict.keys())), figsize=(10, 5))
+        for i, benchmark_id in enumerate(performance_dict):
+            axes[i].bar(performance_dict[benchmark_id].keys(), performance_dict[benchmark_id].values())
+            axes[i].set_title(f"Results on {benchmark_id}")
+
