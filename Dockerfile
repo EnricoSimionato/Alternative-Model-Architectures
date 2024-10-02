@@ -6,7 +6,7 @@ WORKDIR /Alternative-Model-Architectures
 # Copying the entire contents of the Redundancy-Hunter directory
 COPY . .
 # Installing dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 # Logging in to the Hugging Face model hub
 RUN huggingface-cli login --token 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
 # Setting the command to run the script
