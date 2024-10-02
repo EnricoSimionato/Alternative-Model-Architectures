@@ -68,7 +68,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Tokenizer loaded.")
 
         # Preparing the model
-        prepared_models = self.prepare_models(copy.deepcopy(base_model))
+        prepared_models = self.prepare_models(copy.deepcopy(base_model), tokenizer)
         self.log(f"Models prepared.")
 
         self.config.set("device", device_str)
