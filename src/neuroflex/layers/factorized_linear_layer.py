@@ -529,10 +529,10 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
         """
 
         target_layer = kwargs["target_layer"]
-        dtype = target_layer.weight.data.numpy().dtype
+        dtype = target_layer.weight.data.dtype
         rank = kwargs["rank"]
 
-        U, S, VT = np.linalg.svd(target_layer.weight.data.numpy().astype(np.float32))
+        U, S, VT = np.linalg.svd(target_layer.weight.data.to(torch.float32).numpy())
         min_dim = min(target_layer.in_features, target_layer.out_features)
 
         with torch.no_grad():
@@ -542,9 +542,7 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
                 S[:min(min_dim, rank)].astype(dtype)
             )
 
-            self.get_layer("local", "VT").weight.data = torch.tensor(
-                VT[:min(min_dim, rank), :].astype(dtype)
-            )
+            self.get_layer("local", "VT").weight.data = torch.tensor(VT[:min(min_dim, rank), :]).to(dtype)
 
             for layer in self.structure:
                 if "trainable" in layer.keys() and layer["scope"] == "local":
