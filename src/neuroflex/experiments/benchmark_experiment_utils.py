@@ -8,7 +8,7 @@ import torch
 import transformers
 
 from exporch import GeneralPurposeExperiment, get_available_device
-from exporch.experiment import evaluate_model_on_benchmark
+from exporch.experiment import evaluate_model_on_benchmark, benchmark_id_metric_name_mapping
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm, load_tokenizer_for_causal_lm
 
 
@@ -45,7 +45,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         remaining_benchmark_ids = benchmark_ids
 
         if self.data is not None:
-            already_created_performance_dict = self.data
+            already_created_performance_dict, = self.data
             performance_dict.update(already_created_performance_dict)
             self.log(f"Previous data loaded.\nLoaded data: {performance_dict}")
             analyzed_benchmark_ids = list(benchmark_id for benchmark_id in performance_dict.keys() if len(performance_dict[benchmark_id]) > 0)
@@ -74,18 +74,18 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         self.config.set("device", device_str)
         for benchmark_id in remaining_benchmark_ids:
+            # Defining the evaluation parameters
+            benchmark_evaluation_args = evaluation_args[benchmark_id]
+            self.log(f"Chosen evaluation args for the benchmark {benchmark_id}: {benchmark_evaluation_args}")
+
             for model_key, model in prepared_models.items():
                 logging.info(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
                 print(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
 
-                # Defining the evaluation parameters
-                benchmark_evaluation_args = evaluation_args[benchmark_id]
-                self.log(f"Chosen evaluation args: {benchmark_evaluation_args}")
-
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
                 results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
-                # results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
+                #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}")
                 print(f"Results of the model {model_key}: {results}")
 
@@ -180,10 +180,17 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 self.log(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
                 print(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
 
-
         # Plotting histograms of the results
         fig, axes = plt.subplots(1, len(list(performance_dict.keys())), figsize=(10, 5))
+        if len(list(performance_dict.keys())) == 1:
+            axes = [axes]
         for i, benchmark_id in enumerate(performance_dict):
-            axes[i].bar(performance_dict[benchmark_id].keys(), performance_dict[benchmark_id].values())
+            metric = benchmark_id_metric_name_mapping[benchmark_id]
+            axes[i].bar(
+                performance_dict[benchmark_id].keys(),
+                [model_performance[benchmark_id][metric] for model_performance in performance_dict[benchmark_id].values()]
+            )
             axes[i].set_title(f"Results on {benchmark_id}")
 
+        # Storing the plot
+        self.store(fig, "results_plot.png", "plt")
