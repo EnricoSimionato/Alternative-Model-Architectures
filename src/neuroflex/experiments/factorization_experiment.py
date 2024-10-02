@@ -1,3 +1,5 @@
+import copy
+
 import torch
 
 import transformers
@@ -11,7 +13,7 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
     Class to perform the benchmark evaluation on a factorized model.
     """
 
-    mandatory_keys = ["factorization_method", "target_layers"]
+    mandatory_keys = ["factorization_methods", "target_layers"]
 
     def prepare_models(
             self,
@@ -32,7 +34,11 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
                 The prepared models to be evaluated.
         """
 
-        loaded_model = self.load(f"{self.config.get('factorization_method')}.pt", "pt")
-        return {
-            f"{self.config.get('factorization_method')}": loaded_model if loaded_model is not None else get_factorized_model(base_model, self.config).get_model(),
-        }
+        prepared_models = {}
+
+        for factorization_method in self.config.get("factorization_methods"):
+            loaded_model = self.load(f"{factorization_method}.pt", "pt")
+            prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), self.config).get_model()
+
+        return prepared_models
+

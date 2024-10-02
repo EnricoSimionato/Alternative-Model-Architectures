@@ -198,5 +198,10 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             )
             axes[i].set_title(f"Results on {benchmark_id}")
 
+            for rect in axes[i].patches:
+                height = rect.get_height()
+                axes[i].annotate(f'{int(height)}', xy=(rect.get_x() + rect.get_width() / 2, height),
+                            xytext=(0, 5), textcoords='offset points', ha='center', va='bottom')
+
         # Storing the plot
         self.store(fig, "results_plot.png", "plt")

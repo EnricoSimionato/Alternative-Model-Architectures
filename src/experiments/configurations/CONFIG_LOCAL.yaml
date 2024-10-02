@@ -21,7 +21,9 @@ tokenizer_id: "mistralai/Mistral-7B-v0.3"
 #figure_size: [40, 20]
 
 ########################################     Layers factorization parameters    ########################################
-factorization_method: "Hadamard"
+factorization_methods:
+    - "LocalSVD"
+    - "Hadamard"
 
 target_layers:
     q_proj:
