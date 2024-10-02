@@ -48,12 +48,12 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             already_created_performance_dict, = self.data
             performance_dict.update(already_created_performance_dict)
             self.log(f"Previous data loaded.\nLoaded data: {performance_dict}")
-            analyzed_benchmark_ids = list(benchmark_id for benchmark_id in performance_dict.keys() if len(performance_dict[benchmark_id]) > 0)
-            remaining_benchmark_ids = list(set(benchmark_ids) - set(analyzed_benchmark_ids))
+            #analyzed_benchmark_ids = list(benchmark_id for benchmark_id in performance_dict.keys() if len(performance_dict[benchmark_id]) > 0)
+            #remaining_benchmark_ids = list(set(benchmark_ids) - set(analyzed_benchmark_ids))
 
-            if len(remaining_benchmark_ids) == 0:
-                self.log(f"Computation is not needed, the analysis has already been performed.")
-                return
+            #if len(remaining_benchmark_ids) == 0:
+            #    self.log(f"Computation is not needed, the analysis has already been performed.")
+            #    return
 
         # Getting the parameters from the configuration
         device_str = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
@@ -64,7 +64,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         # Loading and preparing the models
         prepared_models, tokenizer = self._prepare_models()
         self.log(f"Models prepared.")
-
+        print(prepared_models.keys())
+        
         self.config.set("device", device_str)
         for benchmark_id in remaining_benchmark_ids:
             # Defining the evaluation parameters
