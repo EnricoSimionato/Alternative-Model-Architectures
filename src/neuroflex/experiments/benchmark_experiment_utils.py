@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+from abc import abstractmethod
 
 import torch
 import transformers
@@ -70,12 +71,6 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         prepared_models = self.prepare_models(copy.deepcopy(base_model))
         self.log(f"Models prepared.")
 
-        # Storing the models
-        for model_key, model in prepared_models.items():
-            self.store(model, f"{model_key}.pt", "pt")
-        # Storing the tokenizer
-        self.store(tokenizer, "tokenizer.pt", "pt")
-
         self.config.set("device", device_str)
         for benchmark_id in remaining_benchmark_ids:
             for model_key, model in prepared_models.items():
@@ -108,25 +103,64 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log("The analysis has been completed.")
         print("The analysis has been completed.")
 
-    def prepare_models(
+    def _prepare_models(
             self,
-            base_model
+            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
     ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
         """
-        Returns the prepared models to be evaluated.
+        Gets, stores and returns the prepared models to be evaluated.
 
         Args:
-            base_model:
+            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
                 The original model to be prepared.
+            tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+                The tokenizer of the model.
 
         Returns:
             dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
                 The prepared models to be evaluated.
         """
 
-        self.log(f"The prepared model is the original one.")
+        # Preparing the models
+        prepared_models = {"original_model": base_model}
+        prepared_models.update(self.prepare_models(base_model, tokenizer))
 
-        return {"original_model": base_model}
+        for model_key in prepared_models.keys():
+            self.log(f"Model {model_key} prepared.")
+
+        # Storing the models
+        for model_key, model in prepared_models.items():
+            if not self.exists_file(f"{model_key}.pt"):
+                self.store(model, f"{model_key}.pt", "pt")
+                self.log(f"Model {model_key} stored.")
+        # Storing the tokenizer
+        if not self.exists_file("tokenizer.pt"):
+            self.store(tokenizer, "tokenizer.pt", "pt")
+            self.log(f"Tokenizer stored.")
+
+        return prepared_models
+
+    def prepare_models(
+            self,
+            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
+    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+        """
+        Returns the prepared models to be evaluated. This method should be implemented by the subclasses if needed.
+
+        Args:
+            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The original model to be prepared.
+            tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+                The tokenizer of the model.
+
+        Returns:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+                The prepared models to be evaluated.
+        """
+
+        return {}
 
     def _plot_results(
             self,

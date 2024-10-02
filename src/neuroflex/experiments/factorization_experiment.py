@@ -15,27 +15,24 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
 
     def prepare_models(
             self,
-            base_model
+            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
     ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
         """
         Returns the prepared models to be evaluated.
 
         Args:
-            base_model:
+            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
                 The original model to be prepared.
+            tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+                The tokenizer of the model.
 
         Returns:
             dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
                 The prepared models to be evaluated.
         """
 
-        self.log(f"The prepared model is the model factorized using {self.config.get("factorization_method")}.")
-        self.log(f"The prepared models are the original one and the factorized one.")
-
         loaded_model = self.load(f"{self.config.get('factorization_method')}.pt", "pt")
-
         return {
-            "factorized_model": loaded_model if loaded_model is not None else get_factorized_model(base_model, self.config).get_model(),
-            "original_model": base_model,
-            #"factorized_model": get_factorized_model(base_model, self.config)
+            f"{self.config.get('factorization_method')}": loaded_model if loaded_model is not None else get_factorized_model(base_model, self.config).get_model(),
         }
