@@ -73,8 +73,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
             for model_key in remaining_analysis[benchmark_id]:
                 model = prepared_models[model_key]
-                logging.info(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
-                print(f"Starting the evaluation of the model {model_key} the benchmark: {benchmark_id}.")
+                logging.info(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
+                print(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
