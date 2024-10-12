@@ -7,6 +7,8 @@ from torch import nn
 import numpy as np
 import math
 
+from typing_extensions import override
+
 from exporch import get_available_device
 
 from imports.HadamardDecomposition.alternating_gradient_descent import \
@@ -14,35 +16,36 @@ from imports.HadamardDecomposition.alternating_gradient_descent import \
 from imports.HadamardDecomposition.minibatch_stochastic_gradient_descent import \
     mb_stochastic_gradient_descent_hadDec
 
-from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
+from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent, FactorizedLayer
 
 
-class FactorizedLinearLayer(ABC, nn.Module):
+class FactorizedLinearLayer(FactorizedLayer, ABC):
     """
     Abstract class that implements a linear layer on which is performed matrix decomposition.
-
     """
 
-    def __init__(
+    @override
+    def compute_approximation_stats(
             self,
-            target_layer: nn.Module,
-            target_name,
-            **kwargs
-    ):
-        super(FactorizedLinearLayer, self).__init__()
+            target_layer: torch.nn.Linear
+    ) -> dict:
+        """
+        Computes the approximation statistics of the layer.
 
-        self.target_name = target_name
-        self.factorized_layer = None
+        Args:
+            target_layer (torch.nn.Linear):
+                Target layer to be approximated.
 
-        self.factorize_layer(target_layer, **kwargs)
+        Returns:
+            dict:
+                Approximation statistics.
+        """
 
-    @abstractmethod
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        pass
+        approximation_stats = {
+            "MSE approximation": (target_layer.weight.data - self.weight.data).pow(2).mean().item(),
+        }
 
-    @abstractmethod
-    def factorize_layer(self, target_layer, **kwargs):
-        pass
+        return approximation_stats
 
 
 class GlobalDependentLinear(GlobalDependent):
@@ -552,6 +555,8 @@ class LocalSVDLinear(StructureSpecificGlobalDependentLinear):
 
 # TODO here the Hadamard decomposition cannot be trained since the matrices A_i are multiplied and the matrices B_i are multiplied
 # TODO so only equal ranks
+
+# TODO IT IS WRONG
 class LocalHadamardLinear(StructureSpecificGlobalDependentLinear):
     """
     Implementation of a Linear layer on which is performed SVD decomposition.
@@ -675,50 +680,28 @@ class LocalHadamardLinear(StructureSpecificGlobalDependentLinear):
             self.get_layer("local", "A").bias = target_layer.bias
 
 
-# TODO integrate with global layers and to write
 class HadamardLinearLayer(FactorizedLinearLayer):
     """
     Implementation of a Linear layer on which is performed Hadamard decomposition.
 
-    The layer is decomposed in two matrices:
-    - a local matrix of shape (in_features, rank), that is the product between the matrix of the left singular vectors U
-        and the matrix of the singular values S matrices of the truncated SVD;
-    - a local matrix of shape (rank, out_features), that is the matrix of the right singular vectors V^T.
-
-    Args:
-        target_layer (nn.Module):
-            Target layer to be transformed in the factorized version.
-        global_layers (nn.ModuleDict):
-            Dictionary containing the global matrices.
-        rank (int):
-            Rank of the global matrix.
-        target_name (str):
-            Name of the target layer.
-        *args:
-            Variable length argument list.
-        **kwargs:
-            Additional keyword arguments.
-
-    Attributes:
-        target_name (str):
-            Name of the target layer.
-        global_dependent_layer (GlobalDependentLinear):
-            Linear layer with dependencies on global matrices.
+    The layer is decomposed in four matrices:
+        -
+        -
+        -
+        -
     """
 
     def __init__(
             self,
-            target_layer: nn.Module,
+            target_layer: torch.nn.Linear,
             target_name: str,
-            rank_1: int,
-            rank_2: int,
+            rank: int,
             learning_rate: float,
             max_iterations: int,
             **kwargs
     ) -> None:
         kwargs.update({
-            "rank_1": rank_1,
-            "rank_2": rank_2,
+            "rank": rank,
             "learning_rate": learning_rate,
             "max_iterations": max_iterations
         })
@@ -728,10 +711,15 @@ class HadamardLinearLayer(FactorizedLinearLayer):
             **kwargs
         )
 
-        self.rank_1 = rank_1
-        self.rank_2 = rank_2
+        self.rank = rank
+        self.learning_rate = learning_rate
+        self.max_iterations = max_iterations
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    @override
+    def forward(
+            self,
+            x: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass through the layer.
 
@@ -748,12 +736,99 @@ class HadamardLinearLayer(FactorizedLinearLayer):
         A_2 = self.factorized_layer["A_2"]
         B_1 = self.factorized_layer["B_1"]
         B_2 = self.factorized_layer["B_2"]
+        bias = self.factorized_layer["bias"]
 
         y = torch.matmul(A_1, torch.matmul(B_1, x)) * torch.matmul(A_2, torch.matmul(B_2, x))
+        if bias is not None:
+            y += bias
+
         return y
 
-    def factorize_layer(self, target_layer, **kwargs):
-        pass
+    @override
+    def factorize_layer(
+            self,
+            target_layer,
+            **kwargs
+    ) -> dict:
+        """
+        Factorizes the target layer.
+
+        Args:
+            target_layer:
+                Target layer to be factorized.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Factorized layer.
+        """
+
+        # Getting the parameters
+        rank = kwargs["rank"]
+        learning_rate = kwargs["learning_rate"]
+        max_iterations = kwargs["max_iterations"]
+        dtype = target_layer.weight.data.dtype
+        device = target_layer.weight.data.device
+
+        _, _, [A_1, B_1, A_2, B_2], _, _ = scaled_alternating_gradient_descent_hadDec(
+            target_layer.weight.data.cpu().to(torch.float32).numpy(), rank, learning_rate, max_iterations
+        )
+
+        factorized_layer = {
+            "A_1": torch.nn.Parameter(torch.tensor(A_1).to(dtype).to(device)),
+            "A_2": torch.nn.Parameter(torch.tensor(A_2).to(dtype).to(device)),
+            "B_1": torch.nn.Parameter(torch.tensor(B_1).to(dtype).to(device)),
+            "B_2": torch.nn.Parameter(torch.tensor(B_2).to(dtype).to(device)),
+            "bias": target_layer.bias if target_layer.bias is not None else None
+        }
+
+        return factorized_layer
+
+    @property
+    def weight(
+            self
+    ) -> torch.Tensor:
+        """
+        Returns the weight parameter of the layer.
+
+        Returns:
+            torch.Tensor:
+                Weight parameter.
+        """
+
+        return torch.matmul(self.factorized_layer["A_1"], self.factorized_layer["B_1"]) * torch.matmul(self.factorized_layer["A_2"], self.factorized_layer["B_2"])
+
+    @property
+    def bias(
+            self
+    ) -> torch.Tensor:
+        """
+        Returns the bias parameter of the layer.
+
+        Returns:
+            torch.Tensor:
+                Bias parameter.
+        """
+
+        return self.factorized_layer["bias"]
+
+
+if __name__ == "__main__":
+    dim = 4000
+    target_layer = nn.Linear(dim, dim)
+    rank = dim
+    learning_rate = 0.01
+    max_iterations = 10000
+
+    hadamard_linear_layer = HadamardLinearLayer(target_layer, "Hadamard Linear Layer", rank, learning_rate, max_iterations)
+
+    print(target_layer.weight)
+    print(hadamard_linear_layer.weight)
+    print(target_layer.bias)
+    print(hadamard_linear_layer.bias)
+
+    print(hadamard_linear_layer.approximation_stats)
 
 
 class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):

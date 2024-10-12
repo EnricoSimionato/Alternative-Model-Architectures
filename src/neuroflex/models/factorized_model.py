@@ -355,6 +355,51 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
         pass
 
 
+class FactorizedModel(ABC, nn.Module):
+    """
+    Model with factorized layers.
+
+    Args:
+        target_model (PreTrainedModel):
+            Pretrained model.
+        target_layers (dict):
+            Layers to factorize.
+        use_names_as_keys (bool):
+            Whether to use the names of the layers in the keys of the global layers, having different global layers
+            for layers having different roles in the original model.
+        mapping_layer_name_key (dict):
+            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
+            names to have the same global layer.
+        remove_average (bool):
+            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
+            grouping imposed by target_layers or mapping_layer_name_key.
+        from_pretrained (bool):
+            Whether the model is being loaded from a pretrained model.
+        preserve_original_model (bool):
+            Whether to preserve the target model or to change directly it.
+        verbose (int):
+            Verbosity level.
+        **kwargs:
+            Additional keyword arguments.
+
+    Attributes:
+        target_layers (dict):
+            Layers to factorize.
+        mapping_layer_name_key (dict):
+            Mapping of the layer names to the keys of the global layers.
+        model (PreTrainedModel):
+            Pretrained model.
+        global_layers (nn.ModuleDict):
+            Global layers.
+        conversions (dict):
+            Mapping of layer types to global-dependent layer classes.
+        info (dict):
+            Information about the model.
+        verbose (Verbose):
+            Verbosity level.
+    """
+
+
 class GlobalDependentModel(ABC, nn.Module):
     """
     Model with global layers replacing some layers of the model.
@@ -1290,7 +1335,7 @@ class GlobalBaseModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            initialization_type: str = "random",
+            initialization_type: str = "pseudo-inverse",
             verbose: int = 0,
             **kwargs
     ) -> None:
@@ -2338,23 +2383,26 @@ if __name__ == "__main__":
     # Testing the implementation of the models
 
     base_model = transformers.AutoModelForCausalLM.from_pretrained("bert-base-uncased")
+    input_x = torch.randint(0, 100, (1, 10))
+    output = base_model(input_x)
+    print(output)
+
     kwargs = {
         "learning_rte": 0.01,
         "max_iterations": 10000
     }
-    model = LocalHadamardModel(
+    model = GlobalBaseModel(
         base_model,
         target_layers={
-            "query": {"rank": 10}
+            "query": {"rank": 78}
         },
         **kwargs
     )
 
-    import pickle as pkl
-    with open("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/model.pkl", "wb") as f:
-        pkl.dump(model, f)
+    #import pickle as pkl
+    #with open("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/model.pkl", "wb") as f:
+    #    pkl.dump(model, f)
 
-    input_x = torch.randint(0, 100, (1, 10))
     output = model(input_x)
     print(output)
-    print(model)
+    #print(model)

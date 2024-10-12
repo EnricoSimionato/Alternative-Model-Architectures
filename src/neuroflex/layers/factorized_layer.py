@@ -1,22 +1,113 @@
 from abc import ABC, abstractmethod
 
 import torch
-import torch.nn as nn
 
 from exporch import Verbose
+
+
+class FactorizedLayer(ABC, torch.nn.Module):
+    """
+    Abstract class that implements a layer on which is performed matrix decomposition.
+
+    Args:
+        target_layer (torch.nn.Module):
+            Target layer to be transformed in the factorized version.
+        target_name (str):
+            Name of the target layer.
+        **kwargs:
+            Additional keyword arguments
+
+    Attributes:
+        target_name (str):
+            Name of the target layer.
+        factorized_layer (dict):
+            Factorized layer.
+    """
+
+    def __init__(
+            self,
+            target_layer: torch.nn.Module,
+            target_name,
+            **kwargs
+    ):
+        super().__init__()
+
+        self.target_name = target_name
+        self.factorized_layer = self.factorize_layer(target_layer, **kwargs)
+        self.approximation_stats = self.compute_approximation_stats(target_layer)
+
+    @abstractmethod
+    def forward(
+            self,
+            x: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Forward pass through the layer.
+
+        Args:
+            x (torch.Tensor):
+                Input tensor.
+
+        Returns:
+            torch.Tensor:
+                Output tensor.
+        """
+
+        pass
+
+    @abstractmethod
+    def factorize_layer(
+            self,
+            target_layer,
+            **kwargs
+    ) -> dict:
+        """
+        Factorizes the target layer.
+
+        Args:
+            target_layer:
+                Target layer to be factorized.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dict:
+                Factorized layer.
+        """
+
+        pass
+
+    @abstractmethod
+    def compute_approximation_stats(
+            self,
+            target_layer: torch.nn.Module
+    ) -> dict:
+        """
+        Computes the approximation statistics of the factorized layer.
+
+        Args:
+            target_layer (torch.nn.Module):
+                Target layer.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        pass
 
 
 class MergeableLayer:
     """
     Interface class that defines the interface for a mergeable layer.
-    A mergeable layer is a layer that can be merged, it has the merge method that returns an equivalent linear layer.
+    A mergeable layer is a layer that can be merged; it has the merge method that returns an equivalent layer.
     """
 
     @abstractmethod
     def merge(
             self,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Merges the global and local layers into an equivalent layer.
 
@@ -25,12 +116,14 @@ class MergeableLayer:
                 Additional keyword arguments.
 
         Returns:
-            nn.Module:
+            torch.nn.Module:
                 Equivalent linear layer with merged weights and bias.
         """
 
+        pass
 
-class GlobalDependent(nn.Module, MergeableLayer, ABC):
+
+class GlobalDependent(torch.nn.Module, MergeableLayer, ABC):
     """
     Abstract class that implements a layer with dependencies on global matrices.
     It implements a linear layer with dependencies on global matrices or combinations of linear layers, for other types
@@ -43,7 +136,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
             Number of input features.
         out_features (int):
             Number of output features.
-        global_layers (nn.ModuleDict):
+        global_layers (torch.nn.ModuleDict):
             List of global matrices used in the linear layer.
         structure (dict):
             Structure of the layer. Each element of the list has to contain a tuple with the type of layer ('global' for
@@ -62,7 +155,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
             Number of output features.
         global_layers (dict):
             Dictionary containing the global layers.
-        local_layers (nn.ModuleDict):
+        local_layers (torch.nn.ModuleDict):
             Dictionary containing the local layers.
         structure (dict):
             Structure of the layer. Each element of the list has to contain a tuple with the type of layer ('global' for
@@ -73,7 +166,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
             self,
             in_features: int,
             out_features: int,
-            global_layers: nn.ModuleDict,
+            global_layers: torch.nn.ModuleDict,
             structure: dict,
             dtype: torch.dtype = None,
             *args,
@@ -84,7 +177,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
         self.in_features = in_features
         self.out_features = out_features
         self.global_layers = global_layers
-        self.local_layers = nn.ModuleDict()
+        self.local_layers = torch.nn.ModuleDict()
         self.dtype = dtype
 
         # Initial sanity check on the structure of the layer
@@ -201,7 +294,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
     @property
     def weight(
             self
-    ) -> nn.Parameter:
+    ) -> torch.nn.Parameter:
         """
         Returns the weight parameter of the layer.
 
@@ -250,7 +343,7 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
     @property
     def bias(
             self
-    ) -> nn.Parameter:
+    ) -> torch.nn.Parameter:
         """
         Returns the bias parameter of the linear layer.
 
@@ -311,14 +404,14 @@ class GlobalDependent(nn.Module, MergeableLayer, ABC):
         return next(self.parameters()).device
 
 
-class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
+class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
     """
     Abstract class that implements a layer with dependencies on global matrices that wraps a target layer.
 
     Args:
-        target_layer (nn.Module):
+        target_layer (torch.nn.Module):
             Target layer to be transformed in the factorized version.
-        global_layers (nn.ModuleDict):
+        global_layers (torch.nn.ModuleDict):
             Dictionary containing the global matrices.
         target_name (str):
             Name of the target layer.
@@ -332,15 +425,15 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             Name of the target layer.
         global_dependent_layer (GlobalDependentLinear):
             Linear layer with dependencies on global matrices.
-        average_matrices_layer (nn.ModuleDict):
+        average_matrices_layer (torch.nn.ModuleDict):
             Layer that applies the average matrix to the input.
     """
 
     def __init__(
             self,
-            target_layer: nn.Module,
-            global_layers: nn.ModuleDict,
-            average_layers: nn.ModuleDict,
+            target_layer: torch.nn.Module,
+            global_layers: torch.nn.ModuleDict,
+            average_layers: torch.nn.ModuleDict,
             target_name: str = None,
             *args,
             **kwargs
@@ -415,8 +508,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
 
     def _define_global_dependent_layer(
             self,
-            target_layer: nn.Module,
-            global_layers: nn.ModuleDict,
+            target_layer: torch.nn.Module,
+            global_layers: torch.nn.ModuleDict,
             structure: dict,
             average_matrix: torch.Tensor = None,
             **kwargs
@@ -425,9 +518,9 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         Defines the global dependent layer.
 
         Args:
-            target_layer (nn.Module):
+            target_layer (torch.nn.Module):
                 Target layer to be transformed in the factorized version.
-            global_layers (nn.ModuleDict):
+            global_layers (torch.nn.ModuleDict):
                 Dictionary containing the global matrices.
             structure (dict):
                 Structure of the layer.
@@ -453,8 +546,8 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     @abstractmethod
     def define_global_dependent_layer(
             self,
-            target_layer: nn.Module,
-            global_layers: nn.ModuleDict,
+            target_layer: torch.nn.Module,
+            global_layers: torch.nn.ModuleDict,
             structure: dict,
             **kwargs
     ) -> GlobalDependent:
@@ -462,9 +555,9 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
         Defines the global dependent layer.
 
         Args:
-            target_layer (nn.Module):
+            target_layer (torch.nn.Module):
                 Target layer to be transformed in the factorized version.
-            global_layers (nn.ModuleDict):
+            global_layers (torch.nn.ModuleDict):
                 Dictionary containing the global matrices.
             structure (dict):
                 Structure of the layer.
@@ -508,7 +601,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             self,
             average_matrix: torch.Tensor,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Defines the average matrix layer that is the layer that applies the average matrix to the input following the
         specific strategy of the class of the layer.
@@ -520,7 +613,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Additional keyword arguments.
 
         Returns:
-            nn.Module:
+            torch.nn.Module:
                 Average matrix layer.
         """
 
@@ -575,7 +668,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     def merge(
             self,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Merges the global and local layers into an equivalent linear layer.
 
@@ -584,7 +677,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Additional keyword arguments.
 
         Returns:
-            nn.Module:
+            torch.nn.Module:
                 Equivalent linear layer with merged weights and bias.
         """
 
@@ -678,7 +771,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             scope: str,
             key: str,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Returns the layer with the specified scope and key.
 
@@ -705,7 +798,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
             self,
             scope: str,
             key: str,
-            new_layer: nn.Module,
+            new_layer: torch.nn.Module,
             **kwargs
     ) -> None:
         """
@@ -716,7 +809,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
                 Scope of the layer.
             key (str):
                 Key of the layer.
-            new_layer (nn.Module):
+            new_layer (torch.nn.Module):
                 New layer to be set.
             **kwargs:
                 Additional keyword arguments.
@@ -750,7 +843,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     def get_average_matrix(
             self,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Returns the average matrix layer.
 
@@ -796,7 +889,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     @property
     def weight(
             self
-    ) -> nn.Parameter:
+    ) -> torch.nn.Parameter:
         """
         Returns the weight parameter of the layer.
 
@@ -831,7 +924,7 @@ class StructureSpecificGlobalDependent(nn.Module, MergeableLayer, ABC):
     @property
     def bias(
             self
-    ) -> nn.Parameter:
+    ) -> torch.nn.Parameter:
         """
         Returns the bias parameter of the linear layer.
 
