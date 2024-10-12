@@ -41,6 +41,7 @@ glam_svd_keys = [
 
 def get_factorized_model(
         model: transformers.AutoModel,
+        factorization_method: str,
         config: Config,
 ) -> neuroflex.GlobalDependentModel:
     """
@@ -49,6 +50,8 @@ def get_factorized_model(
     Args:
         model (transformers.AutoModel):
             The original model to factorize.
+        factorization_method (str):
+            The factorization method to use.
         config (Config):
             The configuration parameters for the experiment.
 
@@ -57,11 +60,8 @@ def get_factorized_model(
             The factorized model to use in the experiment.
     """
 
-    if not config.contains("factorization_method"):
-        raise ValueError("Factorization method not specified")
-
     alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)
-    factorization_method = config.get("factorization_method").lower()
+    factorization_method = factorization_method.lower()
 
     if factorization_method.endswith("model"):
         factorization_method = factorization_method[:-5]

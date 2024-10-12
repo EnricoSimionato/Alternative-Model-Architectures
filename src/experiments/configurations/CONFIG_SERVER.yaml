@@ -28,15 +28,15 @@ factorization_methods:
 
 target_layers:
     q_proj:
-        rank: 512
+        rank: 2048
 #        learning_rate: 0.01
 #        max_iterations: 1000
     k_proj:
-        rank: 32
+        rank: 64
 #        learning_rate: 0.01
 #        max_iterations: 1000
     v_proj:
-        rank: 32
+        rank: 64
 #        learning_rate: 0.01
 #        max_iterations: 1000
 

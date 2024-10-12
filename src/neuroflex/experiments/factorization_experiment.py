@@ -38,7 +38,7 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
 
         for factorization_method in self.config.get("factorization_methods"):
             loaded_model = self.load(f"{factorization_method}.pt", "pt")
-            prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), self.config).get_model()
+            prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
 
         return prepared_models
 
