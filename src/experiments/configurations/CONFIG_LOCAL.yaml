@@ -18,12 +18,13 @@ dtype: "float16"
 tokenizer_id: "mistralai/Mistral-7B-v0.3"
 
 ########################################        Visualization parameters        ########################################
-#figure_size: [40, 20]
+figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
     - "LocalSVD"
     - "Hadamard"
+    - "GlobalBase"
 
 target_layers:
     q_proj:
@@ -31,10 +32,12 @@ target_layers:
         learning_rate: 0.01
         max_iterations: 1000
     k_proj:
+#        rank: 128
         rank: 512
         learning_rate: 0.01
         max_iterations: 1000
     v_proj:
+#        rank: 128
         rank: 512
         learning_rate: 0.01
         max_iterations: 1000

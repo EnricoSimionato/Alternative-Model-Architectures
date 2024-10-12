@@ -21,7 +21,9 @@ tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 #figure_size: [40, 20]
 
 ########################################     Layers factorization parameters    ########################################
-factorization_method: "Hadamard"
+factorization_methods:
+    - "LocalSVD"
+    - "Hadamard"
 
 target_layers:
     q_proj:
@@ -29,11 +31,11 @@ target_layers:
         learning_rate: 0.01
         max_iterations: 1
     k_proj:
-        rank: 512
+        rank: 128
         learning_rate: 0.01
         max_iterations: 1
     v_proj:
-        rank: 512
+        rank: 128
         learning_rate: 0.01
         max_iterations: 1
 

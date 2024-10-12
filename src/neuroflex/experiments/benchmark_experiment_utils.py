@@ -1,13 +1,13 @@
 import copy
 import logging
-import os
 
 import matplotlib.pyplot as plt
 
 import torch
 import transformers
+from typing_extensions import override
 
-from exporch import GeneralPurposeExperiment, get_available_device
+from exporch import Config, GeneralPurposeExperiment, get_available_device
 from exporch.experiment import evaluate_model_on_benchmark, benchmark_id_metric_name_mapping
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm, load_tokenizer_for_causal_lm
 
@@ -19,6 +19,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
     mandatory_keys = ["benchmark_ids"]
 
+    @override
     def _run_experiment(
             self
     ) -> None:
@@ -28,7 +29,6 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         """
 
         self._perform_model_evaluation()
-        self._plot_results()
 
     def _perform_model_evaluation(
             self
@@ -116,10 +116,10 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.config.set("device", "cpu")
 
         # Preparing the models
-        original_model = self.load("original_model.pt", "pt")
+        original_model = self.load("Original Model.pt", "pt")
         if original_model is None:
             original_model = load_model_for_causal_lm(self.config)
-        prepared_models = {"original_model": original_model}
+        prepared_models = {"Original Model": original_model}
         self.log(f"Original model loaded.")
 
         tokenizer = self.load("tokenizer.pt", "pt")
@@ -170,14 +170,34 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         return {}
 
-    def _plot_results(
+    @override
+    def _postprocess_results(
             self
     ) -> None:
         """
-        Plots the results of the experiment.
+        Post-processes the results obtained from the experiment.
+        It does nothing in this case.
         """
 
-        performance_dict = self.data[0]
+        pass
+
+    @override
+    def _plot_results(
+            self,
+            config: Config,
+            data: tuple
+    ) -> None:
+        """
+        Plots the results obtained from the experiment.
+
+        Args:
+            config (Config):
+                The configuration of the experiment.
+            data (Any):
+                The data obtained from the analysis.
+        """
+
+        performance_dict = data[0]
 
         # Printing the results
         for benchmark_id in performance_dict:
@@ -186,22 +206,27 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 self.log(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
                 print(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
 
+        figure_size = config.get("figure_size") if config.contains("figure_size") else (10, 15)
         # Plotting histograms of the results
-        fig, axes = plt.subplots(1, len(list(performance_dict.keys())), figsize=(10, 5))
+        fig, axes = plt.subplots(1, len(list(performance_dict.keys())), figsize=figure_size)
         if len(list(performance_dict.keys())) == 1:
             axes = [axes]
         for i, benchmark_id in enumerate(performance_dict):
             metric = benchmark_id_metric_name_mapping[benchmark_id]
             axes[i].bar(
                 performance_dict[benchmark_id].keys(),
-                [model_performance[benchmark_id][metric] for model_performance in performance_dict[benchmark_id].values()]
+                [model_performance[benchmark_id][metric] for model_performance in performance_dict[benchmark_id].values()],
+                width=0.6
             )
             axes[i].set_title(f"Results on {benchmark_id}")
 
+
             for rect in axes[i].patches:
                 height = rect.get_height()
-                axes[i].annotate(f'{int(height)}', xy=(rect.get_x() + rect.get_width() / 2, height),
-                            xytext=(0, 5), textcoords='offset points', ha='center', va='bottom')
+                axes[i].annotate(f"{height:.3f}", xy=(rect.get_x() + rect.get_width() / 2, height),
+                            xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=10)
+
+        plt.tight_layout()
 
         # Storing the plot
         self.store(fig, "results_plot.png", "plt")
