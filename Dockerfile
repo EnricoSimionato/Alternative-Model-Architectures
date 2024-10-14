@@ -1,4 +1,4 @@
-FROM python
+FROM python:3.12-slim
 # Setting the PYTHONPATH
 ENV PYTHONPATH=/Alternative-Model-Architectures/src
 # Setting the working directory
