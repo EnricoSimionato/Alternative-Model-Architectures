@@ -3,7 +3,6 @@ path_to_storage: "src/experiments/results"
 
 experiment_type: "factorization_benchmark_evaluation"
 
-version: 13
 #just_plot: True
 
 verbose: 1
