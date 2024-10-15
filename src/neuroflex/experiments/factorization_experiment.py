@@ -34,11 +34,17 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
                 The prepared models to be evaluated.
         """
 
+        self.log("Preparing factorized models.")
+
         prepared_models = {}
 
-        for factorization_method in self.config.get("factorization_methods"):
-            loaded_model = self.load(f"{factorization_method}.pt", "pt")
-            prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+        try:
+            for factorization_method in self.config.get("factorization_methods"):
+                loaded_model = self.load(f"{factorization_method}.pt", "pt")
+                prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+        except Exception as e:
+            self.log(f"Error preparing factorized models: {e}")
+            raise e
 
         return prepared_models
 
