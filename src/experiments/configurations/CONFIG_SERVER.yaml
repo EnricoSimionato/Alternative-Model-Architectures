@@ -51,4 +51,4 @@ evaluation_args:
     arc_challenge:
         batch_size: 32
     hellaswag:
-        batch_size: 32
+        batch_size: 16
