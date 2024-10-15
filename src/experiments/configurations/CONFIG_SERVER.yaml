@@ -27,7 +27,7 @@ factorization_methods:
 
 target_layers:
     q_proj:
-        rank: 2048
+        rank: 1024
 #        learning_rate: 0.01
 #        max_iterations: 1000
 #    k_proj:
