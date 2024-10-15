@@ -38,6 +38,8 @@ target_layers:
 #        rank: 256
 #        learning_rate: 0.01
 #        max_iterations: 1000
+    gate-proj:
+        rank: 4096
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
