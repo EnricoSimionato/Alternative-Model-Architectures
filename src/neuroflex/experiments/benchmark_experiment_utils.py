@@ -119,7 +119,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         original_model = self.load("Original Model.pt", "pt")
         if original_model is None:
             original_model = load_model_for_causal_lm(self.config)
-        prepared_models = {"Original Model": original_model}
+        #prepared_models = {"Original Model": original_model}
+        prepared_models = {}
         self.log(f"Original model loaded.")
 
         tokenizer = self.load("tokenizer.pt", "pt")

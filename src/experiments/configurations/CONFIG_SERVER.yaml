@@ -31,12 +31,12 @@ target_layers:
         rank: 2048
 #        learning_rate: 0.01
 #        max_iterations: 1000
-    k_proj:
-        rank: 64
+#    k_proj:
+#        rank: 256
 #        learning_rate: 0.01
 #        max_iterations: 1000
-    v_proj:
-        rank: 64
+#    v_proj:
+#        rank: 256
 #        learning_rate: 0.01
 #        max_iterations: 1000
 
