@@ -39,7 +39,7 @@ target_layers:
 #        learning_rate: 0.01
 #        max_iterations: 1000
     gate_proj:
-        rank: 768
+        rank: 512
 #    up_proj:
 #        rank: 1024
 #    down_proj:
