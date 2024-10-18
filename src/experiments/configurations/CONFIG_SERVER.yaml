@@ -5,7 +5,7 @@ experiment_type: "factorization_benchmark_evaluation"
 
 #just_plot: True
 
-verbose: 1
+verbose: 20
 device: "cuda"
 seed: 42
 
@@ -44,8 +44,6 @@ target_layers:
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
     - "hellaswag"
-#    - "truthfulqa_mc1"
-#    - "arc_challenge"
 evaluation_args:
     truthfulqa_mc1:
         batch_size: 32
