@@ -28,20 +28,36 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         It performs the evaluation of the model on some benchmarks.
         """
 
-        self._perform_model_evaluation()
+        prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment()
+        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis)
 
-    def _perform_model_evaluation(
+    def _prepare_experiment(
             self
-    ) -> None:
+    ) -> tuple[
+         dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
+         transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
+         dict[str, dict[str, dict[str, float]]],
+         dict[str, dict[str, dict[str, float]]]
+    ]:
         """
-        Performs the evaluation of the model on the benchmarks
-        """
+        Prepares the experiment:
+            - Loads the models to be evaluated.
+            - Loads the tokenizer.
+            - Defines the remaining instances to be processed.
 
-        config = self.config
+        Returns:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+                The prepared models to be evaluated.
+            transformers.AutoTokenizer | transformers.PreTrainedTokenizer:
+                The tokenizer of the models.
+            dict[str, dict[str, dict[str, float]]]:
+                The dictionary containing the performance results.
+            dict[str, dict[str, dict[str, float]]]:
+                The dictionary containing the remaining analysis to be performed.
+        """
 
         # Initializing the dictionary to store the performance results
-        benchmark_ids = config.get("benchmark_ids")
-        device_str = get_available_device(config.get("device") if config.contains("device") else "cpu", just_string=True)
+        benchmark_ids = self.config.get("benchmark_ids")
         performance_dict = {benchmark_id: {} for benchmark_id in benchmark_ids}
 
         if self.data is not None:
@@ -63,7 +79,23 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             if len(remaining_analysis[benchmark_id]) == 0:
                 del remaining_analysis[benchmark_id]
 
-        evaluation_args = (config.get("evaluation_args") if config.contains("evaluation_args")
+        return prepared_models, tokenizer, performance_dict, remaining_analysis
+
+    def _perform_model_evaluation(
+            self,
+            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
+            performance_dict: dict[str, dict[str, dict[str, float]]],
+            remaining_analysis: dict[str, dict[str, dict[str, float]]]
+    ) -> None:
+        """
+        Performs the evaluation of the model on the benchmarks
+        """
+
+        benchmark_ids = self.config.get("benchmark_ids")
+        device_str = get_available_device(self.config.get("device") if self.config.contains("device") else "cpu", just_string=True)
+
+        evaluation_args = (self.config.get("evaluation_args") if self.config.contains("evaluation_args")
                            else {benchmark_id: {} for benchmark_id in benchmark_ids})
 
         for benchmark_id in remaining_analysis.keys():
