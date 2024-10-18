@@ -21,13 +21,13 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
-    - "LocalSVD"
+#    - "LocalSVD"
 #    - "Hadamard"
-#    - "GlobalBase"
+    - "GlobalBase"
 
 target_layers:
-    q_proj:
-        rank: 1024
+#    q_proj:
+#        rank: 1024
 #        learning_rate: 0.01
 #        max_iterations: 1000
 #    k_proj:
@@ -39,11 +39,11 @@ target_layers:
 #        learning_rate: 0.01
 #        max_iterations: 1000
     gate_proj:
-        rank: 512
-#    up_proj:
-#        rank: 1024
-#    down_proj:
-#       rank: 1024
+        rank: 1024
+    up_proj:
+        rank: 1024
+    down_proj:
+        rank: 1024
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
