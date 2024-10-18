@@ -4,7 +4,7 @@ import torch
 
 import transformers
 
-from neuroflex.experiments.benchmark_experiment_utils import BenchmarkEvaluation
+from neuroflex.experiments.benchmarking_experiment import BenchmarkEvaluation
 from neuroflex.utils.factorized_models_utils.factorized_models_utils import get_factorized_model
 
 
