@@ -1,7 +1,8 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-experiment_type: "factorization_benchmark_evaluation"
+#experiment_type: "factorization_benchmark_evaluation"
+experiment_type: "layer_replacement_fine_tuning_experiment"
 
 #just_plot: True
 
