@@ -66,8 +66,9 @@ replacement_methods:
 num_layers: 24
 
 targets:
-    - ["block_index", "mlp", "c_fc"]
-    - ["block_index", "mlp", "c_proj"]
+    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "up_proj"]
+    - ["block_index", "mlp", "down_proj"]
 
 num_checks_per_epoch: 1
 gradient_accumulation_steps: 2
