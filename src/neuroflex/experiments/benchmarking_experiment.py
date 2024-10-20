@@ -1,5 +1,6 @@
 import copy
 import logging
+import os
 
 import matplotlib.pyplot as plt
 
@@ -28,16 +29,20 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         It performs the evaluation of the model on some benchmarks.
         """
 
-        prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment()
+        already_created_performance_dict = None
+        if self.get_data() is not None:
+            already_created_performance_dict = self.get_data()[0]
+        prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis)
 
     def _prepare_experiment(
-            self
+            self,
+            already_created_performance_dict: dict[str, dict[str, dict[str, float]]] = None
     ) -> tuple[
          dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
          transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
          dict[str, dict[str, dict[str, float]]],
-         dict[str, dict[str, dict[str, float]]]
+         dict[str, list[str]]
     ]:
         """
         Prepares the experiment:
@@ -60,21 +65,21 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         benchmark_ids = self.config.get("benchmark_ids")
         performance_dict = {benchmark_id: {} for benchmark_id in benchmark_ids}
 
-        if self.data is not None:
-            already_created_performance_dict, = self.data
+        if already_created_performance_dict is not None:
             performance_dict.update(already_created_performance_dict)
             self.log(f"Previous data loaded.\nLoaded data: {performance_dict}")
 
         # Loading and preparing the models
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         prepared_models, tokenizer = self._prepare_models()
         model_ids = list(prepared_models.keys())
 
-        # Constructing a analysis that have not been evaluated yet
-        remaining_analysis = {benchmark_id: copy.deepcopy(model_ids) for benchmark_id in benchmark_ids}
+        # Finding the configurations of the analysis that have not been evaluated yet
+        remaining_analysis = {benchmark_id: list(copy.deepcopy(model_ids)) for benchmark_id in benchmark_ids}
         # Evaluating if the analysis has already been done
         for benchmark_id in benchmark_ids:
             for model_key in model_ids:
-                if model_key in performance_dict[benchmark_id]:
+                if benchmark_id in performance_dict and model_key in performance_dict[benchmark_id]:
                     remaining_analysis[benchmark_id].remove(model_key)
             if len(remaining_analysis[benchmark_id]) == 0:
                 del remaining_analysis[benchmark_id]
@@ -86,7 +91,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
             performance_dict: dict[str, dict[str, dict[str, float]]],
-            remaining_analysis: dict[str, dict[str, dict[str, float]]]
+            remaining_analysis: dict[str, list[str]]
     ) -> None:
         """
         Performs the evaluation of the model on the benchmarks
@@ -110,8 +115,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
-                #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
+                #results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
+                results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}")
                 print(f"Results of the model {model_key}: {results}")
 
@@ -119,7 +124,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 performance_dict[benchmark_id][model_key] = results
                 self.log(f"Performance dictionary updated with the results.")
 
-                # Moving the model to the CPU in order to be able to evaluate the next model
+                # Moving the model to the CPU to be able to evaluate the next model
                 model.cpu()
 
             # Storing the data
@@ -151,8 +156,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         original_model = self.load("Original Model.pt", "pt")
         if original_model is None:
             original_model = load_model_for_causal_lm(self.config)
-        #prepared_models = {"Original Model": original_model}
-        prepared_models = {}
+        prepared_models = {"Original Model": original_model}
         self.log(f"Original model loaded.")
 
         tokenizer = self.load("tokenizer.pt", "pt")

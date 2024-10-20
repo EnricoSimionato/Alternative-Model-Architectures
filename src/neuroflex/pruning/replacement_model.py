@@ -48,7 +48,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
         )
 
     @override
-    def pre_process_source_layers(
+    def preprocess_source_layers(
             self,
             source_layer_path_source_layer_mapping: dict[list | tuple: torch.nn.Module]
     ) -> dict[list | tuple: torch.nn.Module]:
@@ -147,7 +147,7 @@ def get_layer_replaced_model(
         model: transformers.AutoModel,
         replacement_method: str,
         destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple],
-        config: Config,
+        config: Config
 ) -> ProcessedLayerReplacingModelWrapper:
     """
     Returns the model with the replaced layers based on the given replacement method.
@@ -171,12 +171,18 @@ def get_layer_replaced_model(
     replacement_method = replacement_method.lower()
 
     if replacement_method == "sharedaveragelayer":
-        layer_replaced_model = ProcessedLayerReplacingModelWrapper(
+        layer_replaced_model = SharedAverageLayerReplacingModelWrapper(
             model,
             destination_layer_path_source_layer_path_mapping
         )
     else:
         raise ValueError("Replacement method not recognized")
+
+    for i in range(config.get("num_layers")):
+        print(layer_replaced_model.model.transformer.h[i].mlp.c_fc.weight)
+    print("############################################################################################################################")
+    for i in range(config.get("num_layers")):
+        print(layer_replaced_model.model.transformer.h[i].mlp.c_proj.weight)
 
     return layer_replaced_model
 
