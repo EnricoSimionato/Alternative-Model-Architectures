@@ -43,6 +43,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             already_created_performance_dict = self.get_data()[0]
         # Preparing the models, the tokenizer and the performance dictionary
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
+
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis)
         # Fine-tuning the models
@@ -117,6 +118,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
             _, fit_test = self._test(pl_model, pl_trainer, pl_dataset)
 
             fine_tuned_models[model_key] = pl_model.model
+
+        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
+            fine_tuned_models["Original Model"] = prepared_models["Original Model"]
 
         return fine_tuned_models, tokenizer
 
