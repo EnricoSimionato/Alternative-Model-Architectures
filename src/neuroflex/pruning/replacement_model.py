@@ -180,12 +180,13 @@ def get_layer_replaced_model(
     else:
         raise ValueError("Replacement method not recognized")
 
+    """
     for i in range(config.get("num_layers")):
         print(layer_replaced_model.model.transformer.h[i].mlp.c_fc.weight)
     print("############################################################################################################################")
     for i in range(config.get("num_layers")):
         print(layer_replaced_model.model.transformer.h[i].mlp.c_proj.weight)
-
+    """
     return layer_replaced_model
 
 
