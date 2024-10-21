@@ -2,12 +2,13 @@ import sys
 
 from exporch import GeneralPurposeExperimentFactory
 
-from neuroflex.experiments.factorization_experiment import FactorizationBenchmarkEvaluation
-from neuroflex.experiments.layer_replacement_fine_tuning_experiment import LayerReplacementFineTuningExperiment
+from neuroflex.experiments.factorization_experiment import FactorizationBenchmarkEvaluation, FactorizationFineTuningExperiment
+from neuroflex.experiments.layer_replacement_experiment import LayerReplacementFineTuningExperiment
 
 
 GeneralPurposeExperimentFactory.register({
     "factorization_benchmark_evaluation": FactorizationBenchmarkEvaluation,
+    "factorization_fine_tuning_experiment": FactorizationFineTuningExperiment,
 
     "layer_replacement_fine_tuning_experiment": LayerReplacementFineTuningExperiment
 })
