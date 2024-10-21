@@ -134,11 +134,13 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             print(f"Error computing the average layer weight: {e}")
             raise e
         try:
+            print([layer for layer in layers_to_average])
+            print([layer.bias for layer in layers_to_average])
+            print([layer.bias.data for layer in layers_to_average])
             bias = torch.mean(torch.stack([layer.bias.data for layer in layers_to_average]), dim=0)
             average_layer.bias = torch.nn.Parameter(bias)
         except AttributeError as e:
             print(f"Error computing the average layer bias: {e}")
-            raise e
 
         return average_layer
 
