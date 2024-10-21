@@ -64,6 +64,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
                 The pre-processed source layers.
         """
 
+        print("Preprocessing the source layers.")
         source_layer_path_average_layer_mapping = {}
 
         source_layer_path_source_layer_grouped_mapping = self.group_layers(source_layer_path_source_layer_mapping)
@@ -71,7 +72,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             average_layer = self.compute_average_layer(source_layers_to_average)
             for source_layer_path in source_layer_paths:
                 source_layer_path_average_layer_mapping.update({source_layer_path: average_layer})
-
+        print("Preprocessing done.")
         return source_layer_path_average_layer_mapping
 
     @staticmethod
@@ -126,6 +127,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
                 The average layer.
         """
 
+        print("Computing the average layer.")
         average_layer = copy.deepcopy(layers_to_average[0])
         try:
             weight = torch.mean(torch.stack([layer.weight.data for layer in layers_to_average]), dim=0)
@@ -143,6 +145,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             print(f"Error computing the average layer bias: {e}")
             print("Setting the layer to have no bias.")
             average_layer.bias = None
+        print("Average layer computed.")
 
         return average_layer
 
