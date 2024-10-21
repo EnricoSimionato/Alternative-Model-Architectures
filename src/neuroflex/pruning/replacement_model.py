@@ -129,7 +129,11 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
         average_layer = copy.deepcopy(layers_to_average[0])
         try:
             print("Computing the average weight.")
-            weight = torch.mean(torch.stack([layer.weight.data for layer in layers_to_average]), dim=0)
+            weight = layers_to_average[0].weight.data
+            for layer in layers_to_average[1:]:
+                weight += layer.weight.data
+            weight /= len(layers_to_average)
+            #weight = torch.mean(torch.stack([layer.weight.data for layer in layers_to_average]), dim=0)
             print("Average weight computed.")
             #print(weight)
             average_layer.weight = torch.nn.Parameter(weight)
