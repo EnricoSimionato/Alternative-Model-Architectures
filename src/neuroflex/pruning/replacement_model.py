@@ -130,14 +130,17 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
         print("Computing the average layer.")
         average_layer = copy.deepcopy(layers_to_average[0])
         try:
+            print("Computing the average weight.")
             weight = torch.mean(torch.stack([layer.weight.data for layer in layers_to_average]), dim=0)
-            print(weight)
+            print("Average weight computed.")
+            #print(weight)
             average_layer.weight = torch.nn.Parameter(weight)
             print(average_layer.weight)
         except AttributeError as e:
             print(f"Error computing the average layer weight: {e}")
             raise e
         try:
+            print("Computing the average bias.")
             bias = torch.mean(torch.stack([layer.bias.data for layer in layers_to_average]), dim=0)
             average_layer.bias = torch.nn.Parameter(bias)
             print(average_layer.bias)
