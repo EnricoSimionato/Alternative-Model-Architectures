@@ -46,10 +46,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis)
+
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
+        for model_key in fine_tuned_models:
+            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
+
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis)
+
+        self.log("The experiment has been completed.", print_message=True)
 
     def _perform_fine_tuning(
          self,
@@ -91,12 +97,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
             )
             pl_dataset.setup()
             self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
-            print(f"Batch size: {self.config.get('batch_size')}")
-            print(f"Max steps: {self.config.get('max_steps')}")
-            print(f"Max epochs: {self.config.get('max_epochs')}")
-            print(f"Len train dataloader: {len(pl_dataset.train_dataloader())}")
-            print(f"Len val dataloader: {len(pl_dataset.val_dataloader())}")
-            print(f"Len test dataloader: {len(pl_dataset.test_dataloader())}")
 
             # Creating the model
             pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
@@ -108,10 +108,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             # Validating the model before training
             #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
-
             # Training the model
             _ = self._fit(pl_model, pl_trainer, pl_dataset)
-
             # Validating the model after training
             _, fit_validation = self._validate(pl_model, pl_trainer, pl_dataset)
             # Testing the model
