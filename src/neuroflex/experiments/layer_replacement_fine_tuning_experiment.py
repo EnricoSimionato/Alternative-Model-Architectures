@@ -46,7 +46,6 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
             for replacement_method in self.config.get("replacement_methods"):
                 loaded_model = self.load(f"{replacement_method}.pt", "pt")
                 if loaded_model is None:
-                    print("Creating the modelgfdabgfdhasbghafsbdkhj")
                     prepared_models[f"{replacement_method}"] = get_layer_replaced_model(
                         #copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.config
                         base_model, replacement_method, self.get_layers_replacement_mapping(), self.config
