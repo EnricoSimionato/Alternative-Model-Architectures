@@ -70,9 +70,9 @@ targets:
     - ["block_index", "mlp", "up_proj"]
     - ["block_index", "mlp", "down_proj"]
 
-num_checks_per_epoch: 1
+num_checks_per_epoch: 10
 gradient_accumulation_steps: 2
-max_len: 128
+max_len: 256
 
 optimizers_settings:
     - optimizer: "AdamW"
@@ -81,7 +81,6 @@ optimizers_settings:
       warmup_steps: 100
       monitored_metric: "loss"
 
-max_steps: 1000
 max_epochs: 1
 
 split:
