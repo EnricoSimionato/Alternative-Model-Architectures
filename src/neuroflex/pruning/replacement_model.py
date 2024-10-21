@@ -64,7 +64,6 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
                 The pre-processed source layers.
         """
 
-        print("Preprocessing the source layers.")
         source_layer_path_average_layer_mapping = {}
 
         source_layer_path_source_layer_grouped_mapping = self.group_layers(source_layer_path_source_layer_mapping)
@@ -72,7 +71,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             average_layer = self.compute_average_layer(source_layers_to_average)
             for source_layer_path in source_layer_paths:
                 source_layer_path_average_layer_mapping.update({source_layer_path: average_layer})
-        print("Preprocessing done.")
+
         return source_layer_path_average_layer_mapping
 
     @staticmethod
@@ -127,7 +126,6 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
                 The average layer.
         """
 
-        print("Computing the average layer.")
         average_layer = copy.deepcopy(layers_to_average[0])
         try:
             print("Computing the average weight.")
@@ -137,6 +135,9 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             average_layer.weight = torch.nn.Parameter(weight)
             print(average_layer.weight)
         except AttributeError as e:
+            print(f"Error computing the average layer weight: {e}")
+            raise e
+        except Exception as e:
             print(f"Error computing the average layer weight: {e}")
             raise e
         try:
