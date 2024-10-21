@@ -71,9 +71,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The tokenizer used.
         """
 
-        self.prepare_fine_tuning(prepared_models)
+        self._prepare_fine_tuning(prepared_models)
 
-        fine_tuned_models = {model_key: None for model_key in prepared_models}
+        fine_tuned_models = {model_key: None for model_key in prepared_models if model_key != "Original Model"}
+        if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
+            fine_tuned_models["Original Model"] = None
 
         # Creating the PyTorch Lightning model
         for model_key in fine_tuned_models:
@@ -97,14 +99,18 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             # Creating the model
             pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
+            self.log(f"Model wrapped with PyTorch Lightning.")
 
             # Creating the trainer
             pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+            self.log(f"PyTorch Lightning Trainer created.")
 
             # Validating the model before training
             #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+
             # Training the model
             _ = self._fit(pl_model, pl_trainer, pl_dataset)
+
             # Validating the model after training
             _, fit_validation = self._validate(pl_model, pl_trainer, pl_dataset)
             # Testing the model
@@ -114,7 +120,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         return fine_tuned_models, tokenizer
 
-    def prepare_fine_tuning(
+    def _prepare_fine_tuning(
             self,
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
     ) -> None:
@@ -129,6 +135,45 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
+
+        self.prepare_fine_tuning(prepared_models)
+
+    def prepare_fine_tuning(
+            self,
+            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
+    ) -> None:
+        """
+        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+
+        Args:
+            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
+                The models to fine-tune.
+        """
+
+        for model_key in prepared_models:
+            model = prepared_models[model_key]
+            for parameter in model.parameters():
+                parameter.requires_grad = False
+            layers_to_train = []
+            get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
+            for layer in layers_to_train:
+                try:
+                    layer.weight.requires_grad = True
+                except AttributeError as e:
+                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute weight.")
+                    raise e
+                try:
+                    layer.bias.requires_grad = True
+                except AttributeError:
+                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
+                    self.log("Continuing the process.")
+
+            self.log(f"Model with model key: {model_key}")
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    self.log(f"Parameter {name} is set to trainable.")
+                else:
+                    self.log(f"Parameter {name} is NOT trainable!")
 
     def _fit(
             self,
@@ -244,3 +289,87 @@ class FineTuningExperiment(BenchmarkEvaluation):
         """
 
         pass
+
+
+#TODO put into exporch
+
+import copy
+
+
+def get_parameters(
+        module_tree: [torch.nn.Module | transformers.AutoModel],
+        target_paths: list,
+        layers_storage: [],
+        blacklist: list = (),
+        path: list = None,
+        **kwargs
+) -> None:
+    """
+    Extracts the matrices from the model tree.
+
+    Args:
+        module_tree ([torch.nn.Module | transformers.AutoModel]):
+            The model tree.
+        target_paths (list):
+            The path of the targets.
+        layers_storage (AnalysisTensorDict):
+            Storage where the extracted layers will be at the end of the extraction.
+        blacklist (list, optional):
+            The list of blacklisted paths. Defaults to ().
+        path (list, optional):
+            The path to the current layer. Defaults to None.
+    """
+
+    for layer_name in module_tree._modules.keys():
+        # Extracting the child from the current module
+        child = module_tree._modules[layer_name]
+        layer_path = copy.deepcopy(path) + [f"{layer_name}"] if path is not None else [f"{layer_name}"]
+
+        if len(child._modules) == 0:
+            target_paths_in_current_path = [
+                is_subsequence(
+                    [sub_path for sub_path in target_path if sub_path != "block_index"],
+                    layer_path
+                ) and not any(blacklisted_string in layer_path for blacklisted_string in blacklist)
+                for target_path in target_paths]
+            if sum(target_paths_in_current_path) > 1:
+                raise Exception(f"The layer {layer_path} corresponds to multiple targets.")
+            if any(target_paths_in_current_path):
+                # Storing the layer in the dictionary of extracted layers
+                layers_storage.append(child)
+        else:
+            # Recursively calling the function
+            get_parameters(
+                module_tree=child,
+                target_paths=target_paths,
+                layers_storage=layers_storage,
+                blacklist=blacklist,
+                path=layer_path,
+                **kwargs
+            )
+
+def is_subsequence(
+        subsequence: list | tuple,
+        sequence: list | tuple
+) -> bool:
+    """
+    Checks if a sequence is a subsequence of another sequence.
+
+    Args:
+        subsequence (list | tuple):
+            The subsequence.
+        sequence (list | tuple):
+            The sequence.
+
+    Returns:
+        bool:
+            True if the subsequence is a subsequence of the sequence, False otherwise.
+    """
+
+    i = 0
+    for element in sequence:
+        if element == subsequence[i]:
+            i += 1
+        if i == len(subsequence):
+            return True
+    return False

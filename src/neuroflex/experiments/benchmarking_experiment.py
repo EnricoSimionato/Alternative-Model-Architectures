@@ -135,8 +135,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
         self.log("All data stored.")
 
-        self.log("The analysis has been completed.")
-        print("The analysis has been completed.")
+        self.log("The evaluation of the models on the benchmarks has been completed.")
+        print("The evaluation of the models on the benchmarks has been completed.")
 
     def _prepare_models(
             self
