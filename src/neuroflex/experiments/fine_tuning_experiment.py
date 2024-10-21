@@ -22,7 +22,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
     evaluation on the same benchmark again.
     """
 
-    mandatory_keys = ["task_id", "optimizers_settings", "max_steps"]
+    mandatory_keys = ["task_id", "optimizers_settings"]
 
     @override
     def _run_experiment(
