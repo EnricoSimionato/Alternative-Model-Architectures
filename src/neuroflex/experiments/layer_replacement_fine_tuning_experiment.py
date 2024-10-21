@@ -41,6 +41,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
 
         prepared_models = {}
 
+        base_model.cpu()
         try:
             for replacement_method in self.config.get("replacement_methods"):
                 loaded_model = self.load(f"{replacement_method}.pt", "pt")

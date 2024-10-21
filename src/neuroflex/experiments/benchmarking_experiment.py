@@ -91,7 +91,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
             performance_dict: dict[str, dict[str, dict[str, float]]],
-            remaining_analysis: dict[str, list[str]]
+            remaining_analysis: dict[str, list[str]],
+            performance_dict_storage_slot: int = 0
     ) -> None:
         """
         Performs the evaluation of the model on the benchmarks
@@ -128,9 +129,10 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 model.cpu()
 
             # Storing the data
-            self.data = (performance_dict,)
+            data = list(self.load_data())
+            data[performance_dict_storage_slot] = performance_dict
             self.log(f"Trying to store the results on benchmark {benchmark_id}...")
-            self.store_data()
+            self.store_data(tuple(data))
             self.log(f"All results on {benchmark_id} stored.")
 
         self.log("All data stored.")
