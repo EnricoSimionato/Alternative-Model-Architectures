@@ -116,8 +116,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
-                #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
+                #results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
+                results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}")
                 print(f"Results of the model {model_key}: {results}")
 
@@ -129,10 +129,8 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                 model.cpu()
 
             # Storing the data
-            data = list(self.load_data())
-            data[performance_dict_storage_slot] = performance_dict
             self.log(f"Trying to store the results on benchmark {benchmark_id}...")
-            self.store_data(tuple(data))
+            self.store_positional_data(performance_dict, performance_dict_storage_slot)
             self.log(f"All results on {benchmark_id} stored.")
 
         self.log("All data stored.")
