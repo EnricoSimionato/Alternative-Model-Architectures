@@ -130,7 +130,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
             # Storing the data
             self.log(f"Trying to store the results on benchmark {benchmark_id}...")
-            self.store_positional_data(performance_dict, performance_dict_storage_slot)
+            self.set_data(performance_dict, performance_dict_storage_slot, store=True)
             self.log(f"All results on {benchmark_id} stored.")
 
         self.log("All data stored.")
