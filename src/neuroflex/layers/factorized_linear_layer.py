@@ -871,6 +871,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
     ) -> None:
         kwargs["rank"] = rank
         kwargs["initialization_type"] = initialization_type
+        kwargs["initialize_matrices_later"] = True
         super().__init__(
             target_layer,
             global_layers,

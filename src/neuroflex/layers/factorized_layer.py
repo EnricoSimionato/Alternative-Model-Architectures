@@ -457,7 +457,7 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             average_matrix,
         )
 
-        self.initialize_matrices(**{"target_layer": target_layer}, **kwargs)
+        self._initialize_matrices(**{"target_layer": target_layer}, **kwargs)
 
         self.path = kwargs["path"]
         list_containing_layer_number = [subpath for subpath in kwargs["path"].split("_") if subpath.isdigit()]
@@ -646,6 +646,17 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             return output + self.get_average_matrix().forward(x)
         else:
             return output
+
+    def _initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
+
+        if not ("initialize_matrices_later" in kwargs and kwargs["initialize_matrices_later"]):
+            self.initialize_matrices(**kwargs)
 
     @abstractmethod
     def initialize_matrices(
