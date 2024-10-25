@@ -2,8 +2,8 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-#experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "factorization_fine_tuning_experiment"
 
 #just_plot: True
 #version: 0
@@ -23,8 +23,8 @@ tokenizer_id: "mistralai/Mistral-7B-v0.3"
 figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
-factorization_methods:
-    - "LocalSVD"
+#factorization_methods:
+à    - "LocalSVD"
 #    - "Hadamard"
 #    - "GlobalBase"
 
