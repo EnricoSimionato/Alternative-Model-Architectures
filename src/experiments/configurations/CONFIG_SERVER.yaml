@@ -24,7 +24,7 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 #factorization_methods:
-à    - "LocalSVD"
+#    - "LocalSVD"
 #    - "Hadamard"
 #    - "GlobalBase"
 
