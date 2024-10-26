@@ -154,6 +154,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         self.prepare_fine_tuning(prepared_models)
 
+        for model_key in prepared_models:
+            self.log(f"Model with model key: {model_key}")
+            model = prepared_models[model_key]
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    self.log(f"Parameter {name} is set to trainable.")
+                else:
+                    self.log(f"Parameter {name} is NOT trainable!")
+
+
     def prepare_fine_tuning(
             self,
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
@@ -183,13 +193,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 except AttributeError:
                     self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
                     self.log("Continuing the process.")
-
-            self.log(f"Model with model key: {model_key}")
-            for name, param in model.named_parameters():
-                if param.requires_grad:
-                    self.log(f"Parameter {name} is set to trainable.")
-                else:
-                    self.log(f"Parameter {name} is NOT trainable!")
 
     def _fit(
             self,

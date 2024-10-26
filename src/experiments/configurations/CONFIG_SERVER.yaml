@@ -13,11 +13,13 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "google/gemma-2-2b"
+#model_id: "mistralai/Mistral-7B-v0.3"
 dtype: "float16"
 
 ########################################   Tokenizer configuration parameters   ########################################
-tokenizer_id: "mistralai/Mistral-7B-v0.3"
+#tokenizer_id: "mistralai/Mistral-7B-v0.3"
+tokenizer_id: "google/gemma-2-2b"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
