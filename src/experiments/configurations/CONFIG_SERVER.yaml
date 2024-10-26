@@ -76,12 +76,12 @@ replacement_methods:
 num_layers: 24
 
 targets:
-    - ["block_index", "mlp", "gate_proj"]
-    - ["block_index", "mlp", "up_proj"]
-    - ["block_index", "mlp", "down_proj"]
+    #- ["block_index", "mlp", "gate_proj"]
+    #- ["block_index", "mlp", "up_proj"]
+    #- ["block_index", "mlp", "down_proj"]
     - ["block_index", "c_fc"]
     - ["block_index", "c_proj"]
-    -
+
 num_checks_per_epoch: 10
 gradient_accumulation_steps: 2
 max_len: 256
