@@ -44,11 +44,11 @@ target_layers:
 #        learning_rate: 0.01
 #        max_iterations: 1000
     gate_proj:
-        rank: 1024
+        rank: 128
     up_proj:
-        rank: 1024
+        rank: 128
     down_proj:
-        rank: 1024
+        rank: 128
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -67,7 +67,7 @@ dataset_id: "wikitext2"
 
 replacement_methods:
     - "sharedaveragelayer"
-num_layers: 32
+num_layers: 26
 
 targets:
     - ["block_index", "mlp", "gate_proj"]

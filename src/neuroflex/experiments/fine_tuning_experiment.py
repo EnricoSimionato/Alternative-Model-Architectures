@@ -152,7 +152,24 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
 
-        self.prepare_fine_tuning(prepared_models)
+
+
+        for model_key in prepared_models:
+            model = prepared_models[model_key]
+            for parameter in model.parameters():
+                parameter.requires_grad = False
+            layers_to_train = self.prepare_fine_tuning(prepared_models)
+            for layer in layers_to_train:
+                try:
+                    layer.weight.requires_grad = True
+                except AttributeError as e:
+                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute weight.")
+                    raise e
+                try:
+                    layer.bias.requires_grad = True
+                except AttributeError:
+                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
+                    self.log("Continuing the process.")
 
         for model_key in prepared_models:
             self.log(f"Model with model key: {model_key}")
@@ -166,33 +183,24 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
     def prepare_fine_tuning(
             self,
-            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
-    ) -> None:
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> list:
         """
         Prepares the fine-tuning of the models. This method can be overridden to add more operations.
 
         Args:
-            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
-                The models to fine-tune.
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to fine-tune.
+
+        Returns:
+            list:
+                The layers to train.
         """
 
-        for model_key in prepared_models:
-            model = prepared_models[model_key]
-            for parameter in model.parameters():
-                parameter.requires_grad = False
-            layers_to_train = []
-            get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
-            for layer in layers_to_train:
-                try:
-                    layer.weight.requires_grad = True
-                except AttributeError as e:
-                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute weight.")
-                    raise e
-                try:
-                    layer.bias.requires_grad = True
-                except AttributeError:
-                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
-                    self.log("Continuing the process.")
+        layers_to_train = []
+        get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
+
+        return layers_to_train
 
     def _fit(
             self,
