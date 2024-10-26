@@ -13,15 +13,15 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-model_id: "EleutherAI/gpt-neo-1.3B"
+#model_id: "EleutherAI/gpt-neo-1.3B"
 #model_id: "google/gemma-2-2b"
-#model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "mistralai/Mistral-7B-v0.3"
 dtype: "float16"
 
 ########################################   Tokenizer configuration parameters   ########################################
-#tokenizer_id: "mistralai/Mistral-7B-v0.3"
+tokenizer_id: "mistralai/Mistral-7B-v0.3"
 #tokenizer_id: "google/gemma-2-2b"
-tokenizer_id: "EleutherAI/gpt-neo-1.3B"
+#tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
@@ -76,11 +76,11 @@ replacement_methods:
 num_layers: 24
 
 targets:
-    #- ["block_index", "mlp", "gate_proj"]
-    #- ["block_index", "mlp", "up_proj"]
-    #- ["block_index", "mlp", "down_proj"]
-    - ["block_index", "c_fc"]
-    - ["block_index", "c_proj"]
+    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "up_proj"]
+    - ["block_index", "mlp", "down_proj"]
+    #- ["block_index", "c_fc"]
+    #- ["block_index", "c_proj"]
 
 num_checks_per_epoch: 10
 gradient_accumulation_steps: 2
