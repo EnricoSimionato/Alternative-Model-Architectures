@@ -437,7 +437,7 @@ class GlobalDependentModel(ABC, nn.Module):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
             Whether to preserve the target model or to change directly it.
-        verbose (int):
+        verbose (Verbose):
             Verbosity level.
         **kwargs:
             Additional keyword arguments.
@@ -472,6 +472,7 @@ class GlobalDependentModel(ABC, nn.Module):
             **kwargs
     ) -> None:
         nn.Module.__init__(self)
+        self.verbose = verbose
 
         if not from_pretrained:
             if target_model is None or target_layers is None:

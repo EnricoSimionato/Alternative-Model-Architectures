@@ -95,7 +95,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
         if "Original Model" in prepared_models.keys() and "Original Model" not in fine_tuned_models.keys():
-            self.log("Evaluating the original model.")
+            self.log("Evaluating the original model.", print_message=True)
             # Creating the model
             pl_model = get_pytorch_lightning_model(prepared_models["Original Model"], tokenizer, self.config.get("task_id"), self.config)
             # Creating the trainer
@@ -110,11 +110,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             # Creating the model
             pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
-            self.log(f"Model wrapped with PyTorch Lightning.")
+            self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
 
             # Creating the trainer
             pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-            self.log(f"PyTorch Lightning Trainer created.")
+            self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
             # Validating the model before training
             #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
