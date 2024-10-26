@@ -104,6 +104,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
             _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
             self.log(validation_results)
 
+            prepared_models["Original Model"].cpu()
+
         # Creating the PyTorch Lightning model
         for model_key in fine_tuned_models:
             base_model = prepared_models[model_key]
