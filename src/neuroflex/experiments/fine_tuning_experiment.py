@@ -158,7 +158,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             model = prepared_models[model_key]
             for parameter in model.parameters():
                 parameter.requires_grad = False
-            layers_to_train = self.prepare_fine_tuning(prepared_models)
+            layers_to_train = self.prepare_fine_tuning(model)
             for layer in layers_to_train:
                 try:
                     layer.weight.requires_grad = True

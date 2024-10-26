@@ -13,13 +13,15 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-model_id: "google/gemma-2-2b"
+model_id: "EleutherAI/gpt-neo-1.3B"
+#model_id: "google/gemma-2-2b"
 #model_id: "mistralai/Mistral-7B-v0.3"
 dtype: "float16"
 
 ########################################   Tokenizer configuration parameters   ########################################
 #tokenizer_id: "mistralai/Mistral-7B-v0.3"
-tokenizer_id: "google/gemma-2-2b"
+#tokenizer_id: "google/gemma-2-2b"
+tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
@@ -48,6 +50,10 @@ target_layers:
     up_proj:
         rank: 128
     down_proj:
+        rank: 128
+    c_fc:
+        rank: 128
+    c_proj:
         rank: 128
 
 ########################################          Benchmarks parameters         ########################################
