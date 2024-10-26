@@ -45,7 +45,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
 
         # Evaluating the models on the benchmarks
-        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
@@ -53,7 +53,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
 
         # Evaluating the fine-tuned models on the benchmarks
-        self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
+        #self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
         self.log("The experiment has been completed.", print_message=True)
 
