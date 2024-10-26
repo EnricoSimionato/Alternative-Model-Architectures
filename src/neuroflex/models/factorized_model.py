@@ -1315,9 +1315,9 @@ class LocalSVDModel(GlobalDependentModel):
 
         return conversions
 
-"""
+
 class GlobalBaseModel(GlobalDependentModel):
-    ""
+    """
     Model with GlobalBaseLinear layers replacing linear layers.
 
     Args:
@@ -1348,7 +1348,7 @@ class GlobalBaseModel(GlobalDependentModel):
             Verbosity level.
         **kwargs:
             Additional keyword arguments.
-    ""
+    """
 
     def __init__(
             self,
@@ -1381,7 +1381,7 @@ class GlobalBaseModel(GlobalDependentModel):
             self,
             **kwargs
     ) -> dict:
-        ""
+        """
         Define the conversion of layers into global-base layers.
 
         Args:
@@ -1390,7 +1390,7 @@ class GlobalBaseModel(GlobalDependentModel):
 
         Returns:
             Dictionary mapping layer types to corresponding global-base layer classes.
-        ""
+        """
 
         conversions = {
             nn.Linear: GlobalBaseLinear,
@@ -1398,7 +1398,7 @@ class GlobalBaseModel(GlobalDependentModel):
         }
 
         return conversions
-"""
+
 
 import copy
 
@@ -1482,7 +1482,7 @@ def is_subsequence(
     return False
 
 
-class GlobalBaseModel(GlobalDependentModel):
+class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
     """
     Model with GlobalBaseLinear layers replacing linear layers.
 

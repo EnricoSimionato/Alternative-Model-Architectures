@@ -122,8 +122,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
             _ = self._fit(pl_model, pl_trainer, pl_dataset)
             # Validating the model after training
             _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+            self.log(validation_results)
             # Testing the model
             _, test_results = self._test(pl_model, pl_trainer, pl_dataset)
+            self.log(test_results)
 
             fine_tuned_models[model_key] = pl_model.model
 
