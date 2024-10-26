@@ -84,19 +84,29 @@ class FineTuningExperiment(BenchmarkEvaluation):
         if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
             fine_tuned_models["Original Model"] = None
 
+        # Creating the dataset
+        pl_dataset = get_pytorch_lightning_dataset(
+            self.config.get("dataset_id"),
+            tokenizer,
+            self.config.get("max_len"),
+            self.config
+        )
+        pl_dataset.setup()
+        self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
+
+        if "Original Model" in prepared_models.keys() and "Original Model" not in fine_tuned_models.keys():
+            self.log("Evaluating the original model.")
+            # Creating the model
+            pl_model = get_pytorch_lightning_model(prepared_models["Original Model"], tokenizer, self.config.get("task_id"), self.config)
+            # Creating the trainer
+            pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+            # Validating the original model
+            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+            self.log(validation_results)
+
         # Creating the PyTorch Lightning model
         for model_key in fine_tuned_models:
             base_model = prepared_models[model_key]
-
-            # Creating the dataset
-            pl_dataset = get_pytorch_lightning_dataset(
-                self.config.get("dataset_id"),
-                tokenizer,
-                self.config.get("max_len"),
-                self.config
-            )
-            pl_dataset.setup()
-            self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
             # Creating the model
             pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
@@ -111,9 +121,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
             # Training the model
             _ = self._fit(pl_model, pl_trainer, pl_dataset)
             # Validating the model after training
-            _, fit_validation = self._validate(pl_model, pl_trainer, pl_dataset)
+            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
             # Testing the model
-            _, fit_test = self._test(pl_model, pl_trainer, pl_dataset)
+            _, test_results = self._test(pl_model, pl_trainer, pl_dataset)
 
             fine_tuned_models[model_key] = pl_model.model
 
