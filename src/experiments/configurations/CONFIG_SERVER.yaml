@@ -73,7 +73,7 @@ dataset_id: "wikitext2"
 
 replacement_methods:
     - "sharedaveragelayer"
-num_layers: 26
+num_layers: 24
 
 targets:
     - ["block_index", "mlp", "gate_proj"]
