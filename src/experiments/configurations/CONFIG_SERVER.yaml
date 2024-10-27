@@ -46,11 +46,11 @@ target_layers:
 #        learning_rate: 0.01
 #        max_iterations: 1000
     gate_proj:
-        rank: 128
+        rank: 512
     up_proj:
-        rank: 128
+        rank: 512
     down_proj:
-        rank: 128
+        rank: 512
     c_fc:
         rank: 128
     c_proj:
@@ -99,5 +99,5 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 1
+batch_size: 4
 num_workers: 2
