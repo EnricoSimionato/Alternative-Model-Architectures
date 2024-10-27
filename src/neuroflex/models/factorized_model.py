@@ -39,7 +39,7 @@ from neuroflex.layers.factorized_embedding_layer import (
     GlobalFixedBaseEmbedding
 )
 
-from neuroflex.utils.parameters_count import count_parameters
+from exporch.utils.parameters_count import count_parameters
 
 
 class LoggingInterface(ABC):

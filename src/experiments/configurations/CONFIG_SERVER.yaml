@@ -2,8 +2,8 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-#experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "factorization_fine_tuning_experiment"
 
 #just_plot: True
 #version: 0
@@ -87,7 +87,7 @@ gradient_accumulation_steps: 2
 max_len: 256
 
 optimizers_settings:
-    - optimizer: "Adam"
+    - optimizer: "AdamW"
       learning_rate: 0.01
       #lr_scheduler: "cosine_with_warmup"
       #warmup_steps: 100
