@@ -2,8 +2,8 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-experiment_type: "layer_replacement_fine_tuning_experiment"
-#experiment_type: "factorization_fine_tuning_experiment"
+àexperiment_type: "layer_replacement_fine_tuning_experiment"
+experiment_type: "factorization_fine_tuning_experiment"
 
 #just_plot: True
 #version: 0
@@ -79,8 +79,6 @@ targets:
     - ["block_index", "mlp", "gate_proj"]
     - ["block_index", "mlp", "up_proj"]
     - ["block_index", "mlp", "down_proj"]
-    #- ["block_index", "c_fc"]
-    #- ["block_index", "c_proj"]
 
 num_checks_per_epoch: 10
 gradient_accumulation_steps: 2
