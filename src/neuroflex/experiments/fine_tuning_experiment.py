@@ -45,7 +45,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
 
         # Evaluating the models on the benchmarks
-        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
@@ -53,7 +53,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
 
         # Evaluating the fine-tuned models on the benchmarks
-        self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
+        #self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
         self.log("The experiment has been completed.", print_message=True)
 
@@ -152,14 +152,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
 
-
-
         for model_key in prepared_models:
             model = prepared_models[model_key]
             for parameter in model.parameters():
                 parameter.requires_grad = False
             layers_to_train = self.prepare_fine_tuning(model)
+            print(layers_to_train)
             for layer in layers_to_train:
+                print(layer)
                 try:
                     layer.weight.requires_grad = True
                 except AttributeError as e:

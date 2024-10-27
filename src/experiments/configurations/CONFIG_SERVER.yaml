@@ -33,8 +33,8 @@ factorization_methods:
 #    - "GlobalBase"
 
 target_layers:
-#    q_proj:
-#        rank: 1024
+    q_proj:
+        rank: 1024
 #        learning_rate: 0.01
 #        max_iterations: 1000
 #    k_proj:
@@ -45,12 +45,12 @@ target_layers:
 #        rank: 256
 #        learning_rate: 0.01
 #        max_iterations: 1000
-    gate_proj:
-        rank: 128
-    up_proj:
-        rank: 128
-    down_proj:
-        rank: 128
+#    gate_proj:
+#        rank: 128
+#    up_proj:
+#        rank: 128
+#    down_proj:
+#        rank: 128
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
