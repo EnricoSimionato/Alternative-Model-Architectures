@@ -2,7 +2,7 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-àexperiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_experiment"
 experiment_type: "factorization_fine_tuning_experiment"
 
 #just_plot: True
@@ -51,10 +51,6 @@ target_layers:
         rank: 512
     down_proj:
         rank: 512
-    c_fc:
-        rank: 128
-    c_proj:
-        rank: 128
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
