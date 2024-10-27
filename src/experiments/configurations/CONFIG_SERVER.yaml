@@ -34,7 +34,7 @@ factorization_methods:
 
 target_layers:
     q_proj:
-        rank: 1024
+        rank: 4
 #        learning_rate: 0.01
 #        max_iterations: 1000
 #    k_proj:
@@ -69,7 +69,7 @@ dataset_id: "wikitext2"
 
 replacement_methods:
     - "sharedaveragelayer"
-num_layers: 32
+num_layers: 2
 
 targets:
     - ["block_index", "mlp", "gate_proj"]
