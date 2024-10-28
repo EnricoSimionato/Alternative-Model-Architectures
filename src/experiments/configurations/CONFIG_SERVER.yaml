@@ -17,8 +17,8 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-#dtype: "float16"
-quantization: 4bit
+dtype: "float16"
+#quantization: 4bit
 model_id: "mistralai/Mistral-7B-v0.3"
 #model_id: "google/gemma-2-2b"
 
