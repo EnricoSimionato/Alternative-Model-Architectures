@@ -28,9 +28,9 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
-    - "LocalSVD"
+#    - "LocalSVD"
 #    - "Hadamard"
-#    - "GlobalBase"
+    - "GlobalBase"
 
 target_layers:
 #    q_proj:
@@ -46,11 +46,11 @@ target_layers:
 #        learning_rate: 0.01
 #        max_iterations: 1000
     gate_proj:
-        rank: 128
+        rank: 2048
     up_proj:
-        rank: 128
+        rank: 2048
     down_proj:
-        rank: 128
+        rank: 2048
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -76,18 +76,18 @@ targets:
     - ["block_index", "mlp", "up_proj"]
     - ["block_index", "mlp", "down_proj"]
 
-num_checks_per_epoch: 5
+num_checks_per_epoch: 2
 gradient_accumulation_steps: 2
-max_len: 256
+max_len: 512
 
 optimizers_settings:
     - optimizer: "AdamW"
       learning_rate: 0.01
-      #lr_scheduler: "cosine_with_warmup"
-      #warmup_steps: 100
-      #monitored_metric: "loss"
+      lr_scheduler: "cosine_with_warmup"
+      warmup_steps: 100
+      monitored_metric: "loss"
 
-max_epochs: 1
+max_epochs: 2
 
 split:
     - 0.8
