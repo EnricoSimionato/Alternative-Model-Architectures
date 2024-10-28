@@ -80,11 +80,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The tokenizer used.
         """
 
-        self._prepare_fine_tuning(prepared_models)
-
         fine_tuned_models = {model_key: None for model_key in prepared_models if model_key != "Original Model"}
+        original_model = None
         if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
             fine_tuned_models["Original Model"] = None
+        else:
+            original_model = prepared_models.pop("Original Model")
+
+        self._prepare_fine_tuning(prepared_models)
 
         # Creating the dataset
         pl_dataset = get_pytorch_lightning_dataset(
@@ -135,6 +138,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
             fine_tuned_models["Original Model"] = prepared_models["Original Model"]
+        else:
+            prepared_models["Original Model"] = original_model
 
         return fine_tuned_models, tokenizer
 
