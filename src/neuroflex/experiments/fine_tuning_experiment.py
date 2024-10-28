@@ -352,7 +352,7 @@ def get_parameters(
         child = module_tree._modules[layer_name]
         layer_path = copy.deepcopy(path) + [f"{layer_name}"] if path is not None else [f"{layer_name}"]
 
-        if len(child._modules) == 0:
+        if len(child._modules) == 0 and not isinstance(child, torch.nn.ModuleDict):
             target_paths_in_current_path = [
                 is_subsequence(
                     [sub_path for sub_path in target_path if sub_path != "block_index"],
