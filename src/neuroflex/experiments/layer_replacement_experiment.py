@@ -8,11 +8,13 @@ import transformers
 from neuroflex.experiments.fine_tuning_experiment import FineTuningExperiment
 from neuroflex.pruning.replacement_model import get_layer_replaced_model
 
+from neuroflex.experiments.extratomove import get_parameters
+
 
 class LayerReplacementFineTuningExperiment(FineTuningExperiment):
     """
-    Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    model and the evaluation on the same benchmarks again.
+    Class to perform the evaluation of a model with with some layers replaced following the given strategy on some
+    benchmarks, the fine-tuning of the model and the evaluation on the same benchmarks again.
     """
 
     mandatory_keys = ["replacement_methods", "num_layers", "targets"]
@@ -85,3 +87,82 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
                 tuple(el if el != "block_index" else f"{i}" for el in targets) for targets in targets_lists
                 for i in range(num_layers)
         }
+
+class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuningExperiment):
+    """
+    Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
+    model and the evaluation on the same benchmarks again.
+    """
+
+    @override
+    def get_layes_to_train(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> list:
+        """
+        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to fine-tune.
+
+        Returns:
+            list:
+                The layers to train.
+        """
+
+
+        target_names = []
+        for name, _ in model.named_parameters():
+            layer_name = name.split(".")[:-1]
+            if layer_name not in target_names:
+                target_names.append(layer_name)
+
+        extracted_layers = []
+        get_parameters(model, target_names, extracted_layers, [])
+
+        layers_to_train = []
+        for layer in extracted_layers:
+            if not isinstance(layer, torch.nn.Embedding):
+                layers_to_train.append(layer)
+
+        return layers_to_train
+
+class LayerReplacementFineTuningLoraOnTargetsExperiment(LayerReplacementFineTuningExperiment):
+    """
+    Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
+    model and the evaluation on the same benchmarks again.
+    """
+
+    @override
+    def get_layes_to_train(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> list:
+        """
+        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to fine-tune.
+
+        Returns:
+            list:
+                The layers to train.
+        """
+
+        target_names = []
+        for name, _ in model.named_parameters():
+            layer_name = name.split(".")[:-1]
+            if layer_name not in target_names:
+                target_names.append(layer_name)
+
+        extracted_layers = []
+        get_parameters(model, target_names, extracted_layers, [])
+
+        layers_to_train = []
+        for layer in extracted_layers:
+            if isinstance(layer, torch.nn.Embedding):
+                layers_to_train.append(layer)
+
+        return layers_to_train

@@ -2,8 +2,10 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
+#experiment_type: "factorization_fine_tuning_experiment"
+
 #experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 
 #just_plot: True
 #version: 0
@@ -13,15 +15,13 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-#model_id: "EleutherAI/gpt-neo-1.3B"
-#model_id: "google/gemma-2-2b"
-model_id: "mistralai/Mistral-7B-v0.3"
 dtype: "float16"
+model_id: "mistralai/Mistral-7B-v0.3"
+#model_id: "google/gemma-2-2b"
 
 ########################################   Tokenizer configuration parameters   ########################################
 tokenizer_id: "mistralai/Mistral-7B-v0.3"
 #tokenizer_id: "google/gemma-2-2b"
-#tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
