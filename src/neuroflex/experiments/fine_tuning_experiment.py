@@ -193,7 +193,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 parameter.requires_grad = False
             mapping_path_layers_to_train = self.get_layers_to_train(model)
             layers_to_train = mapping_path_layers_to_train.values()
-            self.log(f"Layers to train:\n{'\n'.join(mapping_path_layers_to_train.keys())}")
+            #self.log(f"Layers to train:\n{'\n'.join(mapping_path_layers_to_train.keys())}")
             for layer in layers_to_train:
                 try:
                     layer.weight.requires_grad = True
