@@ -151,6 +151,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The models to fine-tune.
         """
 
+        self.log("Preparing the fine-tuning.", print_message=True)
+
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
 

@@ -176,13 +176,20 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
             "target_modules": self.get_label_layers_to_train(model),
             "lora_dropout": 0.05,
             "bias": "none",
-            "task_type": "CAUSALLM",
+            "task_type": "CAUSAL_LM",
 
         }
         keys = ["adapter_method", "lora_rank", "lora_alpha", "target_modules", "lora_dropout", "bias", "task_type"]
         config_dict = self.config.get_dict(keys)
         default_dict.update(config_dict)
         config_dict = default_dict
+        print(config_dict)
+        print(Config.convert_to_config(config_dict))
+        try:
+            a = get_adapted_model(model, Config.convert_to_config(config_dict))
+        except Exception as e:
+            print(e)
+            raise e
 
         return get_adapted_model(model, Config.convert_to_config(config_dict))
 
