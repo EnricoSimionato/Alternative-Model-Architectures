@@ -151,12 +151,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The models to fine-tune.
         """
 
-        self.log("Preparing the fine-tuning.", print_message=True)
+        self.log("Preparing the models for fine-tuning.", print_message=True)
 
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
 
         self.prepare_fine_tuning(prepared_models)
+
+        self.log("Models prepared for fine-tuning.", print_message=True)
 
         for model_key in prepared_models:
             self.log(f"Model with model key: {model_key}")
@@ -179,11 +181,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The models to fine-tune.
         """
 
+        self.log("Setting the layers to train, changing the requires_grad attribute to True", print_message=True)
         for model_key in prepared_models:
             model = prepared_models[model_key]
             for parameter in model.parameters():
                 parameter.requires_grad = False
-            layers_to_train = self.get_layers_to_train(model)
+            mapping_path_layers_to_train = self.get_layers_to_train(model)
+            layers_to_train = mapping_path_layers_to_train.values()
+            self.log(f"Layers to train:\n{'\n'.join(mapping_path_layers_to_train.keys())}")
             for layer in layers_to_train:
                 try:
                     layer.weight.requires_grad = True
@@ -200,7 +205,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
     def get_layers_to_train(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
-    ) -> list:
+    ) -> dict:
         """
         Returns the layers to train.
 
@@ -209,14 +214,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The model to fine-tune.
 
         Returns:
-            list:
+            dict:
                 The layers to train.
         """
 
         layers_to_train = {}
         get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
 
-        return list(layers_to_train.values())
+        return layers_to_train
 
     def _fit(
             self,

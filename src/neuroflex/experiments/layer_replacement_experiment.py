@@ -4,7 +4,7 @@ from typing import override, Union
 import torch
 
 import transformers
-from numba.experimental.function_type import lower_get_wrapper_address
+
 from peft import PeftModel, PeftMixedModel
 
 from exporch import Config
@@ -102,7 +102,7 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
     def get_layers_to_train(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
-    ) -> list:
+    ) -> dict:
         """
         Prepares the fine-tuning of the models. This method can be overridden to add more operations.
 
@@ -121,13 +121,13 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
             if layer_name not in target_names:
                 target_names.append(layer_name)
 
-        extracted_layers = []
+        extracted_layers = {}
         get_parameters(model, target_names, extracted_layers, [])
 
-        layers_to_train = []
-        for layer in extracted_layers:
+        layers_to_train = {}
+        for path, layer in extracted_layers.items():
             if not isinstance(layer, torch.nn.Embedding):
-                layers_to_train.append(layer)
+                layers_to_train[tuple(path)] = layer
 
         return layers_to_train
 
@@ -144,13 +144,13 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
     ) -> None:
         for model_key in prepared_models:
+            self.log(f"Preparing the model {model_key} for fine-tuning using adapters.")
             model = prepared_models[model_key]
             for parameter in model.parameters():
                 parameter.requires_grad = False
 
             # Wrapping the model with the adapter
             adapted_model = self.get_adapted_model(model)
-            print(adapted_model)
             prepared_models[model_key] = adapted_model
 
     def get_adapted_model(
@@ -182,8 +182,8 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
         config_dict = self.config.get_dict(keys)
         default_dict.update(config_dict)
         config_dict = default_dict
-        print(config_dict)
-        print(Config.convert_to_config(config_dict))
+
+        self.log(f"Creating the adapted model with the following configuration: {config_dict}.")
         try:
             a = get_adapted_model(model, Config.convert_to_config(config_dict))
             print(a)
@@ -191,7 +191,10 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
             print(e)
             raise e
 
-        return get_adapted_model(model, Config.convert_to_config(config_dict))
+        adapted_model = get_adapted_model(model, Config.convert_to_config(config_dict))
+        self.log(f"Adapted model created: {adapted_model}.")
+
+        return adapted_model
 
     def get_label_layers_to_train(
             self,
