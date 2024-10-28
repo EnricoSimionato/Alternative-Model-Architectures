@@ -171,7 +171,7 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
 
         default_dict = {
             "adapter_method": "lora",
-            "lora_rank": 64,
+            "lora_rank": 16,
             "lora_alpha": 64,
             "target_modules": self.get_label_layers_to_train(model),
             "lora_dropout": 0.05,
