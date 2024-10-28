@@ -55,7 +55,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
 
         # Evaluating the fine-tuned models on the benchmarks
-        # self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
+        self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
         self.log("The experiment has been completed.", print_message=True)
 
@@ -154,11 +154,34 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.create_experiment_directory("checkpoints")
         self.create_experiment_directory("training_logs")
 
+        self.prepare_fine_tuning(prepared_models)
+
+        for model_key in prepared_models:
+            self.log(f"Model with model key: {model_key}")
+            model = prepared_models[model_key]
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    self.log(f"Parameter {name} is set to trainable.")
+                else:
+                    self.log(f"Parameter {name} is NOT trainable!")
+
+    def prepare_fine_tuning(
+            self,
+            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
+    ) -> None:
+        """
+        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+
+        Args:
+            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
+                The models to fine-tune.
+        """
+
         for model_key in prepared_models:
             model = prepared_models[model_key]
             for parameter in model.parameters():
                 parameter.requires_grad = False
-            layers_to_train = self.get_layes_to_train(model)
+            layers_to_train = self.get_layers_to_train(model)
             for layer in layers_to_train:
                 try:
                     layer.weight.requires_grad = True
@@ -171,22 +194,13 @@ class FineTuningExperiment(BenchmarkEvaluation):
                     self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
                     self.log("Continuing the process.")
 
-        for model_key in prepared_models:
-            self.log(f"Model with model key: {model_key}")
-            model = prepared_models[model_key]
-            for name, param in model.named_parameters():
-                if param.requires_grad:
-                    self.log(f"Parameter {name} is set to trainable.")
-                else:
-                    self.log(f"Parameter {name} is NOT trainable!")
 
-
-    def get_layes_to_train(
+    def get_layers_to_train(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
     ) -> list:
         """
-        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+        Returns the layers to train.
 
         Args:
             model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
@@ -197,10 +211,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The layers to train.
         """
 
-        layers_to_train = []
+        layers_to_train = {}
         get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
 
-        return layers_to_train
+        return list(layers_to_train.values())
 
     def _fit(
             self,

@@ -6,6 +6,8 @@ from neuroflex.experiments.factorization_experiment import FactorizationBenchmar
 from neuroflex.experiments.layer_replacement_experiment import (
     LayerReplacementFineTuningExperiment,
     LayerReplacementFineTuningEntireModelExperiment,
+    LayerReplacementFineTuningAdapterOnTargetsExperiment,
+    LayerReplacementFineTuningAdapterOnEntireModelExperiment
 )
 
 GeneralPurposeExperimentFactory.register({
@@ -13,7 +15,9 @@ GeneralPurposeExperimentFactory.register({
     "factorization_fine_tuning_experiment": FactorizationFineTuningExperiment,
 
     "layer_replacement_fine_tuning_experiment": LayerReplacementFineTuningExperiment,
-    "layer_replacement_fine_tuning_entire_model_experiment": LayerReplacementFineTuningEntireModelExperiment
+    "layer_replacement_fine_tuning_entire_model_experiment": LayerReplacementFineTuningEntireModelExperiment,
+    "layer_replacement_fine_tuning_adapter_on_targets_experiment": LayerReplacementFineTuningAdapterOnTargetsExperiment,
+    "layer_replacement_fine_tuning_adapter_on_entire_model_experiment": LayerReplacementFineTuningAdapterOnEntireModelExperiment
 })
 
 

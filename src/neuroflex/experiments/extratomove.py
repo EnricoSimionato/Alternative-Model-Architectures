@@ -8,7 +8,7 @@ import transformers
 def get_parameters(
         module_tree: [torch.nn.Module | transformers.AutoModel],
         target_paths: list,
-        layers_storage: [],
+        layers_storage: {},
         blacklist: list = (),
         path: list = None,
         **kwargs
@@ -21,7 +21,7 @@ def get_parameters(
             The model tree.
         target_paths (list):
             The path of the targets.
-        layers_storage (AnalysisTensorDict):
+        layers_storage (dict):
             Storage where the extracted layers will be at the end of the extraction.
         blacklist (list, optional):
             The list of blacklisted paths. Defaults to ().
@@ -45,7 +45,10 @@ def get_parameters(
                 raise Exception(f"The layer {layer_path} corresponds to multiple targets.")
             if any(target_paths_in_current_path):
                 # Storing the layer in the dictionary of extracted layers
-                layers_storage.append(child)
+                if tuple(layer_path) in layers_storage.keys():
+                    raise Exception(f"Layer {layer_path} already stored.")
+
+                layers_storage[tuple(layer_path)] = child
         else:
             # Recursively calling the function
             get_parameters(

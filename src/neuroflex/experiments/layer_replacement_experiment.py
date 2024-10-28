@@ -1,14 +1,17 @@
 import copy
-from typing import override
+from typing import override, Union
 
 import torch
 
 import transformers
+from numba.experimental.function_type import lower_get_wrapper_address
+from peft import PeftModel, PeftMixedModel
 
+from exporch import Config
 from neuroflex.experiments.fine_tuning_experiment import FineTuningExperiment
 from neuroflex.pruning.replacement_model import get_layer_replaced_model
-
 from neuroflex.experiments.extratomove import get_parameters
+from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
 
 
 class LayerReplacementFineTuningExperiment(FineTuningExperiment):
@@ -88,6 +91,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
                 for i in range(num_layers)
         }
 
+
 class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
@@ -95,7 +99,7 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
     """
 
     @override
-    def get_layes_to_train(
+    def get_layers_to_train(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
     ) -> list:
@@ -110,7 +114,6 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
             list:
                 The layers to train.
         """
-
 
         target_names = []
         for name, _ in model.named_parameters():
@@ -128,41 +131,87 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
 
         return layers_to_train
 
-class LayerReplacementFineTuningLoraOnTargetsExperiment(LayerReplacementFineTuningExperiment):
+
+class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
     model and the evaluation on the same benchmarks again.
     """
 
     @override
-    def get_layes_to_train(
+    def prepare_fine_tuning(
+            self,
+            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
+    ) -> None:
+        for model_key in prepared_models:
+            model = prepared_models[model_key]
+            for parameter in model.parameters():
+                parameter.requires_grad = False
+
+            # Wrapping the model with the adapter
+            adapted_model = self.get_adapted_model(model)
+            print(adapted_model)
+            prepared_models[model_key] = adapted_model
+
+    def get_adapted_model(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
-    ) -> list:
+    ) -> Union[PeftModel, PeftMixedModel]:
         """
-        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+        Returns the adapted model to be trained given the model to be wrapped by the adapter.
 
         Args:
             model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
-                The model to fine-tune.
+                The model to be adapted.
 
         Returns:
-            list:
-                The layers to train.
+            Union[PeftModel, PeftMixedModel]:
+                The adapted model.
         """
 
+        default_dict = {
+            "adapter_method": "lora",
+            "lora_rank": 64,
+            "lora_alpha": 64,
+            "target_modules": self.get_label_layers_to_train(model),
+            "lora_dropout": 0.05,
+            "bias": "none",
+            "task_type": "CAUSALLM",
+
+        }
+        keys = ["adapter_method", "lora_rank", "lora_alpha", "target_modules", "lora_dropout", "bias", "task_type"]
+        config_dict = self.config.get_dict(keys)
+        default_dict.update(config_dict)
+        config_dict = default_dict
+
+        return get_adapted_model(model, Config.convert_to_config(config_dict))
+
+    def get_label_layers_to_train(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> list | str:
+        """
+
+        """
+
+        layers_to_train = {}
+        get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
         target_names = []
-        for name, _ in model.named_parameters():
-            layer_name = name.split(".")[:-1]
-            if layer_name not in target_names:
-                target_names.append(layer_name)
+        for layer_path in layers_to_train:
+            if layer_path[-1] not in target_names:
+                target_names.append(layer_path[-1])
 
-        extracted_layers = []
-        get_parameters(model, target_names, extracted_layers, [])
+        return target_names
 
-        layers_to_train = []
-        for layer in extracted_layers:
-            if isinstance(layer, torch.nn.Embedding):
-                layers_to_train.append(layer)
 
-        return layers_to_train
+class LayerReplacementFineTuningAdapterOnEntireModelExperiment(LayerReplacementFineTuningAdapterOnTargetsExperiment):
+
+    @override
+    def get_label_layers_to_train(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> list | str:
+        """
+        """
+
+        return "all-linear"
