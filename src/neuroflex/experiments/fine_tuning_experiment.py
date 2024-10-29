@@ -52,7 +52,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
         for model_key in fine_tuned_models:
-            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
+            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}.pt", "pt")
 
         for model_key in fine_tuned_models:
             print(f"Model {model_key}")
@@ -91,7 +91,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
             original_model = prepared_models.pop("Original Model")
 
         already_fine_tuned = self._prepare_fine_tuning(prepared_models)
-
+        print()
+        print(already_fine_tuned)
+        print()
+        print()
         if not already_fine_tuned:
             # Creating the dataset
             dataset_id = self.config.get("dataset_id")
@@ -161,9 +164,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.log("Checking if the models have already been fine-tuned.", print_message=True)
         already_fine_tuned = True
         for model_key in prepared_models:
-            fine_tuned_model = self.load("fine_tuned_model_" + model_key, "pt")
+            fine_tuned_model = self.load("fine_tuned_model_" + model_key + ".pt", "pt")
             if fine_tuned_model is not None:
                 prepared_models[model_key] = fine_tuned_model
+            else:
                 already_fine_tuned = False
 
         if not already_fine_tuned:
