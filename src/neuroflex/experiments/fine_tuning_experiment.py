@@ -47,7 +47,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
 
         # Evaluating the models on the benchmarks
-        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
@@ -124,7 +124,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
             # Validating the model before training
-            #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+            _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
             # Training the model
             _ = self._fit(pl_model, pl_trainer, pl_dataset)
             # Validating the model after training
@@ -136,7 +136,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             fine_tuned_models[model_key] = pl_model.model
 
-        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
+        if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
             fine_tuned_models["Original Model"] = prepared_models["Original Model"]
         else:
             prepared_models["Original Model"] = original_model
