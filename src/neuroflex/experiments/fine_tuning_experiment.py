@@ -51,13 +51,14 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
-        for model_key in fine_tuned_models:
-            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}.pt", "pt")
 
         for model_key in fine_tuned_models:
             print(f"Model {model_key}")
             self.log(f"Model {model_key}")
             self.log(f"{fine_tuned_models[model_key]}")
+
+        for model_key in fine_tuned_models:
+            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}.pt", "pt")
 
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
