@@ -54,6 +54,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
         for model_key in fine_tuned_models:
             self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}", "pt")
 
+        for model_key in fine_tuned_models:
+            print(f"Model {model_key}")
+            self.log(f"Model {model_key}")
+            self.log(f"{fine_tuned_models[model_key]}")
+
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
@@ -80,73 +85,66 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The tokenizer used.
         """
 
-        fine_tuned_models = {model_key: None for model_key in prepared_models if model_key != "Original Model"}
+        fine_tuned_models = {model_key: None for model_key in prepared_models}
         original_model = None
-        if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
-            fine_tuned_models["Original Model"] = None
-        else:
+        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
             original_model = prepared_models.pop("Original Model")
 
-        self._prepare_fine_tuning(prepared_models)
+        already_fine_tuned = self._prepare_fine_tuning(prepared_models)
 
-        # Creating the dataset
-        pl_dataset = get_pytorch_lightning_dataset(
-            self.config.get("dataset_id"),
-            tokenizer,
-            self.config.get("max_len"),
-            self.config
-        )
-        pl_dataset.setup()
-        self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
+        if not already_fine_tuned:
+            # Creating the dataset
+            dataset_id = self.config.get("dataset_id")
+            pl_dataset = get_pytorch_lightning_dataset(dataset_id, tokenizer, self.config.get("max_len"), self.config)
+            pl_dataset.setup()
+            self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
-        if "Original Model" in prepared_models.keys() and "Original Model" not in fine_tuned_models.keys():
-            self.log("Evaluating the original model.", print_message=True)
-            # Creating the model
-            #pl_model = get_pytorch_lightning_model(prepared_models["Original Model"], tokenizer, self.config.get("task_id"), self.config)
-            # Creating the trainer
-            #pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-            # Validating the original model
-            #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-            #self.log(validation_results)
-            pass
-            #prepared_models["Original Model"].cpu()
+            if original_model is not None:
+                self.log("Evaluating the original model.", print_message=True)
+                # Creating the model
+                #pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
+                # Creating the trainer
+                #pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+                # Validating the original model
+                #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                #self.log(validation_results)
+                pass
+                #prepared_models["Original Model"].cpu()
 
-        # Creating the PyTorch Lightning model
-        for model_key in fine_tuned_models:
-            base_model = prepared_models[model_key]
+            # Creating the PyTorch Lightning model
+            for model_key in prepared_models:
+                base_model = prepared_models[model_key]
 
-            # Creating the model
-            pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
-            self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
+                # Creating the model
+                pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
+                self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
 
-            # Creating the trainer
-            pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-            self.log(f"PyTorch Lightning Trainer created.", print_message=True)
+                # Creating the trainer
+                pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+                self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
-            # Validating the model before training
-            _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
-            # Training the model
-            _ = self._fit(pl_model, pl_trainer, pl_dataset)
-            # Validating the model after training
-            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-            self.log(validation_results)
-            # Testing the model
-            _, test_results = self._test(pl_model, pl_trainer, pl_dataset)
-            self.log(test_results)
+                # Validating the model before training
+                _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                # Training the model
+                _ = self._fit(pl_model, pl_trainer, pl_dataset)
+                # Validating the model after training
+                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                self.log(validation_results)
+                # Testing the model
+                _, test_results = self._test(pl_model, pl_trainer, pl_dataset)
+                self.log(test_results)
 
-            fine_tuned_models[model_key] = pl_model.model
+                fine_tuned_models[model_key] = pl_model.model
 
-        if self.config.contains("train_original_original_model") and self.config.get("train_original_original_model"):
-            fine_tuned_models["Original Model"] = prepared_models["Original Model"]
-        else:
-            prepared_models["Original Model"] = original_model
+        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
+            fine_tuned_models["Original Model"] = original_model
 
         return fine_tuned_models, tokenizer
 
     def _prepare_fine_tuning(
             self,
             prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
-    ) -> None:
+    ) -> bool:
         """
         Prepares the fine-tuning of the models. It does utility operations such as creating the directories to store the
         checkpoints and the training logs.
@@ -154,25 +152,43 @@ class FineTuningExperiment(BenchmarkEvaluation):
         Args:
             prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
                 The models to fine-tune.
+
+        Returns:
+            bool:
+                True if the models have already been fine-tuned, False otherwise.
         """
 
-        self.log("Preparing the models for fine-tuning.", print_message=True)
-
-        self.create_experiment_directory("checkpoints")
-        self.create_experiment_directory("training_logs")
-
-        self.prepare_fine_tuning(prepared_models)
-
-        self.log("Models prepared for fine-tuning.", print_message=True)
-
+        self.log("Checking if the models have already been fine-tuned.", print_message=True)
+        already_fine_tuned = True
         for model_key in prepared_models:
-            self.log(f"Model with model key: {model_key}")
-            model = prepared_models[model_key]
-            for name, param in model.named_parameters():
-                if param.requires_grad:
-                    self.log(f"Parameter {name} is set to trainable.")
-                else:
-                    self.log(f"Parameter {name} is NOT trainable!")
+            fine_tuned_model = self.load("fine_tuned_model_" + model_key, "pt")
+            if fine_tuned_model is not None:
+                prepared_models[model_key] = fine_tuned_model
+                already_fine_tuned = False
+
+        if not already_fine_tuned:
+            self.log("Models have not been fine-tuned yet.", print_message=True)
+            self.log("Preparing the models for fine-tuning.", print_message=True)
+
+            self.create_experiment_directory("checkpoints")
+            self.create_experiment_directory("training_logs")
+
+            self.prepare_fine_tuning(prepared_models)
+
+            self.log("Models prepared for fine-tuning.", print_message=True)
+
+            for model_key in prepared_models:
+                self.log(f"Model with model key: {model_key}")
+                model = prepared_models[model_key]
+                for name, param in model.named_parameters():
+                    if param.requires_grad:
+                        self.log(f"Parameter {name} is set to trainable.")
+                    else:
+                        self.log(f"Parameter {name} is NOT trainable!")
+        else:
+            self.log("Models have already been fine-tuned.", print_message=True)
+
+        return already_fine_tuned
 
     def prepare_fine_tuning(
             self,

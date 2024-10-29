@@ -10,7 +10,7 @@ experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-#version: 0
+version: 2
 
 verbose: 1
 device: "cuda"
