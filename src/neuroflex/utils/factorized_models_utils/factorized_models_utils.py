@@ -1,9 +1,10 @@
 import transformers
 
 import neuroflex
-from neuroflex import (
+from neuroflex.models.factorized_model import (
     LocalSVDModel,
     GlobalBaseModel,
+    GlobalBaseAverageSVDInitializationModel,
     GlobalFixedBaseModel,
     GLAMSVDModel,
     LocalHadamardModel
@@ -74,6 +75,12 @@ def get_factorized_model(
     elif factorization_method == "globalbase":
         alternative_architectures_arguments.update(config.get_dict(["initialization_type"]))
         factorized_model = GlobalBaseModel(
+            model,
+            **alternative_architectures_arguments
+        )
+    elif factorization_method == "globalbaseaveragesvdinitialization":
+        alternative_architectures_arguments.update(config.get_dict(["initialization_type"]))
+        factorized_model = GlobalBaseAverageSVDInitializationModel(
             model,
             **alternative_architectures_arguments
         )

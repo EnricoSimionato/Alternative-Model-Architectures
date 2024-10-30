@@ -92,10 +92,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             original_model = prepared_models.pop("Original Model")
 
         already_fine_tuned = self._prepare_fine_tuning(prepared_models)
-        print()
-        print(already_fine_tuned)
-        print()
-        print()
+
         if not already_fine_tuned:
             # Creating the dataset
             dataset_id = self.config.get("dataset_id")

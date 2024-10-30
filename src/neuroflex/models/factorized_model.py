@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from copy import deepcopy
+from enum import Enum
 import os
 import pickle
-from copy import deepcopy
+from typing import Any, Callable, Optional, override, Union
 
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Optional, Callable, Union, Any, override
+import numpy as np
 
 import torch
-import torch.nn as nn
 from torch import device
 
 import transformers
@@ -40,6 +40,8 @@ from neuroflex.layers.factorized_embedding_layer import (
 )
 
 from exporch.utils.parameters_count import count_parameters
+# TO BE MOVED
+from neuroflex.experiments.extratomove import get_parameters
 
 
 class LoggingInterface(ABC):
@@ -355,7 +357,7 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
         pass
 
 
-class FactorizedModel(ABC, nn.Module):
+class FactorizedModel(ABC, torch.torch.nn.Module):
     """
     Model with factorized layers.
 
@@ -389,7 +391,7 @@ class FactorizedModel(ABC, nn.Module):
             Mapping of the layer names to the keys of the global layers.
         model (PreTrainedModel):
             Pretrained model.
-        global_layers (nn.ModuleDict):
+        global_layers (torch.torch.nn.ModuleDict):
             Global layers.
         conversions (dict):
             Mapping of layer types to global-dependent layer classes.
@@ -400,7 +402,7 @@ class FactorizedModel(ABC, nn.Module):
     """
 
 
-class GlobalDependentModel(ABC, nn.Module):
+class GlobalDependentModel(ABC, torch.torch.nn.Module):
     """
     Model with global layers replacing some layers of the model.
 
@@ -449,7 +451,7 @@ class GlobalDependentModel(ABC, nn.Module):
             Mapping of the layer names to the keys of the global layers.
         model (PreTrainedModel):
             Pretrained model.
-        global_layers (nn.ModuleDict):
+        global_layers (torch.torch.nn.ModuleDict):
             Global layers.
         conversions (dict):
             Mapping of layer types to global-dependent layer classes.
@@ -461,7 +463,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def __init__(
             self,
-            target_model: nn.Module = None,
+            target_model: torch.nn.Module = None,
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
@@ -471,7 +473,7 @@ class GlobalDependentModel(ABC, nn.Module):
             verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
-        nn.Module.__init__(self)
+        torch.nn.Module.__init__(self)
         self.verbose = verbose
 
         if not from_pretrained:
@@ -493,10 +495,10 @@ class GlobalDependentModel(ABC, nn.Module):
                 "original_model_parameters": count_parameters(self.model),
                 "original_model_trainable_parameters": count_parameters(self.model, only_trainable=True)
             }
-            self.global_layers = nn.ModuleDict()
+            self.global_layers = torch.nn.ModuleDict()
             self.conversions = self.define_conversion(**kwargs)
 
-            self.average_layers = nn.ModuleDict()
+            self.average_layers = torch.nn.ModuleDict()
 
             average_matrices = {}
             if remove_average:
@@ -543,12 +545,12 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def get_model(
             self
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Returns the model.
 
         Returns:
-            nn.Module:
+            torch.nn.Module:
                 Model.
         """
 
@@ -604,7 +606,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def change_key(
             self,
-            model_tree: nn.Module,
+            model_tree: torch.nn.Module,
             scope: str,
             previous_key: str,
             new_key: str,
@@ -614,7 +616,7 @@ class GlobalDependentModel(ABC, nn.Module):
         Changes the key of the global layers.
 
         Args:
-            model_tree (nn.Module):
+            model_tree (torch.nn.Module):
                 Model or module containing layers.
             scope (str):
                 Scope of the layer which key has to be changed.
@@ -646,7 +648,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def _collect_matrices_per_name(
             self,
-            model_tree: nn.Module,
+            model_tree: torch.nn.Module,
             average_matrices: dict,
             path: str = "",
             verbose: Verbose = Verbose.SILENT,
@@ -656,7 +658,7 @@ class GlobalDependentModel(ABC, nn.Module):
         Collects the matrices to average per layer name.
 
         Args:
-            model_tree (nn.Module):
+            model_tree (torch.nn.Module):
                 Model or module containing layers.
             average_matrices (dict):
                 Dictionary containing the matrices to average per layer name.
@@ -743,7 +745,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def _convert_into_global_dependent_model(
             self,
-            model_tree: nn.Module,
+            model_tree: torch.nn.Module,
             path: str = "",
             average_matrices: dict = {},
             verbose: Verbose = Verbose.SILENT,
@@ -753,7 +755,7 @@ class GlobalDependentModel(ABC, nn.Module):
         Converts layers into global-dependent versions.
 
         Args:
-            model_tree (nn.Module):
+            model_tree (torch.nn.Module):
                 Model or module containing layers.
             path (str):
                 Path to the current layer.
@@ -1156,7 +1158,7 @@ class GlobalDependentModel(ABC, nn.Module):
             self,
             layers_to_merge: tuple = None,
             **kwargs
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """
         Merges the global layers into the model and returns the result.
 
@@ -1167,7 +1169,7 @@ class GlobalDependentModel(ABC, nn.Module):
                 Additional keyword arguments.
 
         Returns:
-            nn.Module:
+            torch.nn.Module:
                 Model with global layers merged.
         """
 
@@ -1181,7 +1183,7 @@ class GlobalDependentModel(ABC, nn.Module):
 
     def _merge_model(
             self,
-            model_tree: nn.Module,
+            model_tree: torch.nn.Module,
             layers_to_merge: tuple,
             **kwargs
     ) -> None:
@@ -1189,7 +1191,7 @@ class GlobalDependentModel(ABC, nn.Module):
         Utility function to merge the global layers into the model.
 
         Args:
-            model_tree (nn.Module):
+            model_tree (torch.nn.Module):
                 Module containing layers to merge.
             layers_to_merge (list):
                 List of names of layers to merge.
@@ -1278,7 +1280,7 @@ class LocalSVDModel(GlobalDependentModel):
             remove_average: bool = False,
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
-            verbose: int = 0,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         GlobalDependentModel.__init__(
@@ -1310,8 +1312,8 @@ class LocalSVDModel(GlobalDependentModel):
         """
 
         conversions = {
-            nn.Linear: LocalSVDLinear,
-            nn.Embedding: LocalSVDEmbedding
+            torch.nn.Linear: LocalSVDLinear,
+            torch.nn.Embedding: LocalSVDEmbedding
         }
 
         return conversions
@@ -1361,7 +1363,7 @@ class GlobalBaseModel(GlobalDependentModel):
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             initialization_type: str = "pseudo-inverse",
-            verbose: int = 0,
+            verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         kwargs.update({"initialization_type": initialization_type})
@@ -1377,7 +1379,7 @@ class GlobalBaseModel(GlobalDependentModel):
             verbose=verbose,
             **kwargs
         )
-        
+
     def define_conversion(
             self,
             **kwargs
@@ -1394,96 +1396,14 @@ class GlobalBaseModel(GlobalDependentModel):
         """
 
         conversions = {
-            nn.Linear: GlobalBaseLinear,
-            nn.Embedding: GlobalBaseEmbedding
+            torch.nn.Linear: GlobalBaseLinear,
+            torch.nn.Embedding: GlobalBaseEmbedding
         }
 
         return conversions
 
 
-import copy
-
-def get_parameters(
-        module_tree: [torch.nn.Module | transformers.AutoModel],
-        target_paths: list,
-        layers_storage: {},
-        blacklist: list = (),
-        path: list = None,
-        **kwargs
-) -> None:
-    """
-    Extracts the matrices from the model tree.
-
-    Args:
-        module_tree ([torch.nn.Module | transformers.AutoModel]):
-            The model tree.
-        target_paths (list):
-            The path of the targets.
-        layers_storage (AnalysisTensorDict):
-            Storage where the extracted layers will be at the end of the extraction.
-        blacklist (list, optional):
-            The list of blacklisted paths. Defaults to ().
-        path (list, optional):
-            The path to the current layer. Defaults to None.
-    """
-
-    for layer_name in module_tree._modules.keys():
-        # Extracting the child from the current module
-        child = module_tree._modules[layer_name]
-        layer_path = copy.deepcopy(path) + [f"{layer_name}"] if path is not None else [f"{layer_name}"]
-
-        if len(child._modules) == 0:
-            target_paths_in_current_path = [
-                is_subsequence(
-                    [sub_path for sub_path in target_path if sub_path != "block_index"],
-                    layer_path
-                ) and not any(blacklisted_string in layer_path for blacklisted_string in blacklist)
-                for target_path in target_paths]
-            if sum(target_paths_in_current_path) > 1:
-                raise Exception(f"The layer {layer_path} corresponds to multiple targets.")
-            if any(target_paths_in_current_path):
-                # Storing the layer in the dictionary of extracted layers
-                layers_storage[tuple(layer_path)] = child
-        else:
-            # Recursively calling the function
-            get_parameters(
-                module_tree=child,
-                target_paths=target_paths,
-                layers_storage=layers_storage,
-                blacklist=blacklist,
-                path=layer_path,
-                **kwargs
-            )
-
-
-def is_subsequence(
-        subsequence: list | tuple,
-        sequence: list | tuple
-) -> bool:
-    """
-    Checks if a sequence is a subsequence of another sequence.
-
-    Args:
-        subsequence (list | tuple):
-            The subsequence.
-        sequence (list | tuple):
-            The sequence.
-
-    Returns:
-        bool:
-            True if the subsequence is a subsequence of the sequence, False otherwise.
-    """
-
-    i = 0
-    for element in sequence:
-        if element == subsequence[i]:
-            i += 1
-        if i == len(subsequence):
-            return True
-    return False
-
-
-class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
+class GlobalBaseAverageSVDInitializationModel(GlobalDependentModel):
     """
     Model with GlobalBaseLinear layers replacing linear layers.
 
@@ -1519,7 +1439,7 @@ class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
 
     def __init__(
             self,
-            pretrained_model = None,
+            target_model = None,
             target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
@@ -1533,7 +1453,7 @@ class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
         kwargs.update({"initialization_type": initialization_type})
         GlobalDependentModel.__init__(
             self,
-            pretrained_model=pretrained_model,
+            target_model=target_model,
             target_layers=target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
@@ -1543,8 +1463,6 @@ class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
             verbose=verbose,
             **kwargs
         )
-
-        print()
 
     def define_conversion(
             self,
@@ -1562,8 +1480,8 @@ class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
         """
 
         conversions = {
-            nn.Linear: GlobalBaseLinear,
-            nn.Embedding: GlobalBaseEmbedding
+            torch.nn.Linear: GlobalBaseLinear,
+            torch.nn.Embedding: GlobalBaseEmbedding
         }
 
         return conversions
@@ -1573,41 +1491,90 @@ class GlobalBaseModelAverageSVDInitialization(GlobalDependentModel):
             self
     ) -> None:
         """
+        Processing to perform before the conversion of the layers.
+        The method computes the global matrices for the layers to be factorized as the average of the SVDs of the layers.
         """
 
-        mapping_key_layer_name = {}
-        for key, value in mapping_key_layer_name.items():
-            if value not in mapping_key_layer_name:
-                mapping_key_layer_name[value] = []
-            mapping_key_layer_name[value].append(key)
+        def get_target_layer_name_given_path(target_layer_names: list, path: str) -> str:
+            """
+            Gets the target layer name given the path of the layer.
+
+            Args:
+                target_layer_names (list):
+                    List of target layer names.
+                path (str):
+                    Path of the layer.
+
+            Returns:
+                str:
+                    Target layer name.
+            """
+
+            target_layer_name = None
+            for target_name in target_layer_names:
+                if target_name in path:
+                    if target_layer_name is None:
+                        target_layer_name = target_name
+                    else:
+                        raise ValueError(f"Multiple target layers found in the path {path}: {target_layer_name} and {target_name}")
+
+            return target_layer_name
+
+        # Obtaining the mapping from the group name in which the layers share the global features to the specific layer
+        # name of the layers of the group
+        if self.mapping_layer_name_key is None:
+            mapping_key_layer_name = {"": [key for key in self.target_layers.keys()]}
+        else:
+            mapping_key_layer_name = {}
+            for key, value in self.mapping_layer_name_key.items():
+                if value not in mapping_key_layer_name:
+                    mapping_key_layer_name[value] = []
+                mapping_key_layer_name[value].append(key)
 
         for factorization_group, target_names in mapping_key_layer_name.items():
-            rank = factorization_group
+            label = "" if factorization_group == "" else factorization_group + "_"
+            # Getting the ranks for the factorization of the layers in the group and checking that they are all equal,
+            # otherwise grouping makes no sense
+            ranks = {layer_name: self.target_layers[layer_name]["rank"] for layer_name in target_names}
+
+            # Getting the mapping between the layers path and the actual layers to be used in the computation of the
+            # global average layer
             extracted_layers = {}
-            get_parameters(self.model, target_names, extracted_layers)
-            average_global = None
+            get_parameters(self.model, [[layer_name,] for layer_name in target_names], extracted_layers)
+
             if len(extracted_layers.keys()) > 0:
-                layer_0 = list(extracted_layers.items())[0][0]
-                for key, layer in extracted_layers.items():
-                    import numpy as np
-                    _, _, vt = np.linalg.svd(layer.weight.data.to(torch.float32).numpy())
-                    min_dim = min(layer.in_features, layer.out_features)
-                    vt = torch.tensor(vt[:min(min_dim, rank), :]).to(layer.dtype)
-                    if average_global is None:
-                        average_global = vt
-                    else:
-                        average_global += vt
+                # Grouping the extracted layers based on the size of the global matrix
+                global_layer_shapes = set([(min(min(layer.in_features, layer.out_features), ranks[get_target_layer_name_given_path(target_names, path)]), layer.in_features) for path, layer in extracted_layers.items()])
+                shape_grouped_extracted_layers = {shape: {} for shape in global_layer_shapes}
+                for path, layer in extracted_layers.items():
+                    shape_grouped_extracted_layers[(min(min(layer.in_features, layer.out_features), ranks[get_target_layer_name_given_path(target_names, path)]), layer.in_features)][path] = layer
 
-                average_global /= len(extracted_layers.keys())
+                for shape, shape_group in shape_grouped_extracted_layers.items():
+                    print(f"Computing the average global matrix for the group {factorization_group} with shape {shape}...")
+                    in_features = shape_group[list(shape_group.keys())[0]].in_features
+                    rank = shape[0]
 
-                out_features, in_features = average_global.shape
-                global_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=False)
-                with torch.no_grad():
-                    global_layer.weight = nn.Parameter(average_global)
+                    # Computing the SVD on each layer and the average global matrix
+                    average_global = None
+                    for key, layer in shape_group.items():
+                        print(f"Computing SVD for layer {key}...")
+                        # Computing the SVD of the layer
+                        _, _, vt = np.linalg.svd(layer.weight.data.to(torch.float32).numpy())
+                        vt = torch.tensor(vt[:rank, :]).to(layer.weight.dtype)
+                        if average_global is None:
+                            average_global = vt
+                        else:
+                            average_global += vt
 
-                self.global_layers.add_module(f"({layer_0.in_features},{rank})", global_layer)
+                    # Averaging the sum of the SVDs computed on the layers
+                    average_global /= len(list(extracted_layers.keys()))
 
-        print()
+                    # Creating the global layer initialized with the average of the SVDs
+                    global_layer = torch.nn.Linear(in_features=in_features, out_features=rank, bias=False)
+                    with torch.no_grad():
+                        global_layer.weight = torch.nn.Parameter(average_global)
+
+                    self.global_layers.add_module(f"{label}({in_features},{rank})", global_layer)
 
 
 class GlobalFixedBaseModel(GlobalDependentModel):
@@ -1687,8 +1654,8 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         """
 
         conversions = {
-            nn.Linear: GlobalFixedBaseLinear,
-            nn.Embedding: GlobalFixedBaseEmbedding
+            torch.nn.Linear: GlobalFixedBaseLinear,
+            torch.nn.Embedding: GlobalFixedBaseEmbedding
         }
 
         return conversions
@@ -1769,8 +1736,8 @@ class LocalHadamardModel(GlobalDependentModel):
         """
 
         conversions = {
-            nn.Linear: LocalHadamardLinear,
-            #nn.Embedding: LocalHadamardEmbedding
+            torch.nn.Linear: LocalHadamardLinear,
+            #torch.nn.Embedding: LocalHadamardEmbedding
         }
 
         return conversions
@@ -1900,8 +1867,8 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         """
 
         conversions = {
-            nn.Linear: GLAMSVDLinear,
-            #nn.Embedding: GLAMSVDEmbedding
+            torch.nn.Linear: GLAMSVDLinear,
+            #torch.nn.Embedding: GLAMSVDEmbedding
         }
 
         return conversions
@@ -2042,9 +2009,9 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     def apply_pruning(
             self,
             key1: str,
-            layer1: nn.Module,
+            layer1: torch.nn.Module,
             key2: str,
-            layer2: nn.Module,
+            layer2: torch.nn.Module,
             **kwargs
     ) -> None:
         """
@@ -2053,11 +2020,11 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         Args:
             key1 (str):
                 Key of the first layer.
-            layer1 (nn.Module):
+            layer1 (torch.nn.Module):
                 First layer.
             key2 (str):
                 Key of the second layer.
-            layer2 (nn.Module):
+            layer2 (torch.nn.Module):
                 Second layer.
             **kwargs:
                 Additional keyword arguments.
@@ -2222,12 +2189,12 @@ def provide_hyperparameters_for_glam_training(
     pass
 
 
-class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
+class KFCTrainedModel(torch.nn.Module, RegularizedTrainingInterface):
     """
     Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
 
     Args:
-        model (nn.Module):
+        model (torch.nn.Module):
             Model to wrap.
         verbose (int):
             Verbosity level.
@@ -2256,7 +2223,7 @@ class KFCTrainedModel(nn.Module, RegularizedTrainingInterface):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        nn.Module.__init__(self, **kwargs)
+        torch.nn.Module.__init__(self, **kwargs)
         RegularizedTrainingInterface.__init__(
             self,
             initial_regularization_weight=initial_regularization_weight,
@@ -2432,7 +2399,7 @@ class AlphaStrategy(Enum):
     EXPONENTIAL = "exponential"
 
 
-class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
+class KFCAlphaTrainedModel(torch.nn.Module, LoggingInterface):
     """
     Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
     the output computation as the training goes on.
@@ -2473,7 +2440,7 @@ class KFCAlphaTrainedModel(nn.Module, LoggingInterface):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        nn.Module.__init__(self, **kwargs)
+        torch.nn.Module.__init__(self, **kwargs)
         LoggingInterface.__init__(self, **kwargs)
 
         self.model = model
