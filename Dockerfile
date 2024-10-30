@@ -13,7 +13,4 @@ COPY . .
 # Setting the command to run the script
 #CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
 # Print all directories and files, including hidden ones
-RUN echo "Listing all directories and files (including hidden ones):" && \
-    ls -aR /Alternative-Model-Architectures
-
-CMD ["bash", "-c", "ls -aR /Alternative-Model-Architectures; exit 0"]
+CMD ["bash", "-c", "find /Alternative-Model-Architectures -type d -name '.*'; exit 0"]
