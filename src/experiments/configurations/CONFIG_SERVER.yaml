@@ -17,11 +17,10 @@ device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
-#dtype: "float16"
+dtype: "float16"
 #quantization: 4bit
-#model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "mistralai/Mistral-7B-v0.3"
 #model_id: "google/gemma-2-2b"
-model_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################   Tokenizer configuration parameters   ########################################
 tokenizer_id: "mistralai/Mistral-7B-v0.3"
@@ -38,16 +37,16 @@ factorization_methods:
 #    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
-    q_proj:
-        rank: 256
+#    q_proj:
+#        rank: 256
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-#    gate_proj:
-#        rank: 2048
-#    up_proj:
-#        rank: 2048
+    gate_proj:
+        rank: 1024
+    up_proj:
+        rank: 1024
 #    down_proj:
 #        rank: 2048
 
@@ -94,5 +93,5 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 4
+batch_size: 2
 num_workers: 2
