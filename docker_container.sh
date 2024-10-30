@@ -78,7 +78,7 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         docker run -it --name $CONTAINER_NAME \
           --user $(id -u):$(id -g) \
           -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
-          -v $HOME/.cache/huggingface:/root/.cache/huggingface \
+          -v $HOME/.cache/huggingface:/Alternative-Model-Architectures/male \
           --gpus all $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
     fi
 else
@@ -86,7 +86,7 @@ else
     docker run -it --name $CONTAINER_NAME \
       --user $(id -u):$(id -g) \
       -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
-      -v $HOME/.cache/huggingface:/.cache/huggingface \
+      -v $HOME/.cache/huggingface:/Alternative-Model-Architectures/male \
       --gpus all -m 32g $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
 fi
 
