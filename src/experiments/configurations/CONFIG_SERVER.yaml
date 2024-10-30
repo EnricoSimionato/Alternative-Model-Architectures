@@ -2,10 +2,10 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-#experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "factorization_fine_tuning_experiment"
 
 #experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
@@ -31,29 +31,26 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
-#    - "LocalSVD"
+    - "LocalSVD"
 #    - "Hadamard"
-    - "GlobalBase"
+#    - "GlobalBase"
+#    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
-#    q_proj:
-#        rank: 4
-#        learning_rate: 0.01
-#        max_iterations: 1000
+    q_proj:
+        rank: 256
 #    k_proj:
 #        rank: 256
-#        learning_rate: 0.01
-#        max_iterations: 1000
 #    v_proj:
 #        rank: 256
-#        learning_rate: 0.01
-#        max_iterations: 1000
-    gate_proj:
-        rank: 2048
-    up_proj:
-        rank: 2048
-    down_proj:
-        rank: 2048
+#    gate_proj:
+#        rank: 2048
+#    up_proj:
+#        rank: 2048
+#    down_proj:
+#        rank: 2048
+
+use_names_as_keys: True
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -79,7 +76,7 @@ targets:
     - ["block_index", "mlp", "up_proj"]
     - ["block_index", "mlp", "down_proj"]
 
-num_checks_per_epoch: 2
+num_checks_per_epoch: 1
 gradient_accumulation_steps: 2
 max_len: 512
 
@@ -90,11 +87,11 @@ optimizers_settings:
       warmup_steps: 100
       monitored_metric: "loss"
 
-max_epochs: 2
+max_epochs: 1
 
 split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 1
+batch_size: 4
 num_workers: 2

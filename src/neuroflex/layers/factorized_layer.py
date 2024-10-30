@@ -441,6 +441,7 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         super().__init__()
 
         self.target_name = target_name
+        self.approximation_stats = None
         structure = self._define_structure(**{"target_layer": target_layer}, **kwargs)
 
         average_matrix = None if "average_matrix" not in kwargs else kwargs["average_matrix"]
@@ -463,6 +464,35 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         list_containing_layer_number = [subpath for subpath in kwargs["path"].split("_") if subpath.isdigit()]
         self.layer_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
         self.layer_type = target_name
+
+        self.approximation_stats = self.compute_approximation_stats(target_layer)
+
+    def compute_approximation_stats(
+            self,
+            target_layer
+    ) -> dict:
+        """
+        Computes the approximation statistics of the factorized layer.
+
+        Args:
+            target_layer (torch.nn.Module):
+                Target layer.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        norm_difference = torch.norm(target_layer.weight.data - self.weight.data)
+        norm_target_layer = torch.norm(target_layer.weight.data)
+        norm_approximation = torch.norm(self.weight.data)
+
+        return {
+            "absolute_approximation_error": norm_difference,
+            "norm_of_target": norm_target_layer,
+            "norm_of_approximation": norm_approximation,
+            "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximation)
+        }
 
     def _define_structure(
             self,
