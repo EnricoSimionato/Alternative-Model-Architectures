@@ -38,6 +38,26 @@ class FineTuningExperiment(BenchmarkEvaluation):
             - Fine-tune the models.
             - Evaluate the fine-tuned models on the benchmarks.
         """
+        import os
+
+        # Define the cache directory path
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
+
+        # Function to print all contents of the directory
+        def print_directory_contents(dir_path):
+            try:
+                for root, dirs, files in os.walk(dir_path):
+                    print(f"Contents of: {root}")
+                    for name in dirs:
+                        print(f"  Directory: {name}")
+                    for name in files:
+                        print(f"  File: {name}")
+                    print()  # New line for better readability
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+        # Print the contents of the cache directory
+        print_directory_contents(cache_dir)
 
         # Checking if the experiment has already been run and retrieving the data
         already_created_performance_dict = None
@@ -205,6 +225,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         """
 
         self.log("Setting the layers to train, changing the requires_grad attribute to True", print_message=True)
+
         for model_key in prepared_models:
             model = prepared_models[model_key]
             for parameter in model.parameters():
@@ -223,7 +244,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 except AttributeError:
                     self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
                     self.log("Continuing the process.")
-
 
     def get_layers_to_train(
             self,
@@ -360,3 +380,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         """
 
         pass
+
+
+class FineTuningExperimentUsingAdapter(FineTuningExperiment):
+    pass

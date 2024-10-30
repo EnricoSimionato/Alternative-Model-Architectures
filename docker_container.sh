@@ -66,12 +66,6 @@ fi
 # Check if a container with the same name already exists
 EXISTING_CONTAINER=$(docker ps -aq -f name=$CONTAINER_NAME)
 
-echo "################################################################"
-echo $HOME
-echo $PWD
-ls -la /home/enricosimionato/.cache/huggingface
-echo "################################################################"
-
 if [ -n "$EXISTING_CONTAINER" ]; then
     # Check if the existing container is running
     if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
