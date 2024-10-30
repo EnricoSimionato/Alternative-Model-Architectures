@@ -69,6 +69,7 @@ EXISTING_CONTAINER=$(docker ps -aq -f name=$CONTAINER_NAME)
 echo "################################################################"
 echo $HOME
 echo $PWD
+ls -la /home/enricosimionato/.cache/huggingface
 echo "################################################################"
 
 if [ -n "$EXISTING_CONTAINER" ]; then
@@ -83,7 +84,7 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         docker run -it --name $CONTAINER_NAME \
           --user $(id -u):$(id -g) \
           -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
-          -v /home/enricosimionato/.cache/huggingface:/.cache/huggingface \
+          -v /home/enricosimionato/.cache/huggingface:.cache/huggingface \
           --gpus all $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
     fi
 else
