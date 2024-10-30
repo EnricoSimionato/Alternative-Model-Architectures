@@ -84,7 +84,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         # Print the contents of the cache directory
         print_directory_contents(cache_dir)
-        
+
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
