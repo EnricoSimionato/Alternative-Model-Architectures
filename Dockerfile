@@ -13,4 +13,4 @@ COPY . .
 # Setting the command to run the script
 #CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
 # Print all directories and files, including hidden ones
-CMD ["bash", "-c", "for dir in $(find /Alternative-Model-Architectures -type d -name '.*'); do echo \"$dir:\"; ls -la \"$dir\"; done; exit 0"]
+CMD ["bash", "-c", "ls -la /home/enricosimionato/.cache/huggingface"]
