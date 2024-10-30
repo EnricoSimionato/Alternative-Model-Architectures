@@ -485,13 +485,13 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
 
         norm_difference = torch.norm(target_layer.weight.data - self.weight.data)
         norm_target_layer = torch.norm(target_layer.weight.data)
-        norm_approximation = torch.norm(self.weight.data)
+        norm_approximated_layer = torch.norm(self.weight.data)
 
         return {
             "absolute_approximation_error": norm_difference,
-            "norm_of_target": norm_target_layer,
-            "norm_of_approximation": norm_approximation,
-            "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximation)
+            "norm_target_layer": norm_target_layer,
+            "norm_approximated_layer": norm_approximated_layer,
+            "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximated_layer)
         }
 
     def _define_structure(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import copy
 from copy import deepcopy
 from enum import Enum
 import os
@@ -475,6 +476,7 @@ class GlobalDependentModel(ABC, torch.torch.nn.Module):
     ) -> None:
         torch.nn.Module.__init__(self)
         self.verbose = verbose
+        self.approximation_stats = None
 
         if not from_pretrained:
             if target_model is None or target_layers is None:
@@ -535,13 +537,79 @@ class GlobalDependentModel(ABC, torch.torch.nn.Module):
                     "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
                 }
             )
-
+            self.approximation_stats = self.compute_approximation_stats()
             if self.verbose > Verbose.SILENT:
                 print(f"Number of parameters original model: {self.info['original_model_parameters']}")
                 print(f"Number of parameters global model: {self.info['model_parameters']}")
                 print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
                 print()
             print("Model converted")
+
+    def _get_wrapped_layers(
+            self,
+            module_tree: [torch.nn.Module | transformers.AutoModel],
+            layers_storage: {},
+            path: list = None,
+    ) -> None:
+        """
+        Extracts the matrices from the model tree.
+
+        Args:
+            module_tree ([torch.nn.Module | transformers.AutoModel]):
+                The model tree.
+            layers_storage (dict):
+                Storage where the extracted layers will be at the end of the extraction.
+            path (list, optional):
+                The path to the current layer. Defaults to None.
+        """
+
+        for layer_name in module_tree._modules.keys():
+            # Extracting the child from the current module
+            child = module_tree._modules[layer_name]
+            layer_path = copy.deepcopy(path) + [f"{layer_name}"] if path is not None else [f"{layer_name}"]
+
+            if issubclass(type(child), StructureSpecificGlobalDependent):
+                layers_storage[tuple(layer_path)] = child
+            elif len(child._modules) == 0:
+                pass
+            else:
+                # Recursively calling the function
+                self._get_wrapped_layers(module_tree=child, layers_storage=layers_storage, path=layer_path)
+
+    def compute_approximation_stats(
+            self
+    ) -> dict:
+        """
+        Computes the approximation statistics.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        wrapped_layers = {}
+        self._get_wrapped_layers(self.model, wrapped_layers)
+        concatenated_absolute_approximation_error = torch.tensor([layer.approximation_stats["absolute_approximation_error"] for layer in wrapped_layers.values()])
+        concatenated_norm_target_layers = torch.tensor([layer.approximation_stats["norm_target_layer"] for layer in wrapped_layers.values()])
+        concatenated_norm_approximated_layers = torch.tensor([layer.approximation_stats["norm_approximated_layer"] for layer in wrapped_layers.values()])
+
+        print({
+            "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
+            "mean_absolute_approximation_error": torch.mean(concatenated_absolute_approximation_error).item(),
+            "sum_norm_target_layers": torch.sum(concatenated_norm_target_layers).item(),
+            "mean_norm_target_layers": torch.mean(concatenated_norm_target_layers).item(),
+            "sum_norm_approximated_layers": torch.sum(concatenated_norm_approximated_layers).item(),
+            "mean_norm_approximated_layers": torch.mean(concatenated_norm_approximated_layers).item()
+        })
+
+        return {
+            "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
+            "mean_absolute_approximation_error": torch.mean(concatenated_absolute_approximation_error).item(),
+            "sum_norm_target_layers": torch.sum(concatenated_norm_target_layers).item(),
+            "mean_norm_target_layers": torch.mean(concatenated_norm_target_layers).item(),
+            "sum_norm_approximated_layers": torch.sum(concatenated_norm_approximated_layers).item(),
+            "mean_norm_approximated_layers": torch.mean(concatenated_norm_approximated_layers).item()
+        }
 
     def get_model(
             self
