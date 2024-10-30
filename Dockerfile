@@ -13,4 +13,5 @@ COPY . .
 # Setting the command to run the script
 #CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
 # Print all directories and files, including hidden ones
-CMD ["bash", "-c", "pwd && ls -la /.cache/huggingface && ls -la /.cache"]
+#CMD ["bash", "-c", "pwd && ls -la /.cache/huggingface && ls -la /.cache"]
+CMD ["bash"]
