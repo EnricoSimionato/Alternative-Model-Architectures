@@ -75,7 +75,7 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         echo "Container $CONTAINER_NAME exists but is not running. Removing it."
         docker rm $EXISTING_CONTAINER
         echo "Creating and running a new container."
-        docker run -it --user --name $CONTAINER_NAME \
+        docker run -it --name $CONTAINER_NAME \
           --user $(id -u):$(id -g) \
           -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
           -v $HOME/.cache/huggingface:/root/.cache/huggingface \
@@ -83,7 +83,7 @@ if [ -n "$EXISTING_CONTAINER" ]; then
     fi
 else
     echo "No existing container found. Creating and running a new one."
-    docker run -it --user --name $CONTAINER_NAME \
+    docker run -it --name $CONTAINER_NAME \
       --user $(id -u):$(id -g) \
       -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
       -v $HOME/.cache/huggingface:/.cache/huggingface \
