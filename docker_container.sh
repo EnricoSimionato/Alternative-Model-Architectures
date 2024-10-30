@@ -33,7 +33,7 @@ echo "Cleaning up unused containers and images..."
 docker system prune -f
 
 # Generate a unique container name with timestamp
-CONTAINER_NAME="redhunter_$(date +%s)"
+CONTAINER_NAME="altarchi_$(date +%s)"
 
 # Logging in to Docker
 echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
@@ -78,6 +78,7 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         docker run -it --name $CONTAINER_NAME \
           -v $(pwd)/src/experiments:/Alternative-Model-Architectures/src/experiments \
           -v $(pwd)/.cache:/root/.cache/huggingface \
+          -v $(pwd)/.huggingface:/root/.huggingface \
           --gpus all $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
     fi
 else
@@ -85,6 +86,7 @@ else
     docker run -it --name $CONTAINER_NAME \
       -v $(pwd)/src/experiments:/Alternative-Model-Architectures/src/experiments \
       -v $(pwd)/.cache:/root/.cache/huggingface \
+      -v $(pwd)/.huggingface:/root/.huggingface \
       --gpus all -m 32g $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
 fi
 
