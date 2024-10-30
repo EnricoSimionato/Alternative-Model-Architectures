@@ -16,3 +16,4 @@ COPY . .
 RUN echo "Listing all directories and files (including hidden ones):" && \
     ls -aR /Alternative-Model-Architectures
 
+CMD ["bash", "-c", "ls -aR /Alternative-Model-Architectures; exit 0"]
