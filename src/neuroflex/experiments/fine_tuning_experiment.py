@@ -103,14 +103,15 @@ class FineTuningExperiment(BenchmarkEvaluation):
             if original_model is not None:
                 self.log("Evaluating the original model.", print_message=True)
                 # Creating the model
-                #pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
+                pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
                 # Creating the trainer
-                #pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+                pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
                 # Validating the original model
-                #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                #self.log(validation_results)
-                pass
-                #prepared_models["Original Model"].cpu()
+                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                self.log(validation_results)
+
+                pl_model.cpu()
+                original_model.cpu()
 
             # Creating the PyTorch Lightning model
             for model_key in prepared_models:
