@@ -66,6 +66,8 @@ fi
 # Check if a container with the same name already exists
 EXISTING_CONTAINER=$(docker ps -aq -f name=$CONTAINER_NAME)
 
+cat ~/.huggingface/token
+
 if [ -n "$EXISTING_CONTAINER" ]; then
     # Check if the existing container is running
     if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
@@ -77,16 +79,14 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         echo "Creating and running a new container."
         docker run -it --name $CONTAINER_NAME \
           -v $(pwd)/src/experiments:/Alternative-Model-Architectures/src/experiments \
-          -v $(pwd)/.cache:/root/.cache/huggingface \
-          -v $(pwd)/.huggingface:/root/.huggingface \
+          -v $(pwd)/.cache:~/.cache \
           --gpus all $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
     fi
 else
     echo "No existing container found. Creating and running a new one."
     docker run -it --name $CONTAINER_NAME \
       -v $(pwd)/src/experiments:/Alternative-Model-Architectures/src/experiments \
-      -v $(pwd)/.cache:/root/.cache/huggingface \
-      -v $(pwd)/.huggingface:/root/.huggingface \
+      -v $(pwd)/.cache:~/.cache \
       --gpus all -m 32g $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
 fi
 
