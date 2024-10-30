@@ -66,6 +66,25 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Preparing the models, the tokenizer and the performance dictionary
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
 
+        # Define the cache directory path
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
+
+        # Function to print all contents of the directory
+        def print_directory_contents(dir_path):
+            try:
+                for root, dirs, files in os.walk(dir_path):
+                    print(f"Contents of: {root}")
+                    for name in dirs:
+                        print(f"  Directory: {name}")
+                    for name in files:
+                        print(f"  File: {name}")
+                    print()  # New line for better readability
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+        # Print the contents of the cache directory
+        print_directory_contents(cache_dir)
+        
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 

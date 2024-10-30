@@ -77,14 +77,14 @@ if [ -n "$EXISTING_CONTAINER" ]; then
         echo "Creating and running a new container."
         docker run -it --name $CONTAINER_NAME \
           -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
-          -v /home/enricosimionato/.cache/huggingface:/.cache/huggingface \
+          -v /home/enricosimionato/.cache/huggingface:$(eval echo ~)/.cache/huggingface \
           --gpus all $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
     fi
 else
     echo "No existing container found. Creating and running a new one."
     docker run -it --name $CONTAINER_NAME \
       -v $PWD/src/experiments:/Alternative-Model-Architectures/src/experiments \
-      -v /home/enricosimionato/.cache/huggingface:/.cache/huggingface \
+      -v /home/enricosimionato/.cache/huggingface:$(eval echo ~)/.cache/huggingface \
       --gpus all -m 32g $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
 fi
 
