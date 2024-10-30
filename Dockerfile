@@ -11,5 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Logging in to the Hugging Face model hub
 RUN huggingface-cli login --token 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
 # Setting the command to run the script
-CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
+#CMD ["python3", "src/neuroflex/experiment_launcher.py", "CONFIG_SERVER.yaml"]
+# Print all directories and files, including hidden ones
+RUN echo "Listing all directories and files (including hidden ones):" && \
+    ls -aR /Alternative-Model-Architectures
 
