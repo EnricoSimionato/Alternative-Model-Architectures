@@ -136,6 +136,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 pl_model.cpu()
                 original_model.cpu()
 
+            del original_model
             # Creating the PyTorch Lightning model
             for model_key in prepared_models:
                 base_model = prepared_models[model_key]
@@ -161,8 +162,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
                 fine_tuned_models[model_key] = pl_model.model
 
-        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
-            fine_tuned_models["Original Model"] = original_model
+        #if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
+        #    fine_tuned_models["Original Model"] = original_model
 
         return fine_tuned_models, tokenizer
 

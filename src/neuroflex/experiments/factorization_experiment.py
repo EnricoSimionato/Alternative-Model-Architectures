@@ -80,9 +80,7 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
         prepared_models = {}
         try:
             for factorization_method in self.config.get("factorization_methods"):
-                print("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
                 loaded_model = self.load(f"{factorization_method}.pt", "pt")
-                print("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG")
                 if loaded_model is not None:
                     prepared_models[f"{factorization_method}"] = loaded_model
                     self.log(f"Factorized model loaded from storage.\nFactorization method: {factorization_method}.", print_message=True)
