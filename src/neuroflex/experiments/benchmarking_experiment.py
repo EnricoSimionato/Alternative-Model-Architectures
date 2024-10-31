@@ -160,12 +160,15 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Original model loaded.")
 
         tokenizer = self.load("tokenizer.pt", "pt")
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         if tokenizer is None:
             tokenizer = load_tokenizer_for_causal_lm(self.config)
         self.log(f"Tokenizer loaded.")
 
+        print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
         prepared_models.update(self.prepare_models(copy.deepcopy(original_model), tokenizer))
 
+        print("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
         self.config.set("device", device)
 
         for model_key in prepared_models.keys():
