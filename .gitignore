@@ -162,12 +162,11 @@ cython_debug/
 *.xml
 *.iml
 
-#src/experiments/cache/*
-#src/experiments/data/*
-#src/experiments/models/*
 src/experiments/results/*
 !src/experiments/results/.gitkeep
 
+src/experiments/configurations/CONFIG_LOCAL.yaml
+src/experiments/configurations/CONFIG_LOCAL_TEST.yaml
 
 
 
