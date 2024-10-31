@@ -167,10 +167,9 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Tokenizer loaded.")
 
         print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
-        copy.deepcopy(original_model)
         print("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
 
-        prepared_models.update(self.prepare_models(copy.deepcopy(original_model).cpu(), tokenizer))
+        prepared_models.update(self.prepare_models(original_model, tokenizer))
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
 
         self.config.set("device", device)
