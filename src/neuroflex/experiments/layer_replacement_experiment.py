@@ -1,4 +1,5 @@
 import copy
+import gc
 from typing import override, Union
 
 import torch
@@ -16,8 +17,8 @@ from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
 
 class LayerReplacementFineTuningExperiment(FineTuningExperiment):
     """
-    Class to perform the evaluation of a model with with some layers replaced following the given strategy on some
-    benchmarks, the fine-tuning of the model and the evaluation on the same benchmarks again.
+    Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
+    layer of the model that has been replaced and the evaluation on the same benchmarks again.
     """
 
     mandatory_keys = ["replacement_methods", "num_layers", "targets"]
@@ -25,39 +26,44 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
     @override
     def prepare_models(
             self,
-            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None,
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
-    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
         """
         Returns the prepared models to be evaluated.
 
         Args:
-            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None):
                 The original model to be prepared.
             tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
                 The tokenizer of the model.
 
         Returns:
-            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
                 The prepared models to be evaluated.
         """
 
         self.log(f"Preparing the models using replacement methods {self.config.get('replacement_methods')}.")
 
         prepared_models = {}
-
-        base_model.cpu()
         try:
             for replacement_method in self.config.get("replacement_methods"):
                 loaded_model = self.load(f"{replacement_method}.pt", "pt")
-                if loaded_model is None:
-                    prepared_models[f"{replacement_method}"] = get_layer_replaced_model(
-                        #copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.config
-                        base_model, replacement_method, self.get_layers_replacement_mapping(), self.config
-                    ).get_model()
-                else:
+                if loaded_model is not None:
                     prepared_models[f"{replacement_method}"] = loaded_model
-
+                    self.log(f"Model with replaced layers loaded from storage.",print_message=True)
+                else:
+                    prepared_models[f"{replacement_method}"] = get_layer_replaced_model(
+                        copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.config
+                    ).get_model()
+                    self.log(f"Model prepared replacing the layers.", print_message=True)
+                self.log(f"Replacement method: {replacement_method}.", print_message=True)
+                self.store(prepared_models[f"{replacement_method}"], f"{replacement_method}.pt", "pt")
+                if self.is_low_memory_mode():
+                    del prepared_models[f"{replacement_method}"]
+                    gc.collect()
+                    prepared_models[f"{replacement_method}"] = None
+                    self.log("Model deleted from memory.", print_message=True)
         except Exception as e:
             self.log(f"Error preparing the model: {e}")
             raise e
@@ -95,7 +101,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
 class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    model and the evaluation on the same benchmarks again.
+    entire model and the evaluation on the same benchmarks again.
     """
 
     @override
@@ -135,24 +141,34 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
 class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    model and the evaluation on the same benchmarks again.
+    replaced layers of the model using adapters and the evaluation on the same benchmarks again.
     """
 
     @override
     def prepare_fine_tuning(
             self,
-            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
-    ) -> None:
-        for model_key in prepared_models:
-            self.log(f"Preparing the model {model_key} for fine-tuning using adapters.")
-            model = prepared_models[model_key]
-            for parameter in model.parameters():
-                parameter.requires_grad = False
+            prepared_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None
+    ) -> torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None:
+        """
+        Prepares the model for fine-tuning by setting the layers to train.
+        This method can be overridden to do different operations.
 
-            # Wrapping the model with the adapter
-            adapted_model = self.get_adapted_model(model)
-            prepared_models[model_key] = adapted_model
+        Args:
+            prepared_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None):
+                The model to fine-tune.
 
+        Returns:
+            torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None:
+                The model prepared for fine-tuning.
+        """
+
+        # Wrapping the model with the adapter
+        adapted_model = self.get_adapted_model(prepared_model)
+        self.log(f"Model with adapters: {adapted_model}.", print_message=True)
+
+        return adapted_model
+
+    # TODO FIX THESE 2 METHODS
     def get_adapted_model(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
@@ -201,7 +217,16 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
     ) -> list | str:
         """
+        Returns the names to use in the target_modules parameter of the peft configuration to have the adapters in the
+        desired layers.
 
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to be adapted.
+
+        Returns:
+            list | str:
+                The names of the layers to train or the string "all-linear" to train all the linear layers.
         """
 
         layers_to_train = {}
@@ -215,6 +240,10 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
 
 
 class LayerReplacementFineTuningAdapterOnEntireModelExperiment(LayerReplacementFineTuningAdapterOnTargetsExperiment):
+    """
+    Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
+    entire model using adapters and the evaluation on the same benchmarks again.
+    """
 
     @override
     def get_label_layers_to_train(
@@ -222,6 +251,16 @@ class LayerReplacementFineTuningAdapterOnEntireModelExperiment(LayerReplacementF
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
     ) -> list | str:
         """
+        Returns the names to use in the target_modules parameter of the peft configuration to have the adapters in the
+        desired layers.
+
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to be adapted.
+
+        Returns:
+            list | str:
+                The names of the layers to train or the string "all-linear" to train all the linear layers.
         """
 
         return "all-linear"

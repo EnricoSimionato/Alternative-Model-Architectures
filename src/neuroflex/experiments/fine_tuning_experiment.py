@@ -1,3 +1,4 @@
+import gc
 from typing import Any, override
 
 import matplotlib.pyplot as plt
@@ -38,29 +39,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
             - Fine-tune the models.
             - Evaluate the fine-tuned models on the benchmarks.
         """
-        """
-        import os
-        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
-        print(f"Path {os.path.join(self.config.get("experiment_root_path"), 'LocalSVD.pt')}")
-        try:
-            loaded_model = torch.load(os.path.join(self.config.get("experiment_root_path"), 'LocalSVD.pt'))
-        except Exception as e:
-            self.log(f"Error loading the model: {e}")
-            raise e
-        print(loaded_model)
-
-        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
-        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
-        print(f"Path {os.path.join(self.config.get("experiment_root_path"), 'Original Model.pt')}")
-        try:
-            loaded_model = torch.load(os.path.join(self.config.get("experiment_root_path"), 'Original Model.pt'))
-        except Exception as e:
-            self.log(f"Error loading the model: {e}")
-            raise e
-        print(loaded_model)
-
-        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
-        """
 
         # Checking if the experiment has already been run and retrieving the data
         already_created_performance_dict = None
@@ -70,18 +48,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
 
         # Evaluating the models on the benchmarks
-        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
-
-        for model_key in fine_tuned_models:
-            print(f"Model {model_key}")
-            self.log(f"Model {model_key}")
-            self.log(f"{fine_tuned_models[model_key]}")
-
-        for model_key in fine_tuned_models:
-            self.store(fine_tuned_models[model_key], f"fine_tuned_model_{model_key}.pt", "pt")
 
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
@@ -90,165 +60,201 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
     def _perform_fine_tuning(
          self,
-         prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
+         prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None],
          tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
-    ) -> tuple[dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel], transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
+    ) -> tuple[dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None], transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
         """
         Performs the fine-tuning of the models on a dataset.
 
         Args:
-            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
+            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]):
                 The models to fine-tune.
             tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
                 The tokenizer to use.
 
         Returns:
-            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
                 The fine-tuned models.
             transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
                 The tokenizer used.
         """
 
         fine_tuned_models = {model_key: None for model_key in prepared_models}
-        original_model = None
-        if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
-            original_model = prepared_models.pop("Original Model")
+        original_model = prepared_models.pop("Original Model")
 
-        already_fine_tuned = self._prepare_fine_tuning(prepared_models)
+        self._prepare_utils_for_fine_tuning()
 
-        if not already_fine_tuned:
-            # Creating the dataset
-            dataset_id = self.config.get("dataset_id")
-            pl_dataset = get_pytorch_lightning_dataset(dataset_id, tokenizer, self.config.get("max_len"), self.config)
-            pl_dataset.setup()
-            self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
+        # Creating the dataset
+        dataset_id = self.config.get("dataset_id")
+        pl_dataset = get_pytorch_lightning_dataset(dataset_id, tokenizer, self.config.get("max_len"), self.config)
+        pl_dataset.setup()
+        self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
-            if original_model is not None:
-                self.log("Evaluating the original model.", print_message=True)
-                # Creating the model
-                pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
-                # Creating the trainer
-                pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-                # Validating the original model
-                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                self.log(validation_results)
+        # Loading the original model if it is not in memory
+        if original_model is None:
+            original_model = self.load("Original Model.pt", "pt")
+            if original_model is None:
+                raise ValueError("Original Model not found in storage.")
+        self.log("Evaluating the original model.", print_message=True)
+        # Creating the model
+        pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
+        # Creating the trainer
+        pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+        # Validating the original model
+        #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+        #self.log(validation_results)
+        del original_model
 
-                pl_model.cpu()
-                original_model.cpu()
+        # Fine-tuning the models
+        for model_key in list(prepared_models.keys()):
+            self.log(f"Fine-tuning model with model key: {model_key}.", print_message=True)
+            model = prepared_models[model_key]
 
-            del original_model
-            # Creating the PyTorch Lightning model
-            for model_key in prepared_models:
-                base_model = prepared_models[model_key]
+            # Loading the model if we are in low memory mode
+            if self.is_low_memory_mode() and model is None:
+                model = self.load(f"{model_key}.pt", "pt")
+                if model is None:
+                    raise ValueError(f"Model {model_key} not found in storage.")
+            already_fine_tuned = self._prepare_fine_tuning(model_key, model)
 
-                # Creating the model
-                pl_model = get_pytorch_lightning_model(base_model, tokenizer, self.config.get("task_id"), self.config)
+            if not already_fine_tuned:
+                # Creating the Lightning model
+                pl_model = get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
                 self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
 
-                # Creating the trainer
+                # Creating the Lightning trainer
                 pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
                 self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
                 # Validating the model before training
-                _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
                 # Training the model
                 _ = self._fit(pl_model, pl_trainer, pl_dataset)
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                self.log(validation_results)
+                #self.log(f"Validation results after fit:\n {validation_results}")
                 # Testing the model
-                _, test_results = self._test(pl_model, pl_trainer, pl_dataset)
-                self.log(test_results)
+                # For now testing is disabled
+                #_, test_results = self._test(pl_model, pl_trainer, pl_dataset)
+                #self.log(f"Test results:\n {test_results}")
 
-                fine_tuned_models[model_key] = pl_model.model
+                fine_tuned_model = pl_model.model
 
-        #if not (self.config.contains("train_original_original_model") and self.config.get("train_original_original_model")):
-        #    fine_tuned_models["Original Model"] = original_model
+                # Storing the fine-tuned model
+                self.store(fine_tuned_model, f"fine_tuned_model_{model_key}.pt", "pt")
+            else:
+                fine_tuned_model = model
+
+            fine_tuned_models[model_key] = fine_tuned_model
+
+            self.log(f"Model with model key: {model_key} fine-tuned.", print_message=True)
+            self.log(f"{fine_tuned_models[model_key]}")
+
+            # Deleting the model from memory if we are in low memory mode
+            if self.is_low_memory_mode():
+                del fine_tuned_models[model_key]
+                del prepared_models[model_key]
+                gc.collect()
+                fine_tuned_models[model_key] = None
 
         return fine_tuned_models, tokenizer
 
+    def _prepare_utils_for_fine_tuning(
+            self
+    ) -> None:
+        """
+        Prepares the utilities for the fine-tuning of the models.
+        """
+
+        self.create_experiment_directory("checkpoints")
+        self.create_experiment_directory("training_logs")
+
     def _prepare_fine_tuning(
             self,
-            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
+            model_key: str,
+            prepared_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None
     ) -> bool:
         """
-        Prepares the fine-tuning of the models. It does utility operations such as creating the directories to store the
-        checkpoints and the training logs.
+        Prepares the fine-tuning of the given model.
+        It checks if the model has already been fine-tuned:
+            - If it has been fine-tuned, it loads the fine-tuned model (unless we are in low memory mode).
+            - If it has not been fine-tuned, it prepares the model for fine-tuning by setting the layers to train.
 
         Args:
-            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
-                The models to fine-tune.
+            model_key (str):
+                The key of the model.
+            prepared_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None):
+                The model to fine-tune.
 
         Returns:
             bool:
-                True if the models have already been fine-tuned, False otherwise.
+                True if the model has already been fine-tuned, False otherwise.
         """
 
-        self.log("Checking if the models have already been fine-tuned.", print_message=True)
-        already_fine_tuned = True
-        for model_key in prepared_models:
-            fine_tuned_model = self.load("fine_tuned_model_" + model_key + ".pt", "pt")
-            if fine_tuned_model is not None:
-                prepared_models[model_key] = fine_tuned_model
-            else:
-                already_fine_tuned = False
+        self.log("Checking if the model have already been fine-tuned.", print_message=True)
+        already_fine_tuned = model_key
+        fine_tuned_model = self.load("fine_tuned_model_" + model_key + ".pt", "pt")
+        if fine_tuned_model is not None:
+            if self.is_low_memory_mode():
+                del fine_tuned_model
+            self.log("Model with model key: " + model_key + " has already been fine-tuned.", print_message=True)
+        else:
+            already_fine_tuned = False
+            self.log("Model with model key: " + model_key + " has not been fine-tuned.", print_message=True)
 
         if not already_fine_tuned:
-            self.log("Models have not been fine-tuned yet.", print_message=True)
-            self.log("Preparing the models for fine-tuning.", print_message=True)
+            self.log("Preparing the model for fine-tuning.", print_message=True)
 
-            self.create_experiment_directory("checkpoints")
-            self.create_experiment_directory("training_logs")
+            # Preparing the model for fine-tuning using the method depending on the type of experiment we are performing
+            for parameter in prepared_model.parameters():
+                parameter.requires_grad = False
+            prepared_model = self.prepare_fine_tuning(prepared_model)
 
-            self.prepare_fine_tuning(prepared_models)
+            self.log("Model prepared for fine-tuning.", print_message=True)
 
-            self.log("Models prepared for fine-tuning.", print_message=True)
-
-            for model_key in prepared_models:
-                self.log(f"Model with model key: {model_key}")
-                model = prepared_models[model_key]
-                for name, param in model.named_parameters():
-                    if param.requires_grad:
-                        self.log(f"Parameter {name} is set to trainable.")
-                    else:
-                        self.log(f"Parameter {name} is NOT trainable!")
-        else:
-            self.log("Models have already been fine-tuned.", print_message=True)
+            for name, param in prepared_model.named_parameters():
+                if param.requires_grad:
+                    self.log(f"Parameter {name} is set to trainable.")
+                else:
+                    self.log(f"Parameter {name} is NOT trainable!")
 
         return already_fine_tuned
 
     def prepare_fine_tuning(
             self,
-            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]
-    ) -> None:
+            prepared_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None
+    ) -> torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None:
         """
-        Prepares the fine-tuning of the models. This method can be overridden to add more operations.
+        Prepares the model for fine-tuning by setting the layers to train.
+        This method can be overridden to do different operations.
 
         Args:
-            prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]):
-                The models to fine-tune.
+            prepared_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None):
+                The model to fine-tune.
+
+        Returns:
+            torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None:
+                The model prepared for fine-tuning.
         """
 
         self.log("Setting the layers to train, changing the requires_grad attribute to True", print_message=True)
 
-        for model_key in prepared_models:
-            model = prepared_models[model_key]
-            for parameter in model.parameters():
-                parameter.requires_grad = False
-            mapping_path_layers_to_train = self.get_layers_to_train(model)
-            layers_to_train = mapping_path_layers_to_train.values()
-            #self.log(f"Layers to train:\n{'\n'.join(mapping_path_layers_to_train.keys())}")
-            for layer in layers_to_train:
-                try:
-                    layer.weight.requires_grad = True
-                except AttributeError as e:
-                    self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute weight.")
-                    raise e
-                try:
-                    layer.bias.requires_grad = True
-                except AttributeError:
+        mapping_path_layers_to_train = self.get_layers_to_train(prepared_model)
+        layers_to_train = mapping_path_layers_to_train.values()
+        for layer in layers_to_train:
+            try:
+                layer.weight.requires_grad = True
+            except AttributeError as e:
+                self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute weight.")
+                raise e
+            try:
+                layer.bias.requires_grad = True
+            except AttributeError:
                     self.log(f"Error setting the layer {layer} to trainable, it does not have the attribute bias.")
                     self.log("Continuing the process.")
+
+        return prepared_model
 
     def get_layers_to_train(
             self,
@@ -266,6 +272,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The layers to train.
         """
 
+        if model is None:
+            raise ValueError("There are no layers to train. The model cannot be None.")
+
+        # Getting the layers to train
         layers_to_train = {}
         get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
 
@@ -384,8 +394,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The data obtained from the analysis.
         """
 
+        pass
 
 
-
+# Not implemented yet
 class FineTuningExperimentUsingAdapter(FineTuningExperiment):
     pass

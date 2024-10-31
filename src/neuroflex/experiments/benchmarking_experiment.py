@@ -1,4 +1,5 @@
 import copy
+import gc
 import logging
 import os
 
@@ -38,12 +39,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
     def _prepare_experiment(
             self,
             already_created_performance_dict: dict[str, dict[str, dict[str, float]]] = None
-    ) -> tuple[
-         dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
-         transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
-         dict[str, dict[str, dict[str, float]]],
-         dict[str, list[str]]
-    ]:
+    ) -> tuple[dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None], transformers.AutoTokenizer | transformers.PreTrainedTokenizer, dict[str, dict[str, dict[str, float]]], dict[str, list[str]]]:
         """
         Prepares the experiment:
             - Loads the models to be evaluated.
@@ -88,7 +84,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
     def _perform_model_evaluation(
             self,
-            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel],
+            prepared_models: dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None],
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
             performance_dict: dict[str, dict[str, dict[str, float]]],
             remaining_analysis: dict[str, list[str]],
@@ -98,12 +94,13 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         Performs the evaluation of the model on the benchmarks
         """
 
+        # Getting the evaluation parameters
         benchmark_ids = self.config.get("benchmark_ids")
         device_str = get_available_device(self.config.get("device") if self.config.contains("device") else "cpu", just_string=True)
-
         evaluation_args = (self.config.get("evaluation_args") if self.config.contains("evaluation_args")
                            else {benchmark_id: {} for benchmark_id in benchmark_ids})
 
+        # Evaluating the models on the benchmarks
         for benchmark_id in remaining_analysis.keys():
             # Defining the evaluation parameters
             benchmark_evaluation_args = evaluation_args[benchmark_id]
@@ -111,6 +108,14 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
             for model_key in remaining_analysis[benchmark_id]:
                 model = prepared_models[model_key]
+
+                # Loading the model if we are in low memory mode
+                if self.is_low_memory_mode() and model is None:
+                    model = self.load(f"{model_key}.pt", "pt")
+                    prepared_models[model_key] = model
+                    if model is None:
+                        raise ValueError(f"Model {model_key} not found in storage.")
+
                 logging.info(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
                 print(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
 
@@ -127,6 +132,11 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Moving the model to the CPU to be able to evaluate the next model
                 model.cpu()
+                # Deleting the model from memory if we are in low memory mode
+                if self.is_low_memory_mode():
+                    del prepared_models[model_key]
+                    gc.collect()
+                    prepared_models[model_key] = None
 
             # Storing the data
             self.log(f"Trying to store the results on benchmark {benchmark_id}...")
@@ -140,68 +150,84 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
     def _prepare_models(
             self
-    ) -> [dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel], transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
+    ) -> [dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None], transformers.AutoTokenizer | transformers.PreTrainedTokenizer]:
         """
         Gets, stores and returns the prepared models to be evaluated.
+        If we are in low memory mode, the models are stored on disk and deleted from memory.
 
         Returns:
-            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
                 The prepared models to be evaluated.
         """
 
+        # Setting the device to CPU to avoid memory issues
         device = self.config.get("device") if self.config.contains("device") else "cpu"
         self.config.set("device", "cpu")
 
         # Preparing the models
+
+        # Loading the original model
         original_model = self.load("Original Model.pt", "pt")
         if original_model is None:
             original_model = load_model_for_causal_lm(self.config)
         prepared_models = {"Original Model": original_model}
         self.log(f"Original model loaded.")
 
+        # Storing the original model
+        self.store(original_model, "Original Model.pt", "pt")
+        self.log(f"Original model stored.")
+
+        # Loading the tokenizer
         tokenizer = self.load("tokenizer.pt", "pt")
         if tokenizer is None:
             tokenizer = load_tokenizer_for_causal_lm(self.config)
         self.log(f"Tokenizer loaded.")
 
+        # Storing the tokenizer
+        self.store(tokenizer, "tokenizer.pt", "pt")
+        self.log(f"Tokenizer stored.")
+
+        # Preparing the models
         prepared_models.update(self.prepare_models(original_model, tokenizer))
 
+        # Setting the device to the original value
         self.config.set("device", device)
 
-        for model_key in prepared_models.keys():
-            self.log(f"Model {model_key} prepared.")
-            self.log(f"Model {model_key} is on device: {prepared_models[model_key].device}")
-
-        # Storing the models
+        # Storing the models if they are not None
         for model_key, model in prepared_models.items():
-            if not self.exists_file(f"{model_key}.pt"):
+            if not self.exists_file(f"{model_key}.pt") and model is not None:
                 self.store(model, f"{model_key}.pt", "pt")
                 self.log(f"Model {model_key} stored.")
-        # Storing the tokenizer
-        if not self.exists_file("tokenizer.pt"):
-            self.store(tokenizer, "tokenizer.pt", "pt")
-            self.log(f"Tokenizer stored.")
 
         self.log(f"All models and tokenizer prepared.")
+
+        # Deleting the models from memory if we are in low memory mode
+        if self.is_low_memory_mode():
+            for model_key in list(prepared_models.keys()):
+                del prepared_models[model_key]
+                gc.collect()
+                prepared_models[model_key] = None
+
+            self.log(f"Models deleted from memory because we are in low memory mode.")
 
         return prepared_models, tokenizer
 
     def prepare_models(
             self,
-            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            base_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None,
             tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer
-    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+    ) -> dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
         """
         Returns the prepared models to be evaluated. This method should be implemented by the subclasses if needed.
 
         Args:
-            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+            base_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None):
                 The original model to be prepared.
             tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
                 The tokenizer of the model.
 
         Returns:
-            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
+            dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
                 The prepared models to be evaluated.
         """
 
