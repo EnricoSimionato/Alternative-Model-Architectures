@@ -85,6 +85,7 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
                 if loaded_model is not None:
                     prepared_models[f"{factorization_method}"] = loaded_model
                     self.log(f"Factorized model loaded from storage.\nFactorization method: {factorization_method}.", print_message=True)
+                    print(loaded_model)
                 else:
                     prepared_models[f"{factorization_method}"] = get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
                     self.log(f"Model prepared factorizing the original one.\nFactorization method: {factorization_method}.", print_message=True)

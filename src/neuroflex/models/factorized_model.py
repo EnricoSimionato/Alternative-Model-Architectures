@@ -358,7 +358,7 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
         pass
 
 
-class FactorizedModel(ABC, torch.torch.nn.Module):
+class FactorizedModel(ABC, torch.nn.Module):
     """
     Model with factorized layers.
 
@@ -392,7 +392,7 @@ class FactorizedModel(ABC, torch.torch.nn.Module):
             Mapping of the layer names to the keys of the global layers.
         model (PreTrainedModel):
             Pretrained model.
-        global_layers (torch.torch.nn.ModuleDict):
+        global_layers (torch.nn.ModuleDict):
             Global layers.
         conversions (dict):
             Mapping of layer types to global-dependent layer classes.
@@ -403,7 +403,7 @@ class FactorizedModel(ABC, torch.torch.nn.Module):
     """
 
 
-class GlobalDependentModel(ABC, torch.torch.nn.Module):
+class GlobalDependentModel(ABC, torch.nn.Module):
     """
     Model with global layers replacing some layers of the model.
 
@@ -452,7 +452,7 @@ class GlobalDependentModel(ABC, torch.torch.nn.Module):
             Mapping of the layer names to the keys of the global layers.
         model (PreTrainedModel):
             Pretrained model.
-        global_layers (torch.torch.nn.ModuleDict):
+        global_layers (torch.nn.ModuleDict):
             Global layers.
         conversions (dict):
             Mapping of layer types to global-dependent layer classes.

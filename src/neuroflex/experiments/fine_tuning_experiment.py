@@ -38,6 +38,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
             - Fine-tune the models.
             - Evaluate the fine-tuned models on the benchmarks.
         """
+        import os
+        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
+        print(f"Path {os.path.join(self.config.get("experiment_root_path"), 'LocalSVD.pt')}")
+        try:
+            loaded_model = torch.load(os.path.join(self.config.get("experiment_root_path"), 'LocalSVD.pt'))
+        except Exception as e:
+            self.log(f"Error loading the model: {e}")
+            raise e
+        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
+
 
         # Checking if the experiment has already been run and retrieving the data
         already_created_performance_dict = None
