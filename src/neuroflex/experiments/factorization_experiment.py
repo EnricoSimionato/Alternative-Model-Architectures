@@ -82,7 +82,12 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
         try:
             for factorization_method in self.config.get("factorization_methods"):
                 loaded_model = self.load(f"{factorization_method}.pt", "pt")
-                prepared_models[f"{factorization_method}"] = loaded_model if loaded_model is not None else get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+                if loaded_model is not None:
+                    prepared_models[f"{factorization_method}"] = loaded_model
+                    self.log(f"Factorized model loaded from storage.\nFactorization method: {factorization_method}.", print_message=True)
+                else:
+                    prepared_models[f"{factorization_method}"] = get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+                    self.log(f"Model prepared factorizing the original one.\nFactorization method: {factorization_method}.", print_message=True)
         except Exception as e:
             self.log(f"Error preparing factorized models: {e}")
             raise e
