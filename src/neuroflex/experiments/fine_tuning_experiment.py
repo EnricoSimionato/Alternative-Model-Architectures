@@ -47,7 +47,17 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.log(f"Error loading the model: {e}")
             raise e
         print(loaded_model)
-        
+
+        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
+        self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
+        print(f"Path {os.path.join(self.config.get("experiment_root_path"), 'Original Model.pt')}")
+        try:
+            loaded_model = torch.load(os.path.join(self.config.get("experiment_root_path"), 'Original Model.pt'))
+        except Exception as e:
+            self.log(f"Error loading the model: {e}")
+            raise e
+        print(loaded_model)
+
         self.log("Running the experiment ahfbasdibfaisdhbfkadbgfahbdf.", print_message=True)
 
 
