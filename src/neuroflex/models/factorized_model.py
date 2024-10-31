@@ -19,6 +19,7 @@ from transformers import AutoModel
 from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
 
 from exporch import Config, Verbose
+from exporch.utils import LoggingInterface
 
 import imports.peft as peft
 from imports.peft import PeftModel
@@ -43,37 +44,6 @@ from neuroflex.layers.factorized_embedding_layer import (
 from exporch.utils.parameters_count import count_parameters
 # TO BE MOVED
 from neuroflex.experiments.extratomove import get_parameters
-
-
-class LoggingInterface(ABC):
-    """
-    Interface for logging information during the training.
-
-    Args:
-        **kwargs:
-            Additional keyword arguments.
-    """
-
-    def __init__(self, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    @torch.no_grad()
-    def get_logging_info(
-            self,
-            **kwargs
-    ) -> list:
-        """
-        Returns additional information to log.
-
-        Args:
-            **kwargs:
-                Additional keyword arguments.
-
-        Returns:
-            dict:
-                Additional information to log.
-        """
 
 
 class RegularizedTrainingInterface(LoggingInterface, ABC):
@@ -358,52 +328,7 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
         pass
 
 
-class FactorizedModel(ABC, torch.nn.Module):
-    """
-    Model with factorized layers.
-
-    Args:
-        target_model (PreTrainedModel):
-            Pretrained model.
-        target_layers (dict):
-            Layers to factorize.
-        use_names_as_keys (bool):
-            Whether to use the names of the layers in the keys of the global layers, having different global layers
-            for layers having different roles in the original model.
-        mapping_layer_name_key (dict):
-            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
-            names to have the same global layer.
-        remove_average (bool):
-            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
-        from_pretrained (bool):
-            Whether the model is being loaded from a pretrained model.
-        preserve_original_model (bool):
-            Whether to preserve the target model or to change directly it.
-        verbose (int):
-            Verbosity level.
-        **kwargs:
-            Additional keyword arguments.
-
-    Attributes:
-        target_layers (dict):
-            Layers to factorize.
-        mapping_layer_name_key (dict):
-            Mapping of the layer names to the keys of the global layers.
-        model (PreTrainedModel):
-            Pretrained model.
-        global_layers (torch.nn.ModuleDict):
-            Global layers.
-        conversions (dict):
-            Mapping of layer types to global-dependent layer classes.
-        info (dict):
-            Information about the model.
-        verbose (Verbose):
-            Verbosity level.
-    """
-
-
-class GlobalDependentModel(ABC, torch.nn.Module):
+class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
     """
     Model with global layers replacing some layers of the model.
 
@@ -475,6 +400,7 @@ class GlobalDependentModel(ABC, torch.nn.Module):
             **kwargs
     ) -> None:
         torch.nn.Module.__init__(self)
+        LoggingInterface.__init__(self)
         self.verbose = verbose
         self.approximation_stats = None
 
@@ -543,6 +469,9 @@ class GlobalDependentModel(ABC, torch.nn.Module):
                 print(f"Number of parameters global model: {self.info['model_parameters']}")
                 print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
                 print()
+
+            self.log("Information about the factorized model:")
+            self.log(f"{self.info}")
             print("Model converted")
 
     def _get_wrapped_layers(
@@ -2646,32 +2575,3 @@ def update_config_with_model_parameters(
 
     parameters_info = model.get_parameters_info()
     config.update(parameters_info)
-
-
-if __name__ == "__main__":
-    # Testing the implementation of the models
-
-    base_model = transformers.AutoModelForCausalLM.from_pretrained("bert-base-uncased")
-    input_x = torch.randint(0, 100, (1, 10))
-    output = base_model(input_x)
-    print(output)
-
-    kwargs = {
-        "learning_rte": 0.01,
-        "max_iterations": 10000
-    }
-    model = GlobalBaseModel(
-        base_model,
-        target_layers={
-            "query": {"rank": 78}
-        },
-        **kwargs
-    )
-
-    #import pickle as pkl
-    #with open("/Users/enricosimionato/Desktop/Alternative-Model-Architectures/src/model.pkl", "wb") as f:
-    #    pkl.dump(model, f)
-
-    output = model(input_x)
-    print(output)
-    #print(model)
