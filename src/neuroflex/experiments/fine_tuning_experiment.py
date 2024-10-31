@@ -360,7 +360,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The data obtained from the analysis.
         """
 
-        pass
+
 
 
 class FineTuningExperimentUsingAdapter(FineTuningExperiment):
