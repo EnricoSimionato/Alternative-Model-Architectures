@@ -34,6 +34,7 @@ docker system prune -f
 
 # Generate a unique container name with timestamp
 CONTAINER_NAME="altarchi_$(date +%s)"
+echo "Container name: $CONTAINER_NAME"
 
 # Logging in to Docker
 echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
