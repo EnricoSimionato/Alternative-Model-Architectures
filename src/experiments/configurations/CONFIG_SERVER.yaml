@@ -97,4 +97,4 @@ split:
 batch_size: 2
 num_workers: 2
 
-fast_dev_run: True
+#fast_dev_run: True

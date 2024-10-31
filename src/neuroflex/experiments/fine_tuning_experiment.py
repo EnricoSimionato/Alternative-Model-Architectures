@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 
 import transformers
 
-from exporch import Config, get_available_device
+from exporch import Config
 from exporch.experiment import benchmark_id_metric_name_mapping
 from exporch.utils.general_framework_utils.model_dispatcher import get_pytorch_lightning_model
 from exporch.utils.general_framework_utils.trainer_dispatcher import get_pytorch_lightning_trainer
@@ -101,8 +101,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Creating the trainer
         pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
         # Validating the original model
-        #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-        #self.log(validation_results)
+        _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+        self.log(validation_results)
         del original_model
 
         # Fine-tuning the models
@@ -127,13 +127,13 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
                 # Validating the model before training
-                #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
                 # Training the model
                 _ = self._fit(pl_model, pl_trainer, pl_dataset)
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                #self.log(f"Validation results after fit:\n {validation_results}")
+                self.log(f"Validation results after fit:\n {validation_results}")
                 # Testing the model
                 # For now testing is disabled
                 #_, test_results = self._test(pl_model, pl_trainer, pl_dataset)
