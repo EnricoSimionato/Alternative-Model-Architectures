@@ -297,7 +297,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             pl_model,
             pl_dataset
         )
-        self.log("Model fitted.", print_message=True)
+        self.log("Training ended. Model fitted.", print_message=True)
 
         return pl_model
 

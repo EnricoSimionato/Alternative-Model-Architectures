@@ -165,7 +165,6 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Tokenizer loaded.")
 
         prepared_models.update(self.prepare_models(original_model, tokenizer))
-        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
 
         self.config.set("device", device)
 
