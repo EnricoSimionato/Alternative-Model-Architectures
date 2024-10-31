@@ -78,7 +78,6 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
         self.log("Preparing factorized models.")
 
         prepared_models = {}
-        print("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
         try:
             for factorization_method in self.config.get("factorization_methods"):
                 print("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")

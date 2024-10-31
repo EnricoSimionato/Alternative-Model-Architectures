@@ -160,14 +160,9 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         self.log(f"Original model loaded.")
 
         tokenizer = self.load("tokenizer.pt", "pt")
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        print(tokenizer)
         if tokenizer is None:
             tokenizer = load_tokenizer_for_causal_lm(self.config)
         self.log(f"Tokenizer loaded.")
-
-        print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
-        print("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
 
         prepared_models.update(self.prepare_models(original_model, tokenizer))
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
