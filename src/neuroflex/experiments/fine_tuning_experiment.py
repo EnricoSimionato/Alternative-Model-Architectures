@@ -147,10 +147,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             # Deleting the model from memory if we are in low memory mode
             if self.is_low_memory_mode():
-                del fine_tuned_models[model_key]
+                del fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"]
                 del prepared_models[model_key]
                 gc.collect()
-                fine_tuned_models[model_key] = None
+                fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"] = None
 
         # Evaluating the original model if there is at least one model that has not been fine-tuned
         if not all_models_already_fine_tuned:
