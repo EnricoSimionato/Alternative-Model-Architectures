@@ -143,7 +143,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"] = fine_tuned_model
 
             self.log(f"Model with model key: {model_key} fine-tuned.", print_message=True)
-            self.log(f"{fine_tuned_models[model_key]}")
+            self.log(f"{fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"]}")
 
             # Deleting the model from memory if we are in low memory mode
             if self.is_low_memory_mode():
