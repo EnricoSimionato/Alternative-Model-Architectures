@@ -49,7 +49,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict, None)
 
         # Evaluating the models on the benchmarks
-        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
@@ -123,8 +123,17 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 # Validating the model before training
                 _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results before fit:\n {validation_results_before_fit}")
+                for name, parameter in pl_model.model.named_parameters():
+                    self.log(f"{name}: {parameter}", print_message=True)
+                    break
                 # Training the model
-                _ = self._fit(pl_model, pl_trainer, pl_dataset)
+                try:
+                    _ = self._fit(pl_model, pl_trainer, pl_dataset)
+                except KeyboardInterrupt:
+                    self.log("Training interrupted by the user.")
+                for name, parameter in pl_model.model.named_parameters():
+                    self.log(f"{name}: {parameter}", print_message=True)
+                    break
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results after fit:\n {validation_results}")
