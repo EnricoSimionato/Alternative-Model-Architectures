@@ -85,9 +85,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The tokenizer used.
         """
 
+        original_model = prepared_models.pop("Original Model")
         fine_tuned_models_prefix = "fine_tuned_model_"
         fine_tuned_models = {f"{fine_tuned_models_prefix}{model_key}": None for model_key in prepared_models}
-        original_model = prepared_models.pop("Original Model")
 
         self._prepare_utils_for_fine_tuning()
 
