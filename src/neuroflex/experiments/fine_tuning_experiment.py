@@ -49,7 +49,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict, None)
 
         # Evaluating the models on the benchmarks
-        self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
+        #self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
@@ -96,22 +96,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
         pl_dataset.setup()
         self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
-        # Loading the original model if it is not in memory
-        if original_model is None:
-            original_model = self.load("Original Model.pt", "pt")
-            if original_model is None:
-                raise ValueError("Original Model not found in storage.")
-        self.log("Evaluating the original model.", print_message=True)
-        # Creating the model
-        pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
-        # Creating the trainer
-        pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-        # Validating the original model
-        _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-        self.log(validation_results)
-        del original_model
-
         # Fine-tuning the models
+        all_models_already_fine_tuned = True
         for model_key in list(prepared_models.keys()):
             self.log(f"Fine-tuning model with model key: {model_key}.", print_message=True)
             model = prepared_models[model_key]
@@ -122,6 +108,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 if model is None:
                     raise ValueError(f"Model {model_key} not found in storage.")
             already_fine_tuned = self._prepare_fine_tuning(model_key, model)
+            all_models_already_fine_tuned = all_models_already_fine_tuned and already_fine_tuned
 
             if not already_fine_tuned:
                 # Creating the Lightning model
@@ -163,6 +150,23 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 del prepared_models[model_key]
                 gc.collect()
                 fine_tuned_models[model_key] = None
+
+        # Evaluating the original model if there is at least one model that has not been fine-tuned
+        if not all_models_already_fine_tuned:
+            # Loading the original model if it is not in memory
+            if original_model is None:
+                original_model = self.load("Original Model.pt", "pt")
+                if original_model is None:
+                    raise ValueError("Original Model not found in storage.")
+            self.log("Evaluating the original model.", print_message=True)
+            # Creating the model
+            pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
+            # Creating the trainer
+            pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+            # Validating the original model
+            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+            self.log(validation_results)
+            del original_model
 
         return fine_tuned_models, tokenizer
 
