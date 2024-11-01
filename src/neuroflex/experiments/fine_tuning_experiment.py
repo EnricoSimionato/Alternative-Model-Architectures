@@ -85,7 +85,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The tokenizer used.
         """
 
-        fine_tuned_models = {model_key: None for model_key in prepared_models}
+        fine_tuned_models_prefix = "fine_tuned_model_"
+        fine_tuned_models = {f"{fine_tuned_models_prefix}{model_key}": None for model_key in prepared_models}
         original_model = prepared_models.pop("Original Model")
 
         self._prepare_utils_for_fine_tuning()
@@ -135,11 +136,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 fine_tuned_model = pl_model.model
 
                 # Storing the fine-tuned model
-                self.store(fine_tuned_model, f"fine_tuned_model_{model_key}.pt", "pt")
+                self.store(fine_tuned_model, f"{fine_tuned_models_prefix}{model_key}.pt", "pt")
             else:
                 fine_tuned_model = model
 
-            fine_tuned_models[model_key] = fine_tuned_model
+            fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"] = fine_tuned_model
 
             self.log(f"Model with model key: {model_key} fine-tuned.", print_message=True)
             self.log(f"{fine_tuned_models[model_key]}")
