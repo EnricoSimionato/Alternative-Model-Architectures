@@ -1,6 +1,5 @@
 import copy
 import gc
-import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -38,13 +37,23 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
     def _prepare_experiment(
             self,
-            already_created_performance_dict: dict[str, dict[str, dict[str, float]]] = None
+            already_created_performance_dict: dict[str, dict[str, dict[str, float]]] = None,
+            already_prepared_models = None,
+            already_prepared_tokenizer = None
     ) -> tuple[dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None], transformers.AutoTokenizer | transformers.PreTrainedTokenizer, dict[str, dict[str, dict[str, float]]], dict[str, list[str]]]:
         """
         Prepares the experiment:
             - Loads the models to be evaluated.
             - Loads the tokenizer.
             - Defines the remaining instances to be processed.
+
+        Args:
+            already_created_performance_dict (dict[str, dict[str, dict[str, float]]]):
+                The dictionary containing the performance results, if any.
+            already_prepared_models (dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]):
+                The already prepared models to be evaluated, if any.
+            already_prepared_tokenizer (transformers.AutoTokenizer | transformers.PreTrainedTokenizer):
+                The already prepared tokenizer, if any.
 
         Returns:
             dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel]:
@@ -65,9 +74,15 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             performance_dict.update(already_created_performance_dict)
             self.log(f"Previous data loaded.\nLoaded data: {performance_dict}")
 
-        # Loading and preparing the models
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        prepared_models, tokenizer = self._prepare_models()
+        # Loading the models and tokenizer if they are not already prepared
+        if already_prepared_models is None:
+            # Loading and preparing the models
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            prepared_models, tokenizer = self._prepare_models()
+        else:
+            prepared_models = already_prepared_models
+            tokenizer = already_prepared_tokenizer
+
         model_ids = list(prepared_models.keys())
 
         # Finding the configurations of the analysis that have not been evaluated yet
@@ -116,15 +131,13 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
                     if model is None:
                         raise ValueError(f"Model {model_key} not found in storage.")
 
-                logging.info(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
-                print(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.")
+                self.log(f"Starting the evaluation of the model {model_key} the benchmark {benchmark_id}.", print_message=True)
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
                 results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
                 #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
-                self.log(f"Results of the model {model_key}: {results}")
-                print(f"Results of the model {model_key}: {results}")
+                self.log(f"Results of the model {model_key}: {results}", print_message=True)
 
                 # Storing the results in the dictionary
                 performance_dict[benchmark_id][model_key] = results

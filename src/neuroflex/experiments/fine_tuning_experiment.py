@@ -42,10 +42,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         # Checking if the experiment has already been run and retrieving the data
         already_created_performance_dict = None
-        if self.get_data() is not None:
+        data = self.get_data()
+        if data is not None and len(data) > 0:
             already_created_performance_dict = self.get_data()[0]
         # Preparing the models, the tokenizer and the performance dictionary
-        prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict)
+        prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict, None)
 
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
@@ -53,6 +54,11 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Fine-tuning the models
         fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
 
+        already_created_performance_dict = None
+        data = self.get_data()
+        if data is not None and len(data) > 1:
+            already_created_performance_dict = self.get_data()[1]
+        fine_tuned_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict, fine_tuned_models)
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
@@ -128,7 +134,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
                 # Validating the model before training
                 _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
-                #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
+                self.log(f"Validation results before fit:\n {validation_results_before_fit}")
                 # Training the model
                 _ = self._fit(pl_model, pl_trainer, pl_dataset)
                 # Validating the model after training
