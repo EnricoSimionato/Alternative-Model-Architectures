@@ -132,7 +132,11 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
 
         layers_to_train = {}
         for path, layer in extracted_layers.items():
-            if not isinstance(layer, torch.nn.Embedding):
+            if isinstance(layer, torch.nn.Embedding) or any(el in path for el in ["embedding", "emb"]):
+                self.log(f"The layer with path {path} is an embedding layer so it is set to be not trainable.")
+            elif isinstance(layer, torch.nn.LayerNorm) or any(el in path for el in ["norm", "layernorm", "ln", "batchnorm", "bn"]):
+                self.log(f"The layer with path {path} is a normalization layer so it is set to be not trainable.")
+            else:
                 layers_to_train[tuple(path)] = layer
 
         return layers_to_train
