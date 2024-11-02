@@ -52,7 +52,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
-        fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
+        #fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
+        fine_tuned_models = prepared_models
 
         already_created_performance_dict = None
         data = self.get_data()
@@ -124,7 +125,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results before fit:\n {validation_results_before_fit}")
                 for name, parameter in pl_model.model.named_parameters():
-                    self.log(f"{name}: {parameter}", print_message=True)
+                    if parameter.requires_grad:
+                        self.log(f"{name}: {parameter}", print_message=True)
                     break
                 # Training the model
                 try:
@@ -132,7 +134,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 except KeyboardInterrupt:
                     self.log("Training interrupted by the user.")
                 for name, parameter in pl_model.model.named_parameters():
-                    self.log(f"{name}: {parameter}", print_message=True)
+                    if parameter.requires_grad:
+                        self.log(f"{name}: {parameter}", print_message=True)
                     break
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
@@ -410,12 +413,139 @@ class FineTuningExperiment(BenchmarkEvaluation):
         Args:
             config (Config):
                 The configuration of the experiment.
-            data (Any):
-                The data obtained from the analysis.
+            data (tuple):
+                The data obtained from the analysis, containing initial and fine-tuned performances, training losses, and validation losses.
         """
 
-        pass
+        def merge_dicts(
+                dict1: dict,
+                dict2: dict
+        ) -> dict:
+            merged_dict = {}
 
+            # Get all unique benchmarks
+            benchmarks = set(dict1.keys()).union(dict2.keys())
+
+            for benchmark in benchmarks:
+                merged_dict[benchmark] = {}
+
+                # Get all unique models for the current benchmark
+                models = set(dict1.get(benchmark, {}).keys()).union(dict2.get(benchmark, {}).keys())
+
+                for model in models:
+                    # Fetch performance from each dictionary or None if not present
+                    initial_performance = dict1.get(benchmark, {}).get(model)
+                    final_performance = dict2.get(benchmark, {}).get(model)
+
+                    # Structure as required
+                    merged_dict[benchmark][model] = {
+                        "initial": initial_performance,
+                        "final": final_performance
+                    }
+
+            return merged_dict
+
+        performance_dict = merge_dicts(data[0], data[1])
+        # Printing the results
+        self.log("The performance of the models on the benchmarks before training is as follows:", print_message=True)
+        for benchmark_id in list(performance_dict.keys()):
+            for model_key in list(performance_dict[benchmark_id].keys()):
+                results = performance_dict[benchmark_id][model_key]
+                keys = list(results.keys())
+                for key in keys:
+                    self.log(f"The {key} performance of the model {model_key} on the benchmark {benchmark_id} is {results[key]}.",
+                             print_message=True)
+
+        # Plotting histograms of the results
+        figure_size = config.get("figure_size") if config.contains("figure_size") else (10, 15)
+        fig, axes = plt.subplots(1, len(list(performance_dict.keys())), figsize=figure_size)
+        if len(list(performance_dict.keys())) == 1:
+            axes = [axes]
+        for i, benchmark_id in enumerate(list(performance_dict.keys())):
+            metric = benchmark_id_metric_name_mapping[benchmark_id]
+            initial_performance, final_performance, model_labels = ([], [], [])
+
+            for model_key, performances in performance_dict[benchmark_id].items():
+                if performances["initial"]:
+                    initial_performance.append(performances["initial"][benchmark_id].get(metric, 0))
+                else:
+                    initial_performance.append(0)
+
+                if performances["final"]:
+                    final_performance.append(performances["final"][benchmark_id].get(metric, 0))
+                else:
+                    final_performance.append(0)
+
+                model_labels.append(model_key)
+
+            # Plotting both initial and final results
+            bar_width = 0.35
+            x = range(len(model_labels))
+
+            axes[i].bar([p - bar_width / 2 for p in x], initial_performance, width=bar_width, label="Before Tine-Tuning")
+            axes[i].bar([p + bar_width / 2 for p in x], final_performance, width=bar_width, label="After Fine-Tuning")
+
+            # Adding labels and titles
+            axes[i].set_title(f"Results on {benchmark_id}")
+            axes[i].set_xticks(x)
+            axes[i].set_xticklabels(model_labels)
+            axes[i].legend()
+
+            for rect in axes[i].patches:
+                height = rect.get_height()
+                axes[i].annotate(f"{height:.3f}", xy=(rect.get_x() + rect.get_width() / 2, height),
+                                 xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=10)
+
+        plt.tight_layout()
+
+        # Storing the plot of the benchmark results
+        self.store(fig, "results_on_benchmark.png", "plt")
+        self.log("Benchmark performance plot saved.", print_message=True)
+
+        # TODO Add the training and validation loss plots
+        """
+        training_loss_dict = {
+            "model_1": [0.9, 0.7, 0.6, 0.5],
+            "model_2": [1.0, 0.8, 0.7, 0.6],
+            # Additional models...
+        }
+
+        validation_loss_dict = {
+            "model_1": [0.85, 0.75, 0.65, 0.55],
+            "model_2": [0.95, 0.85, 0.75, 0.65],
+            # Additional models...
+        }
+
+        original_validation_loss = 0.78
+        #training_loss_dict, validation_loss_dict, config, original_validation_loss = data[2:]
+
+        losses_figure_size = config.get("losses_figure_size") if config.contains("losses_figure_size") else (12, 8)
+        fig, ax = plt.subplots(1, 1, figsize=losses_figure_size)
+
+        for model_key in training_loss_dict:
+            ax.plot(training_loss_dict[model_key], label=f"{model_key} - Training Loss", linestyle="--")
+            ax.plot(validation_loss_dict[model_key], label=f"{model_key} - Validation Loss", linestyle="-")
+
+        max_steps = max(
+            max(len(losses) for losses in training_loss_dict.values()),
+            max(len(losses) for losses in validation_loss_dict.values())
+        )
+        # Plotting original model validation loss if available
+        if original_validation_loss:
+            ax.plot([original_validation_loss] * len(validation_loss_dict[model_key]),
+                    label="Original Model Validation Loss", linestyle=":")
+
+        ax.set_title("Training and Validation Loss during Fine-Tuning")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+
+        plt.tight_layout()
+        fig_path = "training_validation_loss.png"
+        plt.savefig(fig_path)
+        print(f"Training and validation loss plot saved to {fig_path}")
+        plt.show()
+        """
 
 # Not implemented yet
 class FineTuningExperimentUsingAdapter(FineTuningExperiment):

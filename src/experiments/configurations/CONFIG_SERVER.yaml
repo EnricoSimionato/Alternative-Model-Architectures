@@ -94,7 +94,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 2
+batch_size: 1
 num_workers: 2
 
 #fast_dev_run: True
