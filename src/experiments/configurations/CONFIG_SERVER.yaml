@@ -31,9 +31,9 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
-    - "LocalSVD"
+#    - "LocalSVD"
 #    - "Hadamard"
-#    - "GlobalBase"
+    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
@@ -48,7 +48,7 @@ target_layers:
     up_proj:
         rank: 1024
     down_proj:
-        rank: 2048
+        rank: 1024
 
 use_names_as_keys: True
 
