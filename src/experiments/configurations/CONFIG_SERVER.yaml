@@ -60,7 +60,7 @@ num_layers: 32
 targets:
     - ["block_index", "mlp", "gate_proj"]
     - ["block_index", "mlp", "up_proj"]
-    - ["block_index", "mlp", "down_proj"]
+#    - ["block_index", "mlp", "down_proj"]
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
