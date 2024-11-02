@@ -79,7 +79,7 @@ dataset_id: "wikitext2"
 
 num_checks_per_epoch: 2
 gradient_accumulation_steps: 2
-max_len: 512
+max_len: 256
 
 optimizers_settings:
     - optimizer: "AdamW"
