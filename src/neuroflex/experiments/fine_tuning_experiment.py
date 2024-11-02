@@ -52,8 +52,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 
         # Fine-tuning the models
-        #fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
-        fine_tuned_models = prepared_models
+        fine_tuned_models, tokenizer = self._perform_fine_tuning(prepared_models, tokenizer)
 
         already_created_performance_dict = None
         data = self.get_data()
