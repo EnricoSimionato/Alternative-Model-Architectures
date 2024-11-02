@@ -456,23 +456,20 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             self._processing_after_conversion()
 
             model_parameters = count_parameters(self.model)
-            self.info.update(
-                {
-                    "model_parameters": model_parameters,
-                    "model_trainable_parameters": count_parameters(self.model, only_trainable=True),
-                    "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
-                }
-            )
+            self.info.update({
+                "model_parameters": model_parameters,
+                "model_trainable_parameters": count_parameters(self.model, only_trainable=True),
+                "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
+            })
             self.approximation_stats = self.compute_approximation_stats()
-            if self.verbose > Verbose.SILENT:
-                print(f"Number of parameters original model: {self.info['original_model_parameters']}")
-                print(f"Number of parameters global model: {self.info['model_parameters']}")
-                print(f"Percentage of parameters: {self.info['percentage_parameters']}%")
-                print()
 
             self.log("Information about the factorized model:")
-            self.log(f"{self.info}")
-            print("Model converted")
+            self.log(f"Number of parameters original model: {self.info['original_model_parameters']}")
+            self.log(f"Number of parameters global model: {self.info['model_parameters']}")
+            self.log(f"Percentage of parameters: {self.info['percentage_parameters']}%\n")
+
+            self.log("Model converted", print_message=True)
+            self.log(f"{self}", print_message=True)
 
     def _get_wrapped_layers(
             self,

@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 
 import transformers
 
-from exporch import Config
+from exporch import Config, get_available_device
 from exporch.experiment import benchmark_id_metric_name_mapping
 from exporch.utils.general_framework_utils.model_dispatcher import get_pytorch_lightning_model
 from exporch.utils.general_framework_utils.trainer_dispatcher import get_pytorch_lightning_trainer
@@ -110,7 +110,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                     raise ValueError(f"Model {model_key} not found in storage.")
             already_fine_tuned = self._prepare_fine_tuning(model_key, model)
             all_models_already_fine_tuned = all_models_already_fine_tuned and already_fine_tuned
-
+            model.to(get_available_device(self.config.get("device") if self.config.contains("device") else "cpu"))
+            
             if not already_fine_tuned:
                 # Creating the Lightning model
                 pl_model = get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)

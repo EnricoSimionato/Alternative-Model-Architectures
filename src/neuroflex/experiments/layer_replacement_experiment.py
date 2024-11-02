@@ -6,12 +6,13 @@ import torch
 
 import transformers
 
-from peft import PeftModel, PeftMixedModel
+from peft import PeftMixedModel, PeftModel
 
 from exporch import Config
+
+from neuroflex.experiments.extratomove import get_parameters
 from neuroflex.experiments.fine_tuning_experiment import FineTuningExperiment
 from neuroflex.pruning.replacement_model import get_layer_replaced_model
-from neuroflex.experiments.extratomove import get_parameters
 from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
 
 
