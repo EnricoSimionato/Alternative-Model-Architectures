@@ -47,8 +47,8 @@ target_layers:
         rank: 1024
     up_proj:
         rank: 1024
-    down_proj:
-        rank: 2048
+#    down_proj:
+#        rank: 2048
 
 use_names_as_keys: True
 
