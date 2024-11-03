@@ -10,7 +10,7 @@ experiment_type: "factorization_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 12
+version: 1
 
 verbose: 1
 device: "cuda"
@@ -31,9 +31,9 @@ figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
 factorization_methods:
-#    - "LocalSVD"
+    - "LocalSVD"
 #    - "Hadamard"
-    - "GlobalBase"
+#    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
@@ -48,7 +48,7 @@ target_layers:
     up_proj:
         rank: 1024
     down_proj:
-        rank: 1024
+        rank: 2024
 
 use_names_as_keys: True
 
