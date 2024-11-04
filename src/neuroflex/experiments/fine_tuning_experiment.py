@@ -131,15 +131,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 # Training the model
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
-                except KeyboardInterrupt:
+                except (KeyboardInterrupt, SystemExit):
                     self.log("Training interrupted by the user.")
+
                 for name, parameter in pl_model.model.named_parameters():
                     if parameter.requires_grad:
                         self.log(f"{name}: {parameter}", print_message=True)
                     break
                 # Validating the model after training
-                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                self.log(f"Validation results after fit:\n {validation_results}")
+                #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                #self.log(f"Validation results after fit:\n {validation_results}")
                 # Testing the model
                 # For now testing is disabled
                 #_, test_results = self._test(pl_model, pl_trainer, pl_dataset)
@@ -177,8 +178,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
             # Creating the trainer
             pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
             # Validating the original model
-            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-            self.log(validation_results)
+            #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+            #self.log(validation_results)
             del original_model
             gc.collect()
 
