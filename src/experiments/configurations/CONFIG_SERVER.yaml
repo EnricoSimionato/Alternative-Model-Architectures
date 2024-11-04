@@ -4,13 +4,13 @@ path_to_storage: "src/experiments/results"
 #experiment_type: "factorization_benchmark_evaluation"
 #experiment_type: "factorization_fine_tuning_experiment"
 
-#experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 20
+version: 21
 
 verbose: 1
 device: "cuda"
@@ -75,7 +75,8 @@ evaluation_args:
 
 ########################################         Fine-tuning parameters         ########################################
 task_id: "causallm"
-dataset_id: "wikitext2"
+#dataset_id: "wikitext2"
+dataset_id: "openwebtext"
 
 num_checks_per_epoch: 2
 gradient_accumulation_steps: 4
