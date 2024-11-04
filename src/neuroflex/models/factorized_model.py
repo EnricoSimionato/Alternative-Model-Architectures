@@ -537,6 +537,22 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             "mean_norm_approximated_layers": torch.mean(concatenated_norm_approximated_layers).item()
         }
 
+    def get_approximation_stats(
+            self
+    ) -> dict:
+        """
+        Returns the approximation statistics.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        if self.approximation_stats is None:
+            self.approximation_stats = self.compute_approximation_stats()
+
+        return self.approximation_stats
+
     def get_model(
             self
     ) -> torch.nn.Module:

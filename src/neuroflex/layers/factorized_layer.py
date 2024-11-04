@@ -483,9 +483,9 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
                 Approximation statistics.
         """
 
-        norm_difference = torch.norm(target_layer.weight.data - self.weight.data)
-        norm_target_layer = torch.norm(target_layer.weight.data)
-        norm_approximated_layer = torch.norm(self.weight.data)
+        norm_difference = torch.norm(target_layer.weight.data.cpu() - self.weight.data.cpu())
+        norm_target_layer = torch.norm(target_layer.weight.data.cpu())
+        norm_approximated_layer = torch.norm(self.weight.data.cpu())
 
         return {
             "absolute_approximation_error": norm_difference,
@@ -493,6 +493,22 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             "norm_approximated_layer": norm_approximated_layer,
             "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximated_layer)
         }
+
+    def get_approximation_stats(
+            self
+    ) -> dict:
+        """
+        Returns the approximation statistics of the factorized layer.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        if self.approximation_stats is None:
+            raise Exception("The approximation statistics have not been computed yet.")
+
+        return self.approximation_stats
 
     def _define_structure(
             self,
@@ -685,8 +701,8 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         Initializes the matrices of the layer.
         """
 
-        if not ("initialize_matrices_later" in kwargs and kwargs["initialize_matrices_later"]):
-            self.initialize_matrices(**kwargs)
+        #if not ("initialize_matrices_later" in kwargs and kwargs["initialize_matrices_later"]):
+        self.initialize_matrices(**kwargs)
 
     @abstractmethod
     def initialize_matrices(

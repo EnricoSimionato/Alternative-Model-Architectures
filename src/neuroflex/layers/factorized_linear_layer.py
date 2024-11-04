@@ -137,6 +137,7 @@ class GlobalDependentLinear(GlobalDependent):
         """
 
         bias = kwargs["bias"]
+        global_initialization = kwargs["global_initialization"] if "global_initialization" in kwargs.keys() else "random"
 
         for layer in self.structure[:-1]:
             if layer["scope"] == "global":
@@ -146,6 +147,15 @@ class GlobalDependentLinear(GlobalDependent):
                         bias=False,
                         dtype=self.dtype
                     )
+
+                    if global_initialization == "identity":
+                        in_features = self.global_layers[layer["key"]].in_features
+                        out_features = self.global_layers[layer["key"]].out_features
+                        with torch.no_grad():
+                            diag_size = min(in_features, out_features)
+                            diagonal_matrix = torch.zeros(out_features, in_features)
+                            diagonal_matrix[range(diag_size), range(diag_size)] = torch.randn(diag_size)
+                            self.global_layers[layer["key"]].weight.data = diagonal_matrix.to(self.dtype)
 
                     if "trainable" in layer.keys():
                         for param in self.global_layers[layer["key"]].parameters():
@@ -157,6 +167,15 @@ class GlobalDependentLinear(GlobalDependent):
                 bias=True if bias else False,
                 dtype=self.dtype
             )
+
+            if global_initialization == "identity":
+                in_features = self.global_layers[self.structure[-1]["key"]].in_features
+                out_features = self.global_layers[self.structure[-1]["key"]].out_features
+                with torch.no_grad():
+                    diag_size = min(in_features, out_features)
+                    diagonal_matrix = torch.zeros(out_features, in_features)
+                    diagonal_matrix[range(diag_size), range(diag_size)] = torch.randn(diag_size)
+                    self.global_layers[self.structure[-1]["key"]].weight.data = diagonal_matrix.to(self.dtype)
 
             if "trainable" in self.structure[-1].keys():
                 for param in self.global_layers[self.structure[-1]["key"]].parameters():
@@ -344,7 +363,8 @@ class StructureSpecificGlobalDependentLinear(StructureSpecificGlobalDependent, A
             global_layers,
             structure,
             target_layer.bias is not None,
-            dtype=target_layer.weight.dtype
+            dtype=target_layer.weight.dtype,
+            **kwargs
         )
 
     def define_average_matrix_layer(
@@ -871,7 +891,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
     ) -> None:
         kwargs["rank"] = rank
         kwargs["initialization_type"] = initialization_type
-        kwargs["initialize_matrices_later"] = True
+        kwargs["global_initialization"] = "identity"
         super().__init__(
             target_layer,
             global_layers,
@@ -926,13 +946,15 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         initialization_type = kwargs["initialization_type"]
 
         global_matrix = self.get_layer("global", global_key).weight.data
+        #self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
 
         with torch.no_grad():
             if initialization_type == "pseudo-inverse":
                 global_matrix = global_matrix.to(torch.float32)
+
                 pinv_global_matrix = torch.pinverse(global_matrix.to("cpu"))
 
-                local_matrix = target_weight.to(torch.float32) @ pinv_global_matrix
+                local_matrix = target_weight.to(torch.float32) @ pinv_global_matrix.to(torch.float32)
                 local_matrix = local_matrix.to(self.global_dependent_layer.dtype)
 
                 self.get_layer("local", local_key).weight.data = local_matrix
@@ -946,31 +968,31 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
             for params in self.get_layer("local", local_key).parameters():
                 params.requires_grad = self.structure[1]["trainable"]
 
-        if initialization_type in ["random",]:
+        if initialization_type in ["random", ]:
             device = get_available_device()
 
             target_weight = target_weight.to(device)
-            self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
-            self.set_layer("local", local_key, self.get_layer("local", local_key).to(device))
+            a = self.get_layer("local", local_key)
+            local_weight = self.get_layer("local", local_key).weight.data
+            local_weight.requires_grad = True
+            local_weight.to(device)
+            global_weight = self.get_layer("global", global_key).weight.data
+            global_weight.to(device)
 
-            optimizer = torch.optim.AdamW(
-                [
-                    self.get_layer("local", local_key).weight
-                ],
+            optimizer = torch.optim.AdamW([local_weight],
                 lr=1e-3,
                 eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
             )
 
-            num_epochs = 10000
+            num_epochs = 1000
 
             for epoch in range(num_epochs):
-                approximated_matrix = torch.matmul(
-                    self.get_layer("local", local_key).weight,
-                    self.get_layer("global", global_key).weight
-                )
+                approximated_matrix = torch.matmul(local_weight, global_weight).to(device)
 
-                loss = torch.norm((target_weight - approximated_matrix) ** 2)
-
+                loss = torch.sum((target_weight - approximated_matrix) ** 2)
+                print(loss)
+                #print(local_weight)
+                #print(local_weight.grad)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
