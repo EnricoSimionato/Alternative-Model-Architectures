@@ -10,7 +10,7 @@ experiment_type: "layer_replacement_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 21
+version: 20
 
 verbose: 1
 device: "cuda"
@@ -78,7 +78,7 @@ task_id: "causallm"
 #dataset_id: "wikitext2"
 dataset_id: "openwebtext"
 
-num_checks_per_epoch: 2
+num_checks_per_epoch: 500
 gradient_accumulation_steps: 4
 max_len: 512
 
