@@ -88,4 +88,3 @@ else
       -v /home/enricosimionato/.cache/huggingface:$(eval echo ~)/.cache/huggingface \
       --gpus all -m 32g $IMAGE_NAME || { echo "Failed to run container with image $IMAGE_NAME"; exit 1; }
 fi
-

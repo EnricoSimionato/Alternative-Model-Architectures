@@ -296,7 +296,6 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
             )
             axes[i].set_title(f"Results on {benchmark_id}")
 
-
             for rect in axes[i].patches:
                 height = rect.get_height()
                 axes[i].annotate(f"{height:.3f}", xy=(rect.get_x() + rect.get_width() / 2, height),

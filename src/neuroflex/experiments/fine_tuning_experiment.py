@@ -111,7 +111,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             already_fine_tuned = self._prepare_fine_tuning(model_key, model)
             all_models_already_fine_tuned = all_models_already_fine_tuned and already_fine_tuned
             model.to(get_available_device(self.config.get("device") if self.config.contains("device") else "cpu"))
-            
+
             if not already_fine_tuned:
                 # Creating the Lightning model
                 pl_model = get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
@@ -180,6 +180,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
             self.log(validation_results)
             del original_model
+            gc.collect()
 
         return fine_tuned_models, tokenizer
 
