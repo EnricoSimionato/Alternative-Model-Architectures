@@ -95,7 +95,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         dataset_id = self.config.get("dataset_id")
         pl_dataset = get_pytorch_lightning_dataset(dataset_id, tokenizer, self.config.get("max_len"), self.config)
         pl_dataset.setup()
-        self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
+        #self.config.set("max_steps", len(pl_dataset.train_dataloader()) * self.config.get("max_epochs"))
 
         # Fine-tuning the models
         all_models_already_fine_tuned = True
@@ -127,17 +127,19 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 for name, parameter in pl_model.model.named_parameters():
                     if parameter.requires_grad:
                         self.log(f"{name}: {parameter}", print_message=True)
-                    break
+                        self.log(f"GRAD {name}: {parameter.grad}", print_message=True)
+                        break
                 # Training the model
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
-                except (KeyboardInterrupt, SystemExit):
+                except (KeyboardInterrupt, SystemExit, RuntimeError):
                     self.log("Training interrupted by the user.")
 
                 for name, parameter in pl_model.model.named_parameters():
                     if parameter.requires_grad:
                         self.log(f"{name}: {parameter}", print_message=True)
-                    break
+                        self.log(f"GRAD {name}: {parameter.grad}", print_message=True)
+                        break
                 # Validating the model after training
                 #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
                 #self.log(f"Validation results after fit:\n {validation_results}")
