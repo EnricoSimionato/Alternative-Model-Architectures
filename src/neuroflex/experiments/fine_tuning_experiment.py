@@ -124,22 +124,13 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 # Validating the model before training
                 #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
-                for name, parameter in pl_model.model.named_parameters():
-                    if parameter.requires_grad:
-                        self.log(f"{name}: {parameter}", print_message=True)
-                        self.log(f"GRAD {name}: {parameter.grad}", print_message=True)
-                        break
+
                 # Training the model
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
                 except (KeyboardInterrupt, SystemExit, RuntimeError):
                     self.log("Training interrupted by the user.")
 
-                for name, parameter in pl_model.model.named_parameters():
-                    if parameter.requires_grad:
-                        self.log(f"{name}: {parameter}", print_message=True)
-                        self.log(f"GRAD {name}: {parameter.grad}", print_message=True)
-                        break
                 # Validating the model after training
                 #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
                 #self.log(f"Validation results after fit:\n {validation_results}")
