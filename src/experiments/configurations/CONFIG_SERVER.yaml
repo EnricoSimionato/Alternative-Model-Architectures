@@ -46,7 +46,7 @@ target_layers:
 #    v_proj:
 #        rank: 256
     q_proj:
-        rank: 256
+        rank: 512
 #    gate_proj:
 #        rank: 1024
 #    up_proj:
@@ -85,7 +85,7 @@ task_id: "causallm"
 #dataset_id: "wikitext2"
 dataset_id: "openwebtext"
 
-val_check_interval: 8000
+val_check_interval: 10000
 #num_checks_per_epoch: 500
 #num_checks_per_epoch: 2
 gradient_accumulation_steps: 2
@@ -98,13 +98,13 @@ optimizers_settings:
       warmup_steps: 100
       monitored_metric: "loss"
 
-max_epochs: 1
+max_epochs: 10
 
 split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 2
+batch_size: 4
 num_workers: 2
 
 #fast_dev_run: True
