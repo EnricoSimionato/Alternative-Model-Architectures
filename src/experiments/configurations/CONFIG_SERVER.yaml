@@ -2,10 +2,10 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-experiment_type: "factorization_fine_tuning_experiment"
+#experiment_type: "factorization_fine_tuning_experiment"
 
 #experiment_type: "layer_replacement_fine_tuning_experiment"
-#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
@@ -32,21 +32,19 @@ tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
-factorization_methods:
-    - "LocalSVD"
+#factorization_methods:
+#    - "LocalSVD"
 #    - "Hadamard"
 #    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
-target_layers:
+#target_layers:
 #    q_proj:
 #        rank: 256
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-    q_proj:
-        rank: 512
 #    gate_proj:
 #        rank: 1024
 #    up_proj:
@@ -62,9 +60,11 @@ replacement_methods:
 num_layers: 32
 
 targets:
-    - [ "block_index", "q_proj" ]
-    - [ "block_index", "k_proj" ]
-    - [ "block_index", "v_proj" ]
+    - [ "block_index", "c_fc" ]
+    - [ "block_index", "c_proj" ]
+#    - [ "block_index", "q_proj" ]
+#    - [ "block_index", "k_proj" ]
+#    - [ "block_index", "v_proj" ]
 #    - ["block_index", "mlp", "gate_proj"]
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
