@@ -85,9 +85,9 @@ task_id: "causallm"
 dataset_id: "wikitext2"
 #dataset_id: "openwebtext"
 
-val_check_interval: 10000
+#val_check_interval: 10000
 #num_checks_per_epoch: 500
-#num_checks_per_epoch: 2
+num_checks_per_epoch: 2
 gradient_accumulation_steps: 2
 max_len: 512
 
