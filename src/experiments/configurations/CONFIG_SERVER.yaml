@@ -57,7 +57,8 @@ use_names_as_keys: True
 ########################################      Layers replacement parameters     ########################################
 replacement_methods:
     - "sharedaveragelayer"
-num_layers: 32
+#num_layers: 32
+num_layers: 24
 
 targets:
     - [ "block_index", "c_fc" ]
