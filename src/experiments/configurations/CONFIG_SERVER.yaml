@@ -82,8 +82,8 @@ evaluation_args:
 
 ########################################         Fine-tuning parameters         ########################################
 task_id: "causallm"
-#dataset_id: "wikitext2"
-dataset_id: "openwebtext"
+dataset_id: "wikitext2"
+#dataset_id: "openwebtext"
 
 val_check_interval: 10000
 #num_checks_per_epoch: 500
@@ -93,7 +93,7 @@ max_len: 512
 
 optimizers_settings:
     - optimizer: "AdamW"
-      learning_rate: 0.001
+      learning_rate: 0.01
       lr_scheduler: "cosine_with_warmup"
       warmup_steps: 100
       monitored_metric: "loss"
