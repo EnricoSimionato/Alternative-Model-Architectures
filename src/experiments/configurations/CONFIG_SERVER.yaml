@@ -93,7 +93,7 @@ max_len: 512
 
 optimizers_settings:
     - optimizer: "AdamW"
-      learning_rate: 0.01
+      learning_rate: 0.001
       lr_scheduler: "cosine_with_warmup"
       warmup_steps: 100
       monitored_metric: "loss"
