@@ -26,6 +26,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
     """
 
     mandatory_keys = ["task_id", "optimizers_settings"]
+    fine_tuned_models_prefix = "fine_tuned_model_"
 
     @override
     def _run_experiment(
@@ -86,8 +87,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         """
 
         original_model = prepared_models.pop("Original Model")
-        fine_tuned_models_prefix = "fine_tuned_model_"
-        fine_tuned_models = {f"{fine_tuned_models_prefix}{model_key}": None for model_key in prepared_models}
+        fine_tuned_models = {f"{self.fine_tuned_models_prefix}{model_key}": None for model_key in prepared_models}
 
         self._prepare_utils_for_fine_tuning()
 
@@ -142,21 +142,21 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 fine_tuned_model = pl_model.model
 
                 # Storing the fine-tuned model
-                self.store(fine_tuned_model, f"{fine_tuned_models_prefix}{model_key}.pt", "pt")
+                self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
             else:
                 fine_tuned_model = model
 
-            fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"] = fine_tuned_model
+            fine_tuned_models[f"{self.fine_tuned_models_prefix}{model_key}"] = fine_tuned_model
 
             self.log(f"Model with model key: {model_key} fine-tuned.", print_message=True)
-            self.log(f"{fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"]}")
+            self.log(f"{fine_tuned_models[f"{self.fine_tuned_models_prefix}{model_key}"]}")
 
             # Deleting the model from memory if we are in low memory mode
             if self.is_low_memory_mode():
-                del fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"]
+                del fine_tuned_models[f"{self.fine_tuned_models_prefix}{model_key}"]
                 del prepared_models[model_key]
                 gc.collect()
-                fine_tuned_models[f"{fine_tuned_models_prefix}{model_key}"] = None
+                fine_tuned_models[f"{self.fine_tuned_models_prefix}{model_key}"] = None
 
         # Evaluating the original model if there is at least one model that has not been fine-tuned
         if not all_models_already_fine_tuned:
@@ -171,8 +171,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
             # Creating the trainer
             pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
             # Validating the original model
-            #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-            #self.log(validation_results)
+            _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+            self.log(validation_results)
             del original_model
             gc.collect()
 
@@ -412,44 +412,55 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The data obtained from the analysis, containing initial and fine-tuned performances, training losses, and validation losses.
         """
 
-        def merge_dicts(
-                dict1: dict,
-                dict2: dict
+        def merge_benchmark_performance(
+                pre_finetuning_performance: dict,
+                post_finetuning_performance: dict
         ) -> dict:
             merged_dict = {}
 
             # Get all unique benchmarks
-            benchmarks = set(dict1.keys()).union(dict2.keys())
+            benchmarks = set(pre_finetuning_performance.keys()).union(post_finetuning_performance.keys())
 
             for benchmark in benchmarks:
                 merged_dict[benchmark] = {}
 
-                # Get all unique models for the current benchmark
-                models = set(dict1.get(benchmark, {}).keys()).union(dict2.get(benchmark, {}).keys())
+                pre_finetuning_performance_benchmark = pre_finetuning_performance.get(benchmark, {})
+                post_finetuning_performance_benchmark = post_finetuning_performance.get(benchmark, {})
 
-                for model in models:
+                # Get all unique models for the current benchmark
+                model_ids = set(
+                    pre_finetuning_performance_benchmark.keys()
+                ).union(
+                    model_id.replace(self.fine_tuned_models_prefix, "") for model_id in post_finetuning_performance_benchmark.keys()
+                )
+
+                for model_id in model_ids:
                     # Fetch performance from each dictionary or None if not present
-                    initial_performance = dict1.get(benchmark, {}).get(model)
-                    final_performance = dict2.get(benchmark, {}).get(model)
+                    initial_performance = pre_finetuning_performance_benchmark.get(model_id)
+                    final_performance = post_finetuning_performance_benchmark.get(self.fine_tuned_models_prefix + model_id) if self.fine_tuned_models_prefix + model_id in post_finetuning_performance_benchmark else post_finetuning_performance_benchmark.get(model_id)
 
                     # Structure as required
-                    merged_dict[benchmark][model] = {
+                    merged_dict[benchmark][model_id] = {
                         "initial": initial_performance,
                         "final": final_performance
                     }
 
             return merged_dict
 
-        performance_dict = merge_dicts(data[0], data[1])
+        performance_dict = merge_benchmark_performance(data[0], data[1])
         # Printing the results
-        self.log("The performance of the models on the benchmarks before training is as follows:", print_message=True)
+        self.log("\n------------------------------------------------------------------------------", print_message=True)
+        self.log("The performance of the models on the benchmarks before training is as follows:\n", print_message=True)
         for benchmark_id in list(performance_dict.keys()):
             for model_key in list(performance_dict[benchmark_id].keys()):
                 results = performance_dict[benchmark_id][model_key]
                 keys = list(results.keys())
                 for key in keys:
-                    self.log(f"The {key} performance of the model {model_key} on the benchmark {benchmark_id} is {results[key]}.",
+                    self.log(f"{key[0].upper()+key[1:]} performance of model {model_key} on the benchmark {benchmark_id} -> \t\t{benchmark_id_metric_name_mapping[benchmark_id]}: {results[key][benchmark_id][benchmark_id_metric_name_mapping[benchmark_id]]}.",
                              print_message=True)
+                self.log("", print_message=True)
+            self.log("                    --------------------------------------                    ",print_message=True)
+        self.log("------------------------------------------------------------------------------\n", print_message=True)
 
         # Plotting histograms of the results
         figure_size = config.get("figure_size") if config.contains("figure_size") else (10, 15)
