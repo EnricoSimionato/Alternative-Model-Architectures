@@ -1,3 +1,4 @@
+import gc
 from abc import ABC, abstractmethod
 
 import torch
@@ -143,6 +144,8 @@ class GlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             global or 'local' for local) and the key for the global matrix or the configuration for the local matrix.
         bias (bool):
             Flag to include bias in the linear layer.
+        dtype (torch.dtype):
+            Data type of the layer.
         *args:
             Variable length argument list for defining input and output features.
         **kwargs:
@@ -276,6 +279,32 @@ class GlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         for layer in self._local_layers:
             if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
+
+    def get_global_layers(
+            self
+    ) -> torch.nn.ModuleDict:
+        """
+        Returns the global layers.
+
+        Returns:
+            torch.nn.ModuleDict:
+                Global layers.
+        """
+
+        return self.global_layers
+
+    def get_local_layers(
+            self
+    ) -> torch.nn.ModuleDict:
+        """
+        Returns the local layers.
+
+        Returns:
+            torch.nn.ModuleDict:
+                Local layers.
+        """
+
+        return self.local_layers
 
     @property
     def shape(
@@ -413,6 +442,8 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             Target layer to be transformed in the factorized version.
         global_layers (torch.nn.ModuleDict):
             Dictionary containing the global matrices.
+        average_layers (torch.nn.ModuleDict):
+            Dictionary containing the average matrices.
         target_name (str):
             Name of the target layer.
         *args:
@@ -421,12 +452,22 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             Arbitrary keyword arguments.
 
     Attributes:
+        target_layer (torch.nn.Module):
+            Target layer to be transformed in the factorized version.
         target_name (str):
             Name of the target layer.
-        global_dependent_layer (GlobalDependentLinear):
-            Linear layer with dependencies on global matrices.
-        average_matrices_layer (torch.nn.ModuleDict):
-            Layer that applies the average matrix to the input.
+        approximation_stats (dict):
+            Approximation statistics.
+        global_dependent_layer (GlobalDependent):
+            Global dependent layer.
+        average_matrix_layer (torch.nn.ModuleDict):
+            Average matrix layer.
+        path (str):
+            Path of the layer.
+        layer_index (str):
+            Index of the layer.
+        layer_type (str):
+            Type of the layer.
     """
 
     def __init__(
@@ -440,6 +481,7 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
     ) -> None:
         super().__init__()
 
+        self.target_layer = target_layer
         self.target_name = target_name
         self.approximation_stats = None
         structure = self._define_structure(**{"target_layer": target_layer}, **kwargs)
@@ -454,9 +496,7 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             **kwargs
         )
 
-        self._define_average_matrix_layer(
-            average_matrix,
-        )
+        self._define_average_matrix_layer(average_matrix)
 
         self._initialize_matrices(**{"target_layer": target_layer}, **kwargs)
 
@@ -466,49 +506,6 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         self.layer_type = target_name
 
         self.approximation_stats = self.compute_approximation_stats(target_layer)
-
-    def compute_approximation_stats(
-            self,
-            target_layer
-    ) -> dict:
-        """
-        Computes the approximation statistics of the factorized layer.
-
-        Args:
-            target_layer (torch.nn.Module):
-                Target layer.
-
-        Returns:
-            dict:
-                Approximation statistics.
-        """
-
-        norm_difference = torch.norm(target_layer.weight.data.cpu() - self.weight.data.cpu())
-        norm_target_layer = torch.norm(target_layer.weight.data.cpu())
-        norm_approximated_layer = torch.norm(self.weight.data.cpu())
-
-        return {
-            "absolute_approximation_error": norm_difference,
-            "norm_target_layer": norm_target_layer,
-            "norm_approximated_layer": norm_approximated_layer,
-            "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximated_layer)
-        }
-
-    def get_approximation_stats(
-            self
-    ) -> dict:
-        """
-        Returns the approximation statistics of the factorized layer.
-
-        Returns:
-            dict:
-                Approximation statistics.
-        """
-
-        if self.approximation_stats is None:
-            raise Exception("The approximation statistics have not been computed yet.")
-
-        return self.approximation_stats
 
     def _define_structure(
             self,
@@ -665,6 +662,52 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
 
         return None
 
+    def _initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
+
+        self.initialize_matrices(**kwargs)
+
+    @abstractmethod
+    def initialize_matrices(
+            self,
+            **kwargs
+    ) -> None:
+        """
+        Initializes the matrices of the layer.
+        """
+
+    def compute_approximation_stats(
+            self,
+            target_layer
+    ) -> dict:
+        """
+        Computes the approximation statistics of the factorized layer.
+
+        Args:
+            target_layer (torch.nn.Module):
+                Target layer.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        norm_difference = torch.norm(target_layer.weight.data.cpu() - self.weight.data.cpu())
+        norm_target_layer = torch.norm(target_layer.weight.data.cpu())
+        norm_approximated_layer = torch.norm(self.weight.data.cpu())
+
+        return {
+            "absolute_approximation_error": norm_difference,
+            "norm_target_layer": norm_target_layer,
+            "norm_approximated_layer": norm_approximated_layer,
+            "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximated_layer)
+        }
+
     def forward(
             self,
             x: torch.Tensor,
@@ -692,26 +735,6 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
             return output + self.get_average_matrix().forward(x)
         else:
             return output
-
-    def _initialize_matrices(
-            self,
-            **kwargs
-    ) -> None:
-        """
-        Initializes the matrices of the layer.
-        """
-
-        #if not ("initialize_matrices_later" in kwargs and kwargs["initialize_matrices_later"]):
-        self.initialize_matrices(**kwargs)
-
-    @abstractmethod
-    def initialize_matrices(
-            self,
-            **kwargs
-    ) -> None:
-        """
-        Initializes the matrices of the layer.
-        """
 
     def reset_parameters(
             self
@@ -915,6 +938,45 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
 
         return self.average_matrix_layer[self.get_average_matrix_key()]
 
+    def get_target_layer(
+            self
+    ) -> torch.nn.Module:
+        """
+        Returns the target layer.
+
+        Returns:
+            torch.nn.Module:
+                Target layer.
+        """
+
+        return self.target_layer
+
+    def delete_target_layer(
+            self
+    ) -> None:
+        """
+        Deletes the target layer.
+        """
+
+        del self.target_layer
+        gc.collect()
+
+    def get_approximation_stats(
+            self
+    ) -> dict:
+        """
+        Returns the approximation statistics of the factorized layer.
+
+        Returns:
+            dict:
+                Approximation statistics.
+        """
+
+        if self.approximation_stats is None:
+            raise Exception("The approximation statistics have not been computed yet.")
+
+        return self.approximation_stats
+
     @property
     def structure(
             self
@@ -1006,3 +1068,17 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         """
 
         self.global_dependent_layer.bias = value
+
+    @property
+    def dtype(
+            self
+    ) -> torch.dtype:
+        """
+        Returns the data type of the layer.
+
+        Returns:
+            torch.dtype:
+                Data type of the layer.
+        """
+
+        return self.global_dependent_layer.dtype
