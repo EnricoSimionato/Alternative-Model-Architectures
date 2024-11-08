@@ -49,6 +49,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Preparing the models, the tokenizer and the performance dictionary
         prepared_models, tokenizer, performance_dict, remaining_analysis = self._prepare_experiment(already_created_performance_dict, None)
 
+        return
+
         # Evaluating the models on the benchmarks
         self._perform_model_evaluation(prepared_models, tokenizer, performance_dict, remaining_analysis, 0)
 

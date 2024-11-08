@@ -2,10 +2,10 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-#experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "factorization_fine_tuning_experiment"
 
 #experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
@@ -13,40 +13,40 @@ experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 version: 0
 
 verbose: 1
-device: "cuda"
+device: "cpu"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
 dtype: "float16"
 #quantization: 4bit
-#model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "mistralai/Mistral-7B-v0.3"
 #model_id: "google/gemma-2-2b"
-model_id: "EleutherAI/gpt-neo-1.3B"
+#model_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################   Tokenizer configuration parameters   ########################################
-#tokenizer_id: "mistralai/Mistral-7B-v0.3"
+tokenizer_id: "mistralai/Mistral-7B-v0.3"
 #tokenizer_id: "google/gemma-2-2b"
-tokenizer_id: "EleutherAI/gpt-neo-1.3B"
+#tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
-#factorization_methods:
+factorization_methods:
 #    - "LocalSVD"
 #    - "Hadamard"
-#    - "GlobalBase"
+    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
-#target_layers:
+target_layers:
 #    q_proj:
 #        rank: 256
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-#    gate_proj:
-#        rank: 1024
+    gate_proj:
+        rank: 1270
 #    up_proj:
 #        rank: 1024
 #    down_proj:
@@ -54,19 +54,21 @@ figure_size: [5, 10]
 
 use_names_as_keys: True
 
+average_svd_initialization: "svd_of_average_matrix"
+
 ########################################      Layers replacement parameters     ########################################
 replacement_methods:
     - "sharedaveragelayer"
-#num_layers: 32
-num_layers: 24
+num_layers: 32
+#num_layers: 24
 
 targets:
-    - [ "block_index", "c_fc" ]
-    - [ "block_index", "c_proj" ]
+#    - [ "block_index", "c_fc" ]
+#    - [ "block_index", "c_proj" ]
 #    - [ "block_index", "q_proj" ]
 #    - [ "block_index", "k_proj" ]
 #    - [ "block_index", "v_proj" ]
-#    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "gate_proj"]
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
 

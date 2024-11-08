@@ -18,7 +18,7 @@ from transformers import AutoModel
 
 from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
 
-from exporch import Config, Verbose
+from exporch import Config, Verbose, get_available_device
 from exporch.utils import LoggingInterface
 
 import imports.peft as peft
@@ -445,7 +445,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
                     **kwargs
                 )
 
-            self._processing_before_conversion()
+            self._processing_before_conversion(**kwargs)
             self._convert_into_global_dependent_model(
                 self.model,
                 path="",
@@ -453,23 +453,35 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
                 verbose=verbose,
                 **kwargs
             )
-            self._processing_after_conversion()
+            self._processing_after_conversion(**kwargs)
 
+            # Computing the approximation statistics
+            self.approximation_stats = self.compute_approximation_stats()
+            for key in self.approximation_stats:
+                self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)
+            self.log("", print_message=True)
+
+            # Removing the target_layer attribute from the layers
+            extracted_layers = {}
+            self._get_wrapped_layers(self.model, extracted_layers)
+
+            for layer in extracted_layers.values():
+                layer.delete_target_layer()
+
+            # Computing the number of parameters of the model
             model_parameters = count_parameters(self.model)
             self.info.update({
                 "model_parameters": model_parameters,
                 "model_trainable_parameters": count_parameters(self.model, only_trainable=True),
                 "percentage_parameters": model_parameters / self.info["original_model_parameters"] * 100
             })
-            self.approximation_stats = self.compute_approximation_stats()
 
-            self.log("Information about the factorized model:")
-            self.log(f"Number of parameters original model: {self.info['original_model_parameters']}")
-            self.log(f"Number of parameters global model: {self.info['model_parameters']}")
-            self.log(f"Percentage of parameters: {self.info['percentage_parameters']}%\n")
+            self.log("Information about the factorized model:", print_message=True)
+            self.log(f"Number of parameters original model: {self.info['original_model_parameters']}", print_message=True)
+            self.log(f"Number of parameters global model: {self.info['model_parameters']}", print_message=True)
+            self.log(f"Percentage of parameters: {self.info['percentage_parameters']}%\n", print_message=True)
 
-            self.log("Model converted", print_message=True)
-            self.log(f"{self}", print_message=True)
+            self.log("Model converted\n", print_message=True)
 
     def _get_wrapped_layers(
             self,
@@ -518,15 +530,6 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         concatenated_absolute_approximation_error = torch.tensor([layer.approximation_stats["absolute_approximation_error"] for layer in wrapped_layers.values()])
         concatenated_norm_target_layers = torch.tensor([layer.approximation_stats["norm_target_layer"] for layer in wrapped_layers.values()])
         concatenated_norm_approximated_layers = torch.tensor([layer.approximation_stats["norm_approximated_layer"] for layer in wrapped_layers.values()])
-
-        print({
-            "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
-            "mean_absolute_approximation_error": torch.mean(concatenated_absolute_approximation_error).item(),
-            "sum_norm_target_layers": torch.sum(concatenated_norm_target_layers).item(),
-            "mean_norm_target_layers": torch.mean(concatenated_norm_target_layers).item(),
-            "sum_norm_approximated_layers": torch.sum(concatenated_norm_approximated_layers).item(),
-            "mean_norm_approximated_layers": torch.mean(concatenated_norm_approximated_layers).item()
-        })
 
         return {
             "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
@@ -749,7 +752,8 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         return average_matrices
 
     def _processing_before_conversion(
-            self
+            self,
+            **kwargs
     ) -> None:
         pass
 
@@ -838,7 +842,8 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
                 )
 
     def _processing_after_conversion(
-            self
+            self,
+            **kwargs
     ) -> None:
         pass
 
@@ -1373,10 +1378,13 @@ class GlobalBaseModel(GlobalDependentModel):
             from_pretrained: bool = False,
             preserve_original_model: bool = False,
             initialization_type: str = "pseudo-inverse",
+            average_svd_initialization: str = "svd_of_average_matrix",
+            post_init_train: bool = False,
             verbose: Verbose = Verbose.SILENT,
             **kwargs
     ) -> None:
         kwargs.update({"initialization_type": initialization_type})
+        kwargs.update({"average_svd_initialization": average_svd_initialization})
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
@@ -1390,89 +1398,59 @@ class GlobalBaseModel(GlobalDependentModel):
             **kwargs
         )
 
-    def define_conversion(
-            self,
-            **kwargs
-    ) -> dict:
-        """
-        Define the conversion of layers into global-base layers.
+        if post_init_train:
+            device = get_available_device()
+            extracted_layers = {}
+            self._get_wrapped_layers(self.model, extracted_layers)
+            global_layers = [layer.global_dependent_layer.get_global_layers() for layer in list(extracted_layers.values())]
+            global_layers = [layer[list(layer.keys())[0]].weight for layer in global_layers]
+            local_layers = [layer.global_dependent_layer.get_local_layers() for layer in list(extracted_layers.values())]
+            local_layers = [layer[list(layer.keys())[0]].weight for layer in local_layers]
+            targets = [layer.target_layer.weight for layer in list(extracted_layers.values())]
 
-        Args:
-            **kwargs:
-                Additional keyword arguments.
+            #for global_layer, local_layer, target in zip(global_layers, local_layers, targets):
+            #    global_layer.weight.data = global_layer.weight.data.to(device)
+            #    local_layer.weight.data = local_layer.weight.data.to(device)
+            #    target.weight.data = target.weight.data.to(device)
 
-        Returns:
-            Dictionary mapping layer types to corresponding global-base layer classes.
-        """
+            # Configuring the optimizer
+            eps = 1e-7 if global_layers[0].dtype == torch.float16 else 1e-8
+            optimizer = torch.optim.AdamW([layer for layer in global_layers] + [layer for layer in local_layers], lr=1e-3, eps=eps)
 
-        conversions = {
-            torch.nn.Linear: GlobalBaseLinear,
-            torch.nn.Embedding: GlobalBaseEmbedding
-        }
+            # Configuring the loss
+            loss_fn = torch.nn.MSELoss()
 
-        return conversions
+            num_epochs = 1000
 
+            for epoch in range(num_epochs):
+                # Forward pass
+                loss = loss_fn(torch.matmul(local_layers[0], global_layers[0]), targets[0])
+                for local_layer, global_layer, target in zip(local_layers[1:], global_layers[1:], targets[1:]):
 
-class GlobalBaseAverageSVDInitializationModel(GlobalDependentModel):
-    """
-    Model with GlobalBaseLinear layers replacing linear layers.
+                    loss += loss_fn(torch.matmul(local_layer, global_layer), target)
+                print("????????????????????????????????????????????????????????????????????????????????????????????")
+                print(loss)
+                print("################################################################")
+                #print(local_layers[0].weight.requires_grad)
+                #print(local_layers[0].weight)
+                #print(global_layers[0].weight)
+                #print(local_layers[0].weight.grad)
+                print("################################################################")
+                # Backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-    Args:
-        pretrained_model (PreTrainedModel):
-            Pretrained model.
-        target_layers (dict):
-            Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
-            rank of the decomposition for the layer.
-            >> Example:
-            >> {
-            >>     "layer_name_1": {"rank": 10},
-            >>     "layer_name_2": {"rank": 20},
-            >> }
-        use_names_as_keys (bool):
-            Whether to use the names of the layers in the keys of the global layers, having different global layers
-            for layers having different roles in the original model.
-        mapping_layer_name_key (dict):
-            Mapping of the layer names to the keys of the global layers. Allowing to group layers with different
-            names to have the same global layer.
-        remove_average (bool):
-            Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
-        from_pretrained (bool):
-            Whether the model is being loaded from a pretrained model.
-        preserve_original_model (bool):
-            Whether to preserve the target model or to change directly it.
-        verbose (int):
-            Verbosity level.
-        **kwargs:
-            Additional keyword arguments.
-    """
+            #self.compute_approximation_stats()
 
-    def __init__(
-            self,
-            target_model = None,
-            target_layers: dict = None,
-            use_names_as_keys: bool = False,
-            mapping_layer_name_key: dict = None,
-            remove_average: bool = False,
-            from_pretrained: bool = False,
-            preserve_original_model: bool = False,
-            initialization_type: str = "pseudo-inverse",
-            verbose: Verbose = Verbose.SILENT,
-            **kwargs
-    ) -> None:
-        kwargs.update({"initialization_type": initialization_type})
-        GlobalDependentModel.__init__(
-            self,
-            target_model=target_model,
-            target_layers=target_layers,
-            use_names_as_keys=use_names_as_keys,
-            mapping_layer_name_key=mapping_layer_name_key,
-            remove_average=remove_average,
-            from_pretrained=from_pretrained,
-            preserve_original_model=preserve_original_model,
-            verbose=verbose,
-            **kwargs
-        )
+            new_extracted_layers = {}
+            self._get_wrapped_layers(self.model, new_extracted_layers)
+            new_global_layers = [layer.global_dependent_layer.get_global_layers() for layer in list(new_extracted_layers.values())]
+            new_global_layers = [layer[list(layer.keys())[0]].weight for layer in new_global_layers]
+
+            print(new_global_layers[0])
+            print("gagfsagf")
+            print(global_layers[0])
 
     def define_conversion(
             self,
@@ -1498,93 +1476,123 @@ class GlobalBaseAverageSVDInitializationModel(GlobalDependentModel):
 
     @override
     def _processing_before_conversion(
-            self
+            self,
+            **kwargs
     ) -> None:
         """
         Processing to perform before the conversion of the layers.
         The method computes the global matrices for the layers to be factorized as the average of the SVDs of the layers.
+
+        Args:
+            **kwargs:
+                Additional keyword arguments.
         """
 
-        def get_target_layer_name_given_path(target_layer_names: list, path: str) -> str:
-            """
-            Gets the target layer name given the path of the layer.
+        if "average_svd_initialization" in kwargs:
+            def get_target_layer_name_given_path(target_layer_names: list, path: str) -> str:
+                """
+                Gets the target layer name given the path of the layer.
 
-            Args:
-                target_layer_names (list):
-                    List of target layer names.
-                path (str):
-                    Path of the layer.
+                Args:
+                    target_layer_names (list):
+                        List of target layer names.
+                    path (str):
+                        Path of the layer.
 
-            Returns:
-                str:
-                    Target layer name.
-            """
+                Returns:
+                    str:
+                        Target layer name.
+                """
 
-            target_layer_name = None
-            for target_name in target_layer_names:
-                if target_name in path:
-                    if target_layer_name is None:
-                        target_layer_name = target_name
-                    else:
-                        raise ValueError(f"Multiple target layers found in the path {path}: {target_layer_name} and {target_name}")
-
-            return target_layer_name
-
-        # Obtaining the mapping from the group name in which the layers share the global features to the specific layer
-        # name of the layers of the group
-        if self.mapping_layer_name_key is None:
-            mapping_key_layer_name = {"": [key for key in self.target_layers.keys()]}
-        else:
-            mapping_key_layer_name = {}
-            for key, value in self.mapping_layer_name_key.items():
-                if value not in mapping_key_layer_name:
-                    mapping_key_layer_name[value] = []
-                mapping_key_layer_name[value].append(key)
-
-        for factorization_group, target_names in mapping_key_layer_name.items():
-            label = "" if factorization_group == "" else factorization_group + "_"
-            # Getting the ranks for the factorization of the layers in the group and checking that they are all equal,
-            # otherwise grouping makes no sense
-            ranks = {layer_name: self.target_layers[layer_name]["rank"] for layer_name in target_names}
-
-            # Getting the mapping between the layers path and the actual layers to be used in the computation of the
-            # global average layer
-            extracted_layers = {}
-            get_parameters(self.model, [[layer_name,] for layer_name in target_names], extracted_layers)
-
-            if len(extracted_layers.keys()) > 0:
-                # Grouping the extracted layers based on the size of the global matrix
-                global_layer_shapes = set([(min(min(layer.in_features, layer.out_features), ranks[get_target_layer_name_given_path(target_names, path)]), layer.in_features) for path, layer in extracted_layers.items()])
-                shape_grouped_extracted_layers = {shape: {} for shape in global_layer_shapes}
-                for path, layer in extracted_layers.items():
-                    shape_grouped_extracted_layers[(min(min(layer.in_features, layer.out_features), ranks[get_target_layer_name_given_path(target_names, path)]), layer.in_features)][path] = layer
-
-                for shape, shape_group in shape_grouped_extracted_layers.items():
-                    print(f"Computing the average global matrix for the group {factorization_group} with shape {shape}...")
-                    in_features = shape_group[list(shape_group.keys())[0]].in_features
-                    rank = shape[0]
-
-                    # Computing the SVD on each layer and the average global matrix
-                    average_global = None
-                    for key, layer in shape_group.items():
-                        print(f"Computing SVD for layer {key}...")
-                        # Computing the SVD of the layer
-                        _, _, vt = np.linalg.svd(layer.weight.data.to(torch.float32).numpy())
-                        vt = torch.tensor(vt[:rank, :]).to(layer.weight.dtype)
-                        if average_global is None:
-                            average_global = vt
+                target_layer_name = None
+                for target_name in target_layer_names:
+                    if target_name in path:
+                        if target_layer_name is None:
+                            target_layer_name = target_name
                         else:
-                            average_global += vt
+                            raise ValueError(
+                                f"Multiple target layers found in the path {path}: {target_layer_name} and {target_name}")
 
-                    # Averaging the sum of the SVDs computed on the layers
-                    average_global /= len(list(extracted_layers.keys()))
+                return target_layer_name
 
-                    # Creating the global layer initialized with the average of the SVDs
-                    global_layer = torch.nn.Linear(in_features=in_features, out_features=rank, bias=False)
-                    with torch.no_grad():
-                        global_layer.weight = torch.nn.Parameter(average_global)
+            # Obtaining the mapping from the group name in which the layers share the global features to the specific layer
+            # name of the layers of the group
+            if self.mapping_layer_name_key is None:
+                mapping_key_layer_name = {"": [key for key in self.target_layers.keys()]}
+            else:
+                mapping_key_layer_name = {}
+                for key, value in self.mapping_layer_name_key.items():
+                    if value not in mapping_key_layer_name:
+                        mapping_key_layer_name[value] = []
+                    mapping_key_layer_name[value].append(key)
 
-                    self.global_layers.add_module(f"{label}({in_features},{rank})", global_layer)
+            for factorization_group, target_names in mapping_key_layer_name.items():
+                label = "" if factorization_group == "" else factorization_group + "_"
+                # Getting the ranks for the factorization of the layers in the group and checking that they are all equal,
+                # otherwise grouping makes no sense
+                ranks = {layer_name: self.target_layers[layer_name]["rank"] for layer_name in target_names}
+
+                # Getting the mapping between the layers path and the actual layers to be used in the computation of the
+                # global average layer
+                extracted_layers = {}
+                get_parameters(self.model, [[layer_name, ] for layer_name in target_names], extracted_layers)
+
+                if len(extracted_layers.keys()) > 0:
+                    # Grouping the extracted layers based on the size of the global matrix
+                    global_layer_shapes = set([(min(min(layer.in_features, layer.out_features),
+                                                    ranks[get_target_layer_name_given_path(target_names, path)]),
+                                                layer.in_features) for path, layer in extracted_layers.items()])
+                    shape_grouped_extracted_layers = {shape: {} for shape in global_layer_shapes}
+                    for path, layer in extracted_layers.items():
+                        shape_grouped_extracted_layers[(min(min(layer.in_features, layer.out_features),
+                                                            ranks[get_target_layer_name_given_path(target_names, path)]),
+                                                        layer.in_features)][path] = layer
+
+                    for shape, shape_group in shape_grouped_extracted_layers.items():
+                        print(f"Computing the average global matrix for the group {factorization_group} with shape {shape}...")
+                        in_features = shape_group[list(shape_group.keys())[0]].in_features
+                        rank = shape[0]
+
+                        if kwargs["average_svd_initialization"] == "average_of_svds":
+                            # Computing the SVD on each layer and the average global matrix
+                            average_global = None
+                            for key, layer in shape_group.items():
+                                print(f"Computing SVD for layer {key}...")
+                                # Computing the SVD of the layer
+                                _, _, vt = np.linalg.svd(layer.weight.data.to(torch.float32).numpy())
+                                vt = torch.tensor(vt[:rank, :]).to(layer.weight.dtype)
+                                if average_global is None:
+                                    average_global = vt
+                                else:
+                                    average_global += vt
+
+                            # Averaging the sum of the SVDs computed on the layers
+                            average_global /= len(list(extracted_layers.keys()))
+
+                        elif kwargs["average_svd_initialization"] == "svd_of_average_matrix":
+                            # Computing the avera matrix of the layers
+                            average_extrated_layers = None
+                            for key, layer in shape_group.items():
+                                if average_extrated_layers is None:
+                                    average_extrated_layers = layer.weight.data
+                                else:
+                                    average_extrated_layers += layer.weight.data
+                            average_extrated_layers /= len(list(extracted_layers.keys()))
+
+                            # Computing the SVD of the average matrix
+                            _, _, vt = np.linalg.svd(average_extrated_layers.to(torch.float32).numpy())
+                            average_global = torch.tensor(vt[:rank, :]).to(average_extrated_layers.dtype)
+
+                        else:
+                            raise ValueError(f"Average SVD initialization method {kwargs['average_svd_initialization']} not recognized")
+
+                        # Creating the global layer initialized with the average of the SVDs
+                        global_layer = torch.nn.Linear(in_features=in_features, out_features=rank, bias=False)
+                        with torch.no_grad():
+                            global_layer.weight = torch.nn.Parameter(average_global)
+
+                        self.global_layers.add_module(f"{label}({in_features},{rank})", global_layer)
+
 
 
 class GlobalFixedBaseModel(GlobalDependentModel):
