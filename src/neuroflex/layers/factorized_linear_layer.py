@@ -154,7 +154,11 @@ class GlobalDependentLinear(GlobalDependent):
                         with torch.no_grad():
                             diag_size = min(in_features, out_features)
                             diagonal_matrix = torch.zeros(out_features, in_features)
-                            diagonal_matrix[range(diag_size), range(diag_size)] = torch.randn(diag_size)
+                            if in_features > out_features:
+                                diagonal_matrix[:, out_features:] = torch.ones(out_features, in_features - out_features) / torch.sqrt(out_features)
+                            else:
+                                diagonal_matrix[in_features:, :] = torch.ones(out_features - in_features, in_features) / torch.sqrt(in_features)
+                            diagonal_matrix[range(diag_size), range(diag_size)] = torch.ones(diag_size)
                             self.global_layers[layer["key"]].weight.data = diagonal_matrix.to(self.dtype)
 
                     if "trainable" in layer.keys():
@@ -891,7 +895,7 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
     ) -> None:
         kwargs["rank"] = rank
         kwargs["initialization_type"] = initialization_type
-        kwargs["global_initialization"] = "identity"
+        kwargs["global_initialization"] = "random"
         super().__init__(
             target_layer,
             global_layers,
@@ -946,7 +950,6 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         initialization_type = kwargs["initialization_type"]
 
         global_matrix = self.get_layer("global", global_key).weight.data
-        #self.set_layer("global", global_key, self.get_layer("global", global_key).to(device))
 
         with torch.no_grad():
             if initialization_type == "pseudo-inverse":
@@ -971,28 +974,28 @@ class GlobalBaseLinear(StructureSpecificGlobalDependentLinear):
         if initialization_type in ["random", ]:
             device = get_available_device()
 
+            # Getting the tensors and moving them to the device
             target_weight = target_weight.to(device)
-            a = self.get_layer("local", local_key)
-            local_weight = self.get_layer("local", local_key).weight.data
-            local_weight.requires_grad = True
-            local_weight.to(device)
-            global_weight = self.get_layer("global", global_key).weight.data
-            global_weight.to(device)
 
-            optimizer = torch.optim.AdamW([local_weight],
-                lr=1e-3,
-                eps=1e-7 if target_weight.dtype == torch.float16 else 1e-8
-            )
+            local_weight = self.get_layer("local", local_key).weight.data.clone().to(device)
+            local_weight = nn.Parameter(local_weight, requires_grad=True)
+            local_weight = local_weight.to(device)
+
+            global_weight = self.get_layer("global", global_key).weight.data.to(device)
+
+            # Configuring the optimizer
+            eps = 1e-7 if target_weight.dtype == torch.float16 else 1e-8
+            optimizer = torch.optim.AdamW([local_weight], lr=1e-2, eps=eps)
+
+            # Configuring the loss
+            loss_fn = torch.nn.MSELoss()
 
             num_epochs = 1000
-
             for epoch in range(num_epochs):
-                approximated_matrix = torch.matmul(local_weight, global_weight).to(device)
+                # Forward pass
+                loss = loss_fn(torch.matmul(local_weight, global_weight).to(device), target_weight.to(device))
 
-                loss = torch.sum((target_weight - approximated_matrix) ** 2)
-                print(loss)
-                #print(local_weight)
-                #print(local_weight.grad)
+                # Backward pass
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()

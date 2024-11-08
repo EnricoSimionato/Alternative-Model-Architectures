@@ -1488,7 +1488,7 @@ class GlobalBaseModel(GlobalDependentModel):
                 Additional keyword arguments.
         """
 
-        if "average_svd_initialization" in kwargs:
+        if "average_svd_initialization" in kwargs and kwargs["average_svd_initialization"] in ["average_of_svds", "svd_of_average_matrix"]:
             def get_target_layer_name_given_path(target_layer_names: list, path: str) -> str:
                 """
                 Gets the target layer name given the path of the layer.

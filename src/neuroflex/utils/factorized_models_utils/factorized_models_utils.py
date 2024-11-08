@@ -67,43 +67,24 @@ def get_factorized_model(
         factorization_method = factorization_method[:-5]
 
     if factorization_method == "localsvd":
-        factorized_model = LocalSVDModel(
-            model,
-            **alternative_architectures_arguments
-        )
+        factorized_model = LocalSVDModel(model, **alternative_architectures_arguments)
     elif factorization_method == "globalbase":
         global_base_keys = ["initialization_type", "average_svd_initialization", "post_init_train"]
         alternative_architectures_arguments.update(config.get_dict(global_base_keys))
-        factorized_model = GlobalBaseModel(
-            model,
-            **alternative_architectures_arguments
-        )
+        factorized_model = GlobalBaseModel(model, **alternative_architectures_arguments)
     elif factorization_method == "globalfixedbase":
         alternative_architectures_arguments.update(config.get_dict(["initialization_type"]))
-        factorized_model = GlobalFixedBaseModel(
-            model,
-            **alternative_architectures_arguments
-        )
+        factorized_model = GlobalFixedBaseModel(model, **alternative_architectures_arguments)
     elif factorization_method == "glamsvd":
         regularized_training_arguments = config.get_dict(regularized_training_keys)
         glam_svd_training_arguments = config.get_dict(glam_svd_keys)
         factorized_model = GLAMSVDModel(
-            model,
-            **alternative_architectures_arguments,
-            **regularized_training_arguments,
-            **glam_svd_training_arguments
-        )
+            model, **alternative_architectures_arguments, **regularized_training_arguments, **glam_svd_training_arguments)
     elif factorization_method == "hadamard":
-        factorized_model = LocalHadamardModel(
-            model,
-            **alternative_architectures_arguments,
-        )
+        factorized_model = LocalHadamardModel(model, **alternative_architectures_arguments)
     else:
         raise ValueError("Factorization method not recognized")
 
-    update_config_with_model_parameters(
-        config,
-        factorized_model
-    )
+    update_config_with_model_parameters(config, factorized_model)
 
     return factorized_model
