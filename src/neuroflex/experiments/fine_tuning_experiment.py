@@ -456,7 +456,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 results = performance_dict[benchmark_id][model_key]
                 keys = list(results.keys())
                 for key in keys:
-                    self.log(f"{key[0].upper()+key[1:]} performance of model {model_key} on the benchmark {benchmark_id} -> \t\t{benchmark_id_metric_name_mapping[benchmark_id]}: {results[key][benchmark_id][benchmark_id_metric_name_mapping[benchmark_id]]}.",
+                    metric_value = results[key][benchmark_id][benchmark_id_metric_name_mapping[benchmark_id]] if results[key] else None
+                    self.log(f"{key[0].upper()+key[1:]} performance of model {model_key} on the benchmark "
+                             f"{benchmark_id} -> \t\t{benchmark_id_metric_name_mapping[benchmark_id]}: {metric_value}.",
                              print_message=True)
                 self.log("", print_message=True)
             self.log("                    --------------------------------------                    ",print_message=True)
