@@ -122,8 +122,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
                 # Validating the model before training
-                #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
-                #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
+                _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                self.log(f"Validation results before fit:\n {validation_results_before_fit}")
 
                 # Training the model
                 try:
@@ -133,8 +133,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
                     self.log(e, print_message=True)
 
                 # Validating the model after training
-                #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                #self.log(f"Validation results after fit:\n {validation_results}")
+                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                self.log(f"Validation results after fit:\n {validation_results}")
                 # Testing the model
                 # For now testing is disabled
                 #_, test_results = self._test(pl_model, pl_trainer, pl_dataset)

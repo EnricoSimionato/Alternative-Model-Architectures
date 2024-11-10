@@ -1,5 +1,5 @@
-import gc
 from abc import ABC, abstractmethod
+import gc
 
 import torch
 
@@ -505,7 +505,7 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         self.layer_index = list_containing_layer_number[0] if len(list_containing_layer_number) > 0 else "-1"
         self.layer_type = target_name
 
-        self.approximation_stats = self.compute_approximation_stats(target_layer)
+        self.compute_approximation_stats()
 
     def _define_structure(
             self,
@@ -682,31 +682,33 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         """
 
     def compute_approximation_stats(
-            self,
-            target_layer
+            self
     ) -> dict:
         """
         Computes the approximation statistics of the factorized layer.
-
-        Args:
-            target_layer (torch.nn.Module):
-                Target layer.
 
         Returns:
             dict:
                 Approximation statistics.
         """
 
+        if self.target_layer is None:
+            raise Exception("The target layer has not been set.")
+
+        target_layer = self.target_layer
+
         norm_difference = torch.norm(target_layer.weight.data.cpu() - self.weight.data.cpu())
         norm_target_layer = torch.norm(target_layer.weight.data.cpu())
         norm_approximated_layer = torch.norm(self.weight.data.cpu())
 
-        return {
+        self.approximation_stats = {
             "absolute_approximation_error": norm_difference,
             "norm_target_layer": norm_target_layer,
             "norm_approximated_layer": norm_approximated_layer,
             "relative_approximation_error": norm_difference / torch.sqrt(norm_target_layer * norm_approximated_layer)
         }
+
+        return self.approximation_stats
 
     def forward(
             self,
@@ -845,6 +847,34 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
                 print(f"The layer with the scope '{scope}' and key '{previous_key}' does not exist.")
             else:
                 print(f"The layer with the scope '{scope}' and key '{previous_key}' has now key '{new_key}'.")
+
+    def get_global_layers(
+            self,
+            **kwargs
+    ) -> torch.nn.ModuleDict:
+        """
+        Returns the global layers.
+
+        Returns:
+            torch.nn.ModuleDict:
+                Global layers.
+        """
+
+        return self.global_dependent_layer.get_global_layers()
+
+    def get_local_layers(
+            self,
+            **kwargs
+    ) -> torch.nn.ModuleDict:
+        """
+        Returns the local layers.
+
+        Returns:
+            torch.nn.ModuleDict:
+                Local layers.
+        """
+
+        return self.global_dependent_layer.get_local_layers()
 
     def get_layer(
             self,

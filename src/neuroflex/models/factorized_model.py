@@ -462,11 +462,11 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             self.log("", print_message=True)
 
             # Removing the target_layer attribute from the layers
-            extracted_layers = {}
-            self._get_wrapped_layers(self.model, extracted_layers)
+            #extracted_layers = {}
+            #self._get_wrapped_layers(self.model, extracted_layers)
 
-            for layer in extracted_layers.values():
-                layer.delete_target_layer()
+            #for layer in extracted_layers.values():
+            #    layer.delete_target_layer()
 
             # Computing the number of parameters of the model
             model_parameters = count_parameters(self.model)
@@ -527,13 +527,17 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
 
         wrapped_layers = {}
         self._get_wrapped_layers(self.model, wrapped_layers)
+        for layer in wrapped_layers.values():
+            layer.compute_approximation_stats()
         concatenated_absolute_approximation_error = torch.tensor([layer.approximation_stats["absolute_approximation_error"] for layer in wrapped_layers.values()])
         concatenated_norm_target_layers = torch.tensor([layer.approximation_stats["norm_target_layer"] for layer in wrapped_layers.values()])
         concatenated_norm_approximated_layers = torch.tensor([layer.approximation_stats["norm_approximated_layer"] for layer in wrapped_layers.values()])
+        mean_relative_approximation_error = torch.mean(torch.tensor([layer.approximation_stats["relative_approximation_error"] for layer in wrapped_layers.values()]))
 
         return {
             "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
             "mean_absolute_approximation_error": torch.mean(concatenated_absolute_approximation_error).item(),
+            "mean_relative_approximation_error": mean_relative_approximation_error.item(),
             "sum_norm_target_layers": torch.sum(concatenated_norm_target_layers).item(),
             "mean_norm_target_layers": torch.mean(concatenated_norm_target_layers).item(),
             "sum_norm_approximated_layers": torch.sum(concatenated_norm_approximated_layers).item(),
@@ -551,8 +555,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
                 Approximation statistics.
         """
 
-        if self.approximation_stats is None:
-            self.approximation_stats = self.compute_approximation_stats()
+        self.approximation_stats = self.compute_approximation_stats()
 
         return self.approximation_stats
 
@@ -1400,57 +1403,52 @@ class GlobalBaseModel(GlobalDependentModel):
 
         if post_init_train:
             device = get_available_device()
-            extracted_layers = {}
-            self._get_wrapped_layers(self.model, extracted_layers)
-            global_layers = [layer.global_dependent_layer.get_global_layers() for layer in list(extracted_layers.values())]
-            global_layers = [layer[list(layer.keys())[0]].weight for layer in global_layers]
-            local_layers = [layer.global_dependent_layer.get_local_layers() for layer in list(extracted_layers.values())]
-            local_layers = [layer[list(layer.keys())[0]].weight for layer in local_layers]
-            targets = [layer.target_layer.weight for layer in list(extracted_layers.values())]
 
-            #for global_layer, local_layer, target in zip(global_layers, local_layers, targets):
-            #    global_layer.weight.data = global_layer.weight.data.to(device)
-            #    local_layer.weight.data = local_layer.weight.data.to(device)
-            #    target.weight.data = target.weight.data.to(device)
+            # Extracting the layers tha have been converted
+            global_layers = {}
+            self._get_wrapped_layers(self.model, global_layers)
+
+            key_0 = list(global_layers.keys())[0]
+            layer_0 = global_layers[key_0]
+            target_layers = {key: layer.get_target_layer() for key, layer in global_layers.items()}
+            #target_layers = {key: torch.ones(layer.get_target_layer().out_features, layer_0.get_target_layer().in_features) for key, layer in global_layers.items()}
 
             # Configuring the optimizer
-            eps = 1e-7 if global_layers[0].dtype == torch.float16 else 1e-8
-            optimizer = torch.optim.AdamW([layer for layer in global_layers] + [layer for layer in local_layers], lr=1e-3, eps=eps)
+            eps = 1e-7 if layer_0.dtype == torch.float16 else 1e-8
+            optimizer = torch.optim.AdamW(
+                [weight.weight for layer in global_layers.values() for weight in layer.get_local_layers().values()] +
+                list(weight.weight for weight in layer_0.get_global_layers().values()),
+                lr=1e-4,
+                eps=eps
+            )
 
             # Configuring the loss
             loss_fn = torch.nn.MSELoss()
 
+            # Training the matrices to approximate the target matrices
             num_epochs = 1000
+            try:
+                for epoch in range(num_epochs):
+                    # Forward pass
+                    key_0 = list(global_layers.keys())[0]
+                    loss = loss_fn(global_layers[key_0].weight.to(device), target_layers[key_0].weight.to(device))
+                    for key in list(global_layers.keys())[1:]:
+                        loss += loss_fn(global_layers[key].weight.to(device), target_layers[key].weight.to(device))
 
-            for epoch in range(num_epochs):
-                # Forward pass
-                loss = loss_fn(torch.matmul(local_layers[0], global_layers[0]), targets[0])
-                for local_layer, global_layer, target in zip(local_layers[1:], global_layers[1:], targets[1:]):
+                    if epoch % 10 == 0:
+                        print("????????????????????????????????????????????????????????????????????????????????????????????")
+                        print(f"Epoch {epoch}: {loss}")
+                    # Backward pass
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            except (KeyboardInterrupt, SystemExit):
+                pass
 
-                    loss += loss_fn(torch.matmul(local_layer, global_layer), target)
-                print("????????????????????????????????????????????????????????????????????????????????????????????")
-                print(loss)
-                print("################################################################")
-                #print(local_layers[0].weight.requires_grad)
-                #print(local_layers[0].weight)
-                #print(global_layers[0].weight)
-                #print(local_layers[0].weight.grad)
-                print("################################################################")
-                # Backward pass
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-            #self.compute_approximation_stats()
-
-            new_extracted_layers = {}
-            self._get_wrapped_layers(self.model, new_extracted_layers)
-            new_global_layers = [layer.global_dependent_layer.get_global_layers() for layer in list(new_extracted_layers.values())]
-            new_global_layers = [layer[list(layer.keys())[0]].weight for layer in new_global_layers]
-
-            print(new_global_layers[0])
-            print("gagfsagf")
-            print(global_layers[0])
+            print()
+            stats = self.compute_approximation_stats()
+            for key, value in stats.items():
+                print(f"{key}: {value}")
 
     def define_conversion(
             self,
