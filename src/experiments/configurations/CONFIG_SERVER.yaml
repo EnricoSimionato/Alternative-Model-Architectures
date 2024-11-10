@@ -10,7 +10,7 @@ experiment_type: "factorization_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 22
+version: 21
 
 verbose: 1
 device: "cuda"
@@ -47,10 +47,10 @@ target_layers:
 #        rank: 256
     gate_proj:
         rank: 1270
-    up_proj:
-        rank: 1270
-    down_proj:
-        rank: 9102
+#    up_proj:
+#        rank: 1270
+#    down_proj:
+#        rank: 9102
 
 use_names_as_keys: True
 
@@ -69,7 +69,7 @@ targets:
 #    - [ "block_index", "k_proj" ]
 #    - [ "block_index", "v_proj" ]
     - ["block_index", "mlp", "gate_proj"]
-    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
 
 ########################################          Benchmarks parameters         ########################################
@@ -107,7 +107,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 4
+batch_size: 2
 num_workers: 2
 
 #fast_dev_run: True
