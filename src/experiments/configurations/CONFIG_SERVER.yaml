@@ -13,7 +13,7 @@ experiment_type: "factorization_fine_tuning_experiment"
 version: 21
 
 verbose: 1
-device: "cpu"
+device: "cuda"
 seed: 42
 
 ########################################     Model configuration parameters     ########################################
