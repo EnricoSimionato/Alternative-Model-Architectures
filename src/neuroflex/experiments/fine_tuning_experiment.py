@@ -128,8 +128,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 # Training the model
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
-                except (KeyboardInterrupt, SystemExit, RuntimeError):
-                    self.log("Training interrupted by the user.")
+                except (KeyboardInterrupt, SystemExit, RuntimeError) as e:
+                    self.log("Training interrupted by the user.", print_message=True)
+                    self.log(e, print_message=True)
 
                 # Validating the model after training
                 #_, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
