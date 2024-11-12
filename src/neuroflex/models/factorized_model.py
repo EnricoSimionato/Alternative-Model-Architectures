@@ -456,17 +456,17 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             self._processing_after_conversion(**kwargs)
 
             # Computing the approximation statistics
-            self.approximation_stats = self.compute_approximation_stats()
-            for key in self.approximation_stats:
-                self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)
-            self.log("", print_message=True)
+            #self.approximation_stats = self.compute_approximation_stats()
+            #for key in self.approximation_stats:
+            #    self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)
+            #self.log("", print_message=True)
 
             # Removing the target_layer attribute from the layers
-            #extracted_layers = {}
-            #self._get_wrapped_layers(self.model, extracted_layers)
+            extracted_layers = {}
+            self._get_wrapped_layers(self.model, extracted_layers)
 
-            #for layer in extracted_layers.values():
-            #    layer.delete_target_layer()
+            for layer in extracted_layers.values():
+                layer.delete_target_layer()
 
             # Computing the number of parameters of the model
             model_parameters = count_parameters(self.model)
@@ -1446,9 +1446,9 @@ class GlobalBaseModel(GlobalDependentModel):
                 pass
 
             print()
-            stats = self.compute_approximation_stats()
-            for key, value in stats.items():
-                print(f"{key}: {value}")
+            #stats = self.compute_approximation_stats()
+            #for key, value in stats.items():
+            #    print(f"{key}: {value}")
 
     def define_conversion(
             self,
