@@ -90,7 +90,7 @@ task_id: "causallm"
 #dataset_id: "wikitext2"
 dataset_id: "openwebtext"
 
-val_check_interval: 10000
+val_check_interval: 15000
 #num_checks_per_epoch: 500
 #num_checks_per_epoch: 2
 gradient_accumulation_steps: 2
@@ -103,7 +103,7 @@ optimizers_settings:
       warmup_steps: 100
       monitored_metric: "loss"
 
-max_epochs: 10
+max_epochs: 20
 
 split:
     - 0.8
