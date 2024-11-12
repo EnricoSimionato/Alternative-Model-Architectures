@@ -10,7 +10,7 @@ experiment_type: "factorization_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 21
+version: 20
 
 verbose: 1
 device: "cuda"
@@ -19,12 +19,14 @@ seed: 42
 ########################################     Model configuration parameters     ########################################
 dtype: "float16"
 #quantization: 4bit
-model_id: "mistralai/Mistral-7B-v0.3"
+#model_id: "mistralai/Mistral-7B-v0.3"
+model_id: "meta-llama/Llama-3.1-8B"
 #model_id: "google/gemma-2-2b"
 #model_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################   Tokenizer configuration parameters   ########################################
-tokenizer_id: "mistralai/Mistral-7B-v0.3"
+#tokenizer_id: "mistralai/Mistral-7B-v0.3"
+tokenizer_id: "meta-llama/Llama-3.1-8B"
 #tokenizer_id: "google/gemma-2-2b"
 #tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
@@ -85,8 +87,8 @@ evaluation_args:
 
 ########################################         Fine-tuning parameters         ########################################
 task_id: "causallm"
-dataset_id: "wikitext2"
-#dataset_id: "openwebtext"
+#dataset_id: "wikitext2"
+dataset_id: "openwebtext"
 
 #val_check_interval: 10000
 #num_checks_per_epoch: 500
