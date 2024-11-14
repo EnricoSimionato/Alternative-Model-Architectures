@@ -63,6 +63,8 @@ class FineTuningExperiment(BenchmarkEvaluation):
         # Evaluating the fine-tuned models on the benchmarks
         self._perform_model_evaluation(fine_tuned_models, tokenizer, performance_dict, remaining_analysis, 1)
 
+        # Cleaning the storage if needed
+        self.clean_storage()
         self.log("The experiment has been completed.", print_message=True)
 
     def _perform_fine_tuning(
@@ -396,6 +398,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
         self.log("Model tested.", print_message=True)
 
         return pl_model, results
+
+    def clean_storage(
+            self
+    ) -> None:
+        """
+        Cleans the storage of the experiment.
+        """
+
+        self.delete("Original Model.pt")
+        self.delete("tokenizer.pt")
 
     @override
     def _plot_results(

@@ -99,6 +99,32 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
                 for i in range(num_layers) if i not in excluded_blocks
         }
 
+    def get_layers_to_train(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> dict:
+        """
+        Returns the layers to train.
+
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to fine-tune.
+
+        Returns:
+            dict:
+                The layers to train.
+        """
+
+        excluded_blocks = self.config.get("excluded_blocks") if self.config.contains("excluded_blocks") else []
+
+        layers_to_train = super().get_layers_to_train(model)
+        layers_to_train_without_excluded_blocks = {}
+        for path, layer in layers_to_train.items():
+            if all(str(el) != str(excluded_block) for el in path for excluded_block in excluded_blocks):
+                layers_to_train_without_excluded_blocks[path] = layer
+
+        return layers_to_train_without_excluded_blocks
+
 
 class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuningExperiment):
     """
