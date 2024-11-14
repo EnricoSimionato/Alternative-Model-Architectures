@@ -71,7 +71,7 @@ targets:
 #    - [ "block_index", "k_proj" ]
 #    - [ "block_index", "v_proj" ]
     - ["block_index", "mlp", "gate_proj"]
-    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
 
 ########################################          Benchmarks parameters         ########################################
