@@ -4,8 +4,8 @@ path_to_storage: "src/experiments/results"
 #experiment_type: "factorization_benchmark_evaluation"
 #experiment_type: "factorization_fine_tuning_experiment"
 
-#experiment_type: "layer_replacement_fine_tuning_experiment"
-experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
