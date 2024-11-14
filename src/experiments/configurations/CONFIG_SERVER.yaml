@@ -2,15 +2,15 @@
 path_to_storage: "src/experiments/results"
 
 #experiment_type: "factorization_benchmark_evaluation"
-experiment_type: "factorization_fine_tuning_experiment"
+#experiment_type: "factorization_fine_tuning_experiment"
 
 #experiment_type: "layer_replacement_fine_tuning_experiment"
-#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 #just_plot: True
-version: 22
+version: 0
 
 verbose: 1
 device: "cuda"
@@ -63,6 +63,10 @@ replacement_methods:
     - "sharedaveragelayer"
 num_layers: 32
 #num_layers: 24
+excluded_blocks:
+    - 0
+    - 1
+    - 31
 
 targets:
 #    - [ "block_index", "c_fc" ]
@@ -71,8 +75,8 @@ targets:
 #    - [ "block_index", "k_proj" ]
 #    - [ "block_index", "v_proj" ]
     - ["block_index", "mlp", "gate_proj"]
-#    - ["block_index", "mlp", "up_proj"]
-#    - ["block_index", "mlp", "down_proj"]
+    - ["block_index", "mlp", "up_proj"]
+    - ["block_index", "mlp", "down_proj"]
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:

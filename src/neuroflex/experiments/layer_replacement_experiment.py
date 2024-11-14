@@ -91,11 +91,12 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
 
         targets_lists = self.config.get("targets")
         num_layers = self.config.get("num_layers")
+        excluded_blocks = self.config.get("excluded_blocks") if self.config.contains("excluded_blocks") else []
 
         return {
             tuple(el if el != "block_index" else f"{i}" for el in targets):
                 tuple(el if el != "block_index" else f"{i}" for el in targets) for targets in targets_lists
-                for i in range(num_layers)
+                for i in range(num_layers) if i not in excluded_blocks
         }
 
 
