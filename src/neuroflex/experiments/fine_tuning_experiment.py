@@ -134,6 +134,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
                     self.log("Training interrupted by the user.", print_message=True)
                     self.log(e, print_message=True)
 
+                fine_tuned_model = pl_model.model
+                # Storing the fine-tuned model
+                self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
+
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results after fit:\n {validation_results}")
@@ -142,10 +146,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 #_, test_results = self._test(pl_model, pl_trainer, pl_dataset)
                 #self.log(f"Test results:\n {test_results}")
 
-                fine_tuned_model = pl_model.model
-
-                # Storing the fine-tuned model
-                self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
             else:
                 fine_tuned_model = model
 
