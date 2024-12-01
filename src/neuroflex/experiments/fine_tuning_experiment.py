@@ -16,7 +16,7 @@ from exporch.utils.general_framework_utils.datamodule_dispatcher import get_pyto
 
 from neuroflex.experiments.benchmarking_experiment import BenchmarkEvaluation
 
-from neuroflex.experiments.extratomove import get_parameters
+from exporch.utils.model_utils import get_parameters
 
 
 class FineTuningExperiment(BenchmarkEvaluation):

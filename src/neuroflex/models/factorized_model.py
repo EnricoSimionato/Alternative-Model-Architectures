@@ -43,7 +43,7 @@ from neuroflex.layers.factorized_embedding_layer import (
 
 from exporch.utils.parameters_count import count_parameters
 # TO BE MOVED
-from neuroflex.experiments.extratomove import get_parameters
+from exporch.utils.model_utils import get_parameters
 
 
 class RegularizedTrainingInterface(LoggingInterface, ABC):
