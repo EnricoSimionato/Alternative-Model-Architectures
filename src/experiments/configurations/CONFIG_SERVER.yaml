@@ -16,19 +16,25 @@ verbose: 1
 device: "cuda"
 seed: 42
 
-########################################     Model configuration parameters     ########################################
+########################################          Parameters gemma-2-2b         ########################################
+model_id: "google/gemma-2-2b"
 dtype: "float16"
-#quantization: 4bit
-#model_id: "mistralai/Mistral-7B-v0.3"
-model_id: "meta-llama/Llama-3.1-8B"
-#model_id: "google/gemma-2-2b"
-#model_id: "EleutherAI/gpt-neo-1.3B"
+tokenizer_id: "google/gemma-2-2b"
 
-########################################   Tokenizer configuration parameters   ########################################
+########################################          Parameters gemma-2-2b         ########################################
+#model_id: "google/gemma-7b"
+#dtype: "float16"
+#tokenizer_id: "google/gemma-7b"
+
+########################################         Parameters Llama-3.1-8B        ########################################
+#model_id: "meta-llama/Llama-3.1-8B"
+#dtype: "float16"
+#tokenizer_id: "meta-llama/Llama-3.1-8B"
+
+########################################        Parameters Mistral-7B-v0.3      ########################################
+#model_id: "mistralai/Mistral-7B-v0.3"
+#dtype: "float16"
 #tokenizer_id: "mistralai/Mistral-7B-v0.3"
-tokenizer_id: "meta-llama/Llama-3.1-8B"
-#tokenizer_id: "google/gemma-2-2b"
-#tokenizer_id: "EleutherAI/gpt-neo-1.3B"
 
 ########################################        Visualization parameters        ########################################
 figure_size: [5, 10]
