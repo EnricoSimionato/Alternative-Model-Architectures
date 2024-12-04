@@ -1,51 +1,124 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "/content/drive/MyDrive/Thesis"
 
-experiment_type: "factorization_benchmark_evaluation"
+#experiment_type: "factorization_benchmark_evaluation"
+experiment_type: "factorization_fine_tuning_experiment"
 
-version: 0
+#experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
+#experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
+
 #just_plot: True
 
 verbose: 1
 device: "cuda"
 seed: 42
 
-########################################     Model configuration parameters     ########################################
-model_id: "mistralai/Mistral-7B-v0.3"
+########################################          Parameters gemma-2-2b         ########################################
+model_id: "google/gemma-2-2b"
 dtype: "float16"
+tokenizer_id: "google/gemma-2-2b"
 
-########################################   Tokenizer configuration parameters   ########################################
-tokenizer_id: "mistralai/Mistral-7B-v0.3"
+########################################         Parameters Llama-3.1-8B        ########################################
+#model_id: "meta-llama/Llama-3.1-8B"
+#dtype: "float16"
+#tokenizer_id: "meta-llama/Llama-3.1-8B"
+
+########################################        Parameters Mistral-7B-v0.3      ########################################
+#model_id: "mistralai/Mistral-7B-v0.3"
+#dtype: "float16"
+#tokenizer_id: "mistralai/Mistral-7B-v0.3"
 
 ########################################        Visualization parameters        ########################################
-#figure_size: [40, 20]
+figure_size: [5, 10]
 
 ########################################     Layers factorization parameters    ########################################
-factorization_method: "Hadamard"
+factorization_methods:
+    - "LocalSVD"
+#    - "Hadamard"
+#    - "GlobalBase"
+#    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
     q_proj:
-        rank: 512
-        learning_rate: 0.01
-        max_iterations: 1000
-    k_proj:
-        rank: 512
-        learning_rate: 0.01
-        max_iterations: 1000
-    v_proj:
-        rank: 512
-        learning_rate: 0.01
-        max_iterations: 1000
+        rank: 256
+#    q_proj:
+#        rank: 256
+#    k_proj:
+#        rank: 256
+#    v_proj:
+#        rank: 256
+#    gate_proj:
+#        rank: 1986
+#        rank: 1024
+#    up_proj:
+#        rank: 1986
+#        rank: 1024
+#    down_proj:
+#        rank: 3972
+
+use_names_as_keys: True
+
+average_svd_initialization: "svd_of_average_matrix"
+
+########################################      Layers replacement parameters     ########################################
+replacement_methods:
+    - "sharedaveragelayer"
+#num_layers: 32
+#num_layers: 24
+num_layers: 24
+excluded_blocks:
+    - 0
+    - 1
+    - 31
+
+targets:
+#    - [ "block_index", "c_fc" ]
+#    - [ "block_index", "c_proj" ]
+#    - [ "block_index", "q_proj" ]
+#    - [ "block_index", "k_proj" ]
+#    - [ "block_index", "v_proj" ]
+    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "down_proj"]
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
     - "hellaswag"
-#    - "truthfulqa_mc1"
-#    - "arc_challenge"
 evaluation_args:
     truthfulqa_mc1:
         batch_size: 32
     arc_challenge:
         batch_size: 32
     hellaswag:
-        batch_size: 32
+        batch_size: 16
+
+########################################         Fine-tuning parameters         ########################################
+task_id: "causallm"
+#dataset_id: "wikitext2"
+dataset_id: "openwebtext"
+
+val_check_interval: 15000
+#num_checks_per_epoch: 500
+#num_checks_per_epoch: 2
+gradient_accumulation_steps: 2
+max_len: 512
+
+optimizers_settings:
+    - optimizer: "AdamW"
+      learning_rate: 0.001
+      lr_scheduler: "cosine_with_warmup"
+      warmup_steps: 100
+      monitored_metric: "loss"
+
+max_epochs: 20
+
+split:
+    - 0.8
+    - 0.1
+    - 0.1
+batch_size: 1
+num_workers: 2
+
+#fast_dev_run: True
