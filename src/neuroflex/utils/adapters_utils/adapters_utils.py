@@ -44,11 +44,10 @@ def get_adapted_model(
             bias=config.get("bias"),
             task_type=config.get("task_type")
         )
+
         model = prepare_model_for_kbit_training(model)
-        adapted_model = get_peft_model(
-            model,
-            peft_config
-        )
+        adapted_model = get_peft_model(model, peft_config)
+
     elif config.get("adapter_method").lower() == "vera":
         peft_config = VeraConfig(
             r=config.get("lora_rank"),
@@ -58,12 +57,11 @@ def get_adapted_model(
             bias=config.get("bias"),
             task_type=config.get("task_type")
         )
+
         model = prepare_model_for_kbit_training(model)
-        adapted_model = get_peft_model(
-            model,
-            peft_config
-        )
-    elif config.get("adapter_method").lower().replace("_", "") == "kfcalphalora":
+        adapted_model = get_peft_model(model, peft_config)
+
+    elif config.get("adapter_method").lower().replace("_", "") == "abaco-lora":
         peft_config = KFCLoraConfig(
             r=config.get("lora_rank"),
             lora_alpha=config.get("lora_alpha"),
@@ -72,11 +70,10 @@ def get_adapted_model(
             bias=config.get("bias"),
             task_type=config.get("task_type")
         )
+
         model = prepare_model_for_kbit_training(model)
-        adapted_model = get_peft_model(
-            model,
-            peft_config
-        )
+        adapted_model = get_peft_model(model, peft_config)
+
     else:
         raise ValueError("Invalid adapter method")
 

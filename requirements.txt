@@ -6,6 +6,7 @@ peft
 protobuf
 seaborn
 sentencepiece
+tensorboard
 torch
 transformers
 

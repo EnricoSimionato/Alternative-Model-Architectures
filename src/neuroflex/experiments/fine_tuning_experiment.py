@@ -116,16 +116,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
             if not already_fine_tuned:
                 # Creating the Lightning model
-                pl_model = get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
+                pl_model = self.get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
                 self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
 
                 # Creating the Lightning trainer
-                pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+                pl_trainer = self.get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
                 self.log(f"PyTorch Lightning Trainer created.", print_message=True)
 
                 # Validating the model before training
-                _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
-                self.log(f"Validation results before fit:\n {validation_results_before_fit}")
+                #_, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
+                #self.log(f"Validation results before fit:\n {validation_results_before_fit}")
 
                 # Training the model
                 try:
@@ -170,9 +170,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                     raise ValueError("Original Model not found in storage.")
             self.log("Evaluating the original model.", print_message=True)
             # Creating the model
-            pl_model = get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
+            pl_model = self.get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"), self.config)
             # Creating the trainer
-            pl_trainer = get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+            pl_trainer = self.get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
             # Validating the original model
             _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
             self.log(validation_results)
@@ -228,8 +228,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
             self.log("Preparing the model for fine-tuning.", print_message=True)
 
             # Preparing the model for fine-tuning using the method depending on the type of experiment we are performing
-            for parameter in prepared_model.parameters():
-                parameter.requires_grad = False
             prepared_model = self.prepare_fine_tuning(prepared_model)
 
             self.log("Model prepared for fine-tuning.", print_message=True)
@@ -260,6 +258,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
         """
 
         self.log("Setting the layers to train, changing the requires_grad attribute to True", print_message=True)
+
+        for parameter in prepared_model.parameters():
+            parameter.requires_grad = False
 
         mapping_path_layers_to_train = self.get_layers_to_train(prepared_model)
         layers_to_train = mapping_path_layers_to_train.values()
@@ -298,9 +299,49 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         # Getting the layers to train
         layers_to_train = {}
-        get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
+        get_parameters(model, self.config.get("fine-tuning_targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
 
         return layers_to_train
+
+    def get_pytorch_lightning_model(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel,
+            tokenizer: transformers.AutoTokenizer | transformers.PreTrainedTokenizer,
+            task_id: str,
+            config: Config
+    ) -> pl.LightningModule:
+        """
+        Returns the PyTorch Lightning model to use.
+
+        Returns:
+            pl.LightningModule:
+                The PyTorch Lightning model to use.
+        """
+
+        self.log("Getting the PyTorch Lightning model.", print_message=True)
+        return get_pytorch_lightning_model(model, tokenizer, task_id, config)
+
+    def get_pytorch_lightning_trainer(
+            self,
+            task_id: str,
+            config: Config,
+    ) -> pl.Trainer:
+        """
+        Returns the PyTorch Lightning trainer to use.
+
+        Args:
+            task_id (str):
+                The task ID.
+            config (Config):
+                The configuration of the experiment.
+
+        Returns:
+            pl.Trainer:
+                The PyTorch Lightning trainer to use.
+        """
+
+        self.log("Getting the PyTorch Lightning trainer.", print_message=True)
+        return get_pytorch_lightning_trainer(task_id, config)
 
     def _fit(
             self,

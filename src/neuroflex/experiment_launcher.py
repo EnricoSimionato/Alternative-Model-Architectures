@@ -2,6 +2,7 @@ import sys
 
 from exporch import GeneralPurposeExperimentFactory
 
+from neuroflex.experiments.abaco_experiment import ABACOExperiment
 from neuroflex.experiments.factorization_experiment import FactorizationBenchmarkEvaluation, FactorizationFineTuningExperiment
 from neuroflex.experiments.layer_replacement_experiment import (
     LayerReplacementFineTuningExperiment,
@@ -17,7 +18,10 @@ GeneralPurposeExperimentFactory.register({
     "layer_replacement_fine_tuning_experiment": LayerReplacementFineTuningExperiment,
     "layer_replacement_fine_tuning_entire_model_experiment": LayerReplacementFineTuningEntireModelExperiment,
     "layer_replacement_fine_tuning_adapter_on_targets_experiment": LayerReplacementFineTuningAdapterOnTargetsExperiment,
-    "layer_replacement_fine_tuning_adapter_on_entire_model_experiment": LayerReplacementFineTuningAdapterOnEntireModelExperiment
+    "layer_replacement_fine_tuning_adapter_on_entire_model_experiment": LayerReplacementFineTuningAdapterOnEntireModelExperiment,
+
+    "abaco_experiment": ABACOExperiment
+
 })
 
 
