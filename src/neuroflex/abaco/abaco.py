@@ -22,23 +22,24 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
     Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
     the output computation as the training goes on.
 
+
+    Attributes:
+        model (peft.PeftModel | peft.PeftMixedMode):
+            Model with adapters on top of it.
+        initial_alpha (float):
+            Initial value of the alpha parameter.
+        alpha (float):
+            Alpha parameter.
+        horizon (int):
+            Number of steps before the alpha parameter reaches the maximum.
+        alpha_strategy (AlphaStrategy):
+            Strategy to update the alpha parameter.
+
     Args:
-        model (transformers.PreTrainedModel)
+        model (transformers.AutoModel | transformers.PreTrainedModel)
             Model to wrap.
         initial_alpha (float):
             Initial value of the alpha parameter.
-        horizon (int):
-            Number of steps before the alpha parameter reaches the maximum.
-        strategy (AlphaStrategy):
-            Strategy to update the alpha parameter.
-        **kwargs:
-            Additional keyword arguments.
-
-    Attributes:
-        model (peft.PeftModel):
-            Model with adapters to wrap.
-        alpha (float):
-            Alpha parameter.
         horizon (int):
             Number of steps before the alpha parameter reaches the maximum.
         alpha_strategy (AlphaStrategy):
@@ -47,17 +48,17 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
 
     def __init__(
             self,
-            model: transformers.PreTrainedModel,
+            model: transformers.AutoModel | transformers.PreTrainedModel,
             config: Config,
             initial_alpha: float = 1.0,
             horizon: int = 10000,
-            alpha_strategy: str = "exponential",
-            **kwargs
+            alpha_strategy: str = "exponential"
     ) -> None:
-        torch.nn.Module.__init__(self, **kwargs)
-        LoggingInterface.__init__(self, **kwargs)
-        FactorizedModel.__init__(self, **kwargs)
+        torch.nn.Module.__init__(self)
+        LoggingInterface.__init__(self)
+        FactorizedModel.__init__(self)
 
+        # TODO To change the code to improve these lines
         config.set("target_modules", list(config.get("targets")))
         self.model = get_adapted_model(model, config)
         # just for now making the adapters trainable
@@ -126,20 +127,12 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
                 Additional keyword arguments.
         """
 
-        self.model.set_alpha(
-            self.alpha,
-            **kwargs
-        )
-
-        self.update_alpha(
-            training_step,
-            **kwargs
-        )
+        self.model.set_alpha(self.alpha)
+        self.update_alpha(training_step)
 
     def update_alpha(
             self,
-            training_step: int,
-            **kwargs
+            training_step: int
     ) -> None:
         """
         Updates the alpha parameter.
@@ -147,8 +140,6 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
         Args:
             training_step (int):
                 Current training step.
-            **kwargs:
-                Additional keyword arguments.
         """
 
         if self.alpha_strategy == AlphaStrategy.LINEAR:
@@ -160,15 +151,10 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
 
     @torch.no_grad()
     def get_logging_info(
-            self,
-            **kwargs
+            self
     ) -> list:
         """
         Returns additional information to log.
-
-        Args:
-            **kwargs:
-                Additional keyword arguments.
 
         Returns:
             dict:
@@ -189,4 +175,3 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
         """
 
         return next(self.parameters()).device
-

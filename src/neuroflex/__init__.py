@@ -28,12 +28,12 @@ __all__ = [
     "LocalHadamardModel"
 ]
 
-from neuroflex.layers.factorized_layer import (
+from neuroflex.factorization.layers.factorized_layer import (
     GlobalDependent,
     StructureSpecificGlobalDependent
 )
 
-from neuroflex.layers.factorized_linear_layer import (
+from neuroflex.factorization.layers.factorized_linear_layer import (
     GlobalDependentLinear,
     StructureSpecificGlobalDependentLinear,
     GlobalBaseLinear,
@@ -42,7 +42,7 @@ from neuroflex.layers.factorized_linear_layer import (
     GLAMSVDLinear
 )
 
-from neuroflex.layers.factorized_embedding_layer import (
+from neuroflex.factorization.layers.factorized_embedding_layer import (
     GlobalDependentEmbedding,
     StructureSpecificGlobalDependentEmbedding,
     LocalSVDEmbedding,
@@ -50,7 +50,7 @@ from neuroflex.layers.factorized_embedding_layer import (
     GlobalFixedBaseEmbedding
 )
 
-from neuroflex.models.factorized_model import (
+from neuroflex.factorization.factorized_model import (
     GlobalDependentModel,
 
     RegularizedTrainingInterface,

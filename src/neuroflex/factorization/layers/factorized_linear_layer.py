@@ -16,7 +16,7 @@ from imports.HadamardDecomposition.alternating_gradient_descent import \
 from imports.HadamardDecomposition.minibatch_stochastic_gradient_descent import \
     mb_stochastic_gradient_descent_hadDec
 
-from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent, FactorizedLayer
+from neuroflex.factorization.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent, FactorizedLayer
 
 
 class FactorizedLinearLayer(FactorizedLayer, ABC):

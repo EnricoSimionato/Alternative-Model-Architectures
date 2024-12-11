@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from exporch import get_available_device
-from neuroflex.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
+from neuroflex.factorization.layers.factorized_layer import GlobalDependent, StructureSpecificGlobalDependent
 
 
 class GlobalDependentEmbedding(GlobalDependent):
@@ -726,19 +726,13 @@ class GlobalFixedBaseEmbedding(GlobalBaseEmbedding):
             self,
             target_layer: nn.Module,
             global_layers: nn.ModuleDict,
+            average_layers: nn.ModuleDict,
+            target_name: str,
             rank: int,
-            target_name: str = None,
             *args,
             **kwargs
     ) -> None:
-        super().__init__(
-            target_layer,
-            global_layers,
-            rank,
-            target_name,
-            *args,
-            **kwargs
-        )
+        super().__init__(target_layer, global_layers, average_layers, target_name, rank, *args, **kwargs)
 
     def define_structure(
             self,

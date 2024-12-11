@@ -1,7 +1,7 @@
 import transformers
 
 import neuroflex
-from neuroflex.models.factorized_model import (
+from neuroflex.factorization.factorized_model import (
     LocalSVDModel,
     GlobalBaseModel,
     GlobalFixedBaseModel,
@@ -11,7 +11,7 @@ from neuroflex.models.factorized_model import (
 
 from exporch import Config
 
-from neuroflex.models.factorized_model import update_config_with_model_parameters
+from neuroflex.factorization.factorized_model import update_config_with_model_parameters
 
 regularized_training_keys = [
     "initial_regularization_weight",
