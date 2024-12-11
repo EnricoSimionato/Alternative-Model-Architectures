@@ -85,6 +85,10 @@ def get_factorized_model(
     else:
         raise ValueError("Factorization method not recognized")
 
-    update_config_with_model_parameters(config, factorized_model)
+    try:
+        update_config_with_model_parameters(config, factorized_model)
+    except Exception as e:
+        print(f"Error updating the configuration with the model parameters: {e}")
+        pass
 
     return factorized_model

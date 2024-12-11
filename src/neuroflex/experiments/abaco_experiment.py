@@ -5,7 +5,7 @@ import torch
 import transformers
 
 from neuroflex.experiments.fine_tuning_experiment import FineTuningExperiment
-from neuroflex.models.factorized_model import ABACOModel
+from neuroflex.abaco.abaco import ABACOModel
 
 class ABACOExperiment(FineTuningExperiment):
     """
