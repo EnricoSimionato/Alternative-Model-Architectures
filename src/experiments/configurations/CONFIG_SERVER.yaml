@@ -157,7 +157,7 @@ num_workers: 2
 max_len: 512
 
 optimizers_settings:
-    - optimizer: "AdamW"x
+    - optimizer: "AdamW"
       learning_rate: 0.001
       lr_scheduler: "cosine_with_warmup"
       warmup_steps: 100
