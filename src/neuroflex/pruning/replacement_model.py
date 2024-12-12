@@ -184,8 +184,7 @@ def get_layer_replaced_model(
 
     if replacement_method == "sharedaveragelayer":
         layer_replaced_model = SharedAverageLayerReplacingModelWrapper(
-            model,
-            destination_layer_path_source_layer_path_mapping
+            model, destination_layer_path_source_layer_path_mapping
         )
     else:
         raise ValueError("Replacement method not recognized")

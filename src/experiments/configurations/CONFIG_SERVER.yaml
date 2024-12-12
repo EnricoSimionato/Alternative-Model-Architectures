@@ -1,127 +1,174 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-#experiment_type: "factorization_benchmark_evaluation"
-experiment_type: "factorization_fine_tuning_experiment"
-
-#experiment_type: "layer_replacement_fine_tuning_experiment"
-#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
-#experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
-#experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
-
-#just_plot: True
-version: 23
-
 verbose: 1
 device: "cuda"
 seed: 42
+
+#just_plot: True
 
 ########################################          Parameters gemma-2-2b         ########################################
 model_id: "google/gemma-2-2b"
 dtype: "float16"
 tokenizer_id: "google/gemma-2-2b"
+num_layers: 26
 
-########################################          Parameters gemma-2-2b         ########################################
+########################################          Parameters gemma-2-9b         ########################################
+#model_id: "google/gemma-2-9b"
+#dtype: "float16"
+#tokenizer_id: "google/gemma-2-9b"
+#num_layers: 42
+
+########################################           Parameters gemma-7b          ########################################
 #model_id: "google/gemma-7b"
 #dtype: "float16"
 #tokenizer_id: "google/gemma-7b"
+#num_layers: 28
 
 ########################################         Parameters Llama-3.1-8B        ########################################
 #model_id: "meta-llama/Llama-3.1-8B"
 #dtype: "float16"
 #tokenizer_id: "meta-llama/Llama-3.1-8B"
+#num_layers: 32
 
-########################################        Parameters Mistral-7B-v0.3      ########################################
+########################################       Parameters Mistral-7B-v0.3       ########################################
 #model_id: "mistralai/Mistral-7B-v0.3"
 #dtype: "float16"
 #tokenizer_id: "mistralai/Mistral-7B-v0.3"
+#num_layers: 32
 
-########################################        Visualization parameters        ########################################
-figure_size: [5, 10]
+########################################        Factorization Experiment        ########################################
+#experiment_type: "factorization_benchmark_evaluation"
+#experiment_type: "factorization_fine_tuning_experiment"
 
-########################################     Layers factorization parameters    ########################################
-factorization_methods:
+########################################      Layer Replacement Experiment      ########################################
+#experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
+#experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
+
+########################################            ABACO Experiment            ########################################
+experiment_type: "abaco_experiment"
+
+########################################        Factorization Experiment        ########################################
+#factorization_methods:
 #    - "LocalSVD"
 #    - "Hadamard"
-    - "GlobalBase"
+#    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
-target_layers:
+#target_layers:
 #    q_proj:
 #        rank: 256
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-    gate_proj:
+#    o_proj:
+#        rank: 256
+
+#target_layers:
+#    gate_proj:
 #        rank: 1986
-        rank: 1024
-    up_proj:
+#        rank: 1024
+#    up_proj:
 #        rank: 1986
-        rank: 1024
+#        rank: 1024
 #    down_proj:
 #        rank: 3972
 
-use_names_as_keys: True
+#use_names_as_keys: True
+#figure_size: [5, 10]
 
-average_svd_initialization: "svd_of_average_matrix"
+#------------------------------ GlobaL Fact ------------------------------#
+#average_svd_initialization: "svd_of_average_matrix"
 
-########################################      Layers replacement parameters     ########################################
-replacement_methods:
-    - "sharedaveragelayer"
-num_layers: 32
-#num_layers: 24
-excluded_blocks:
-    - 0
-    - 1
-    - 31
+########################################            ABACO Experiment            ########################################
+adapter_methods:
+    - "abaco-lora"
+initial_alpha: 1.0
+horizon: 10000,
+alpha_strategy: "exponential"
 
 targets:
-#    - [ "block_index", "c_fc" ]
-#    - [ "block_index", "c_proj" ]
-#    - [ "block_index", "q_proj" ]
-#    - [ "block_index", "k_proj" ]
-#    - [ "block_index", "v_proj" ]
-    - ["block_index", "mlp", "gate_proj"]
-    - ["block_index", "mlp", "up_proj"]
+    q_proj:
+        rank: 256
+    k_proj:
+        rank: 256
+    v_proj:
+        rank: 256
+    o_proj:
+        rank: 256
+
+lora_rank: 512
+lora_alpha: 64
+lora_dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
+figure_size: [5, 10]
+
+########################################      Layer Replacement Experiment      ########################################
+#replacement_methods:
+#    - "sharedaveragelayer"
+
+#excluded_blocks:
+#    - 0
+#    - 1
+#    - 31
+
+#targets:
+#    - ["block_index", "self_attn"]
+
+#    - ["block_index", "self_attn", "q_proj"]
+#    - ["block_index", "self_attn", "k_proj"]
+#    - ["block_index", "self_attn", "v_proj"]
+#    - ["block_index", "self_attn", "o_proj"]
+
+#    - ["block_index", "mlp", "gate_proj"]
+#    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
+#figure_size: [40, 40]
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
+#    - "gms8k"
     - "hellaswag"
 evaluation_args:
-    truthfulqa_mc1:
-        batch_size: 32
-    arc_challenge:
-        batch_size: 32
-    hellaswag:
+    gms8k:
         batch_size: 16
+    hellaswag:
+        batch_size: 32
 
-########################################         Fine-tuning parameters         ########################################
+########################################     General Fine-Tuning Parameters     ########################################
 task_id: "causallm"
-#dataset_id: "wikitext2"
-dataset_id: "openwebtext"
-
-val_check_interval: 15000
-#num_checks_per_epoch: 500
-#num_checks_per_epoch: 2
-gradient_accumulation_steps: 2
-max_len: 512
-
-optimizers_settings:
-    - optimizer: "AdamW"
-      learning_rate: 0.001
-      lr_scheduler: "cosine_with_warmup"
-      warmup_steps: 100
-      monitored_metric: "loss"
 
 max_epochs: 20
+gradient_accumulation_steps: 2
+val_check_interval: 15000
 
+dataset_id: "openwebtext"
+#dataset_id: "wikitext2"
 split:
     - 0.8
     - 0.1
     - 0.1
 batch_size: 1
 num_workers: 2
+max_len: 512
 
-#fast_dev_run: True
+optimizers_settings:
+    - optimizer: "AdamW"x
+      learning_rate: 0.001
+      lr_scheduler: "cosine_with_warmup"
+      warmup_steps: 100
+      monitored_metric: "loss"
+
+fine-tuning_targets:
+    - [ "block_index", "self_attn", "q_proj" ]
+    - [ "block_index", "self_attn", "k_proj" ]
+    - [ "block_index", "self_attn", "v_proj" ]
+    - [ "block_index", "self_attn", "o_proj" ]
+
+#    - [ "block_index", "mlp", "gate_proj" ]
+#    - [ "block_index", "mlp", "up_proj" ]
+#    - [ "block_index", "mlp", "down_proj" ]
