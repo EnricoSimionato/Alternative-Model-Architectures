@@ -21,7 +21,7 @@ regularized_training_keys = [
 ]
 
 alternative_architectures_keys = [
-    "target_layers",
+    "targets",
     "use_names_as_keys",
     "mapping_layer_name_key",
     "remove_average",

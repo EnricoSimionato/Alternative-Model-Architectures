@@ -16,14 +16,19 @@ from torch import device
 import transformers
 from transformers import AutoModel
 
-from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
-
-from exporch import Config, Verbose, get_available_device
-from exporch.utils import LoggingInterface
-
 import imports.peft as peft
 from imports.peft import PeftModel
 
+from exporch import Config, get_available_device, Verbose
+from exporch.utils import LoggingInterface
+from exporch.utils.model_utils import get_parameters
+from exporch.utils.parameters_count import count_parameters
+
+from neuroflex.factorization.layers.factorized_embedding_layer import (
+    LocalSVDEmbedding,
+    GlobalBaseEmbedding,
+    GlobalFixedBaseEmbedding
+)
 from neuroflex.factorization.layers.factorized_layer import (
     MergeableLayer, StructureSpecificGlobalDependent
 )
@@ -34,15 +39,7 @@ from neuroflex.factorization.layers.factorized_linear_layer import (
     GLAMSVDLinear,
     LocalHadamardLinear
 )
-
-from neuroflex.factorization.layers.factorized_embedding_layer import (
-    LocalSVDEmbedding,
-    GlobalBaseEmbedding,
-    GlobalFixedBaseEmbedding
-)
-
-from exporch.utils.parameters_count import count_parameters
-from exporch.utils.model_utils import get_parameters
+from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
 
 
 class FactorizedModel(ABC):
@@ -110,7 +107,7 @@ class RegularizedTrainingInterface(LoggingInterface, ABC):
             steps_regularization_weight_resets: int,
             **kwargs
     ) -> None:
-        LoggingInterface.__init__(self, **kwargs)
+        LoggingInterface.__init__(self)
 
         self.initial_regularization_weight = initial_regularization_weight
         self.fixed_regularization_weight = None
@@ -354,7 +351,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
     Args:
         target_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Information to factorize the layers.
             The structure is:
             [
@@ -379,7 +376,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             to 'True', then the keys
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -390,7 +387,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             Additional keyword arguments.
 
     Attributes:
-        target_layers (dict):
+        targets (dict):
             Layers to factorize.
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers.
@@ -409,7 +406,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
     def __init__(
             self,
             target_model: torch.nn.Module = None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -424,12 +421,12 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         self.approximation_stats = None
 
         if not from_pretrained:
-            if target_model is None or target_layers is None:
-                raise ValueError("Both target_model and target_layers must be provided.")
+            if target_model is None or targets is None:
+                raise ValueError("Both target_model and targets must be provided.")
 
-            self.target_layers = target_layers
+            self.targets = targets
             if mapping_layer_name_key is None and use_names_as_keys:
-                self.mapping_layer_name_key = {layer_name: layer_name for layer_name in target_layers.keys()}
+                self.mapping_layer_name_key = {layer_name: layer_name for layer_name in targets.keys()}
             else:
                 self.mapping_layer_name_key = mapping_layer_name_key
 
@@ -549,7 +546,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         for layer in wrapped_layers.values():
             layer.compute_approximation_stats()
         concatenated_absolute_approximation_error = torch.tensor([layer.approximation_stats["absolute_approximation_error"] for layer in wrapped_layers.values()])
-        concatenated_norm_target_layers = torch.tensor([layer.approximation_stats["norm_target_layer"] for layer in wrapped_layers.values()])
+        concatenated_norm_targets = torch.tensor([layer.approximation_stats["norm_target_layer"] for layer in wrapped_layers.values()])
         concatenated_norm_approximated_layers = torch.tensor([layer.approximation_stats["norm_approximated_layer"] for layer in wrapped_layers.values()])
         mean_relative_approximation_error = torch.mean(torch.tensor([layer.approximation_stats["relative_approximation_error"] for layer in wrapped_layers.values()]))
 
@@ -557,8 +554,8 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             "total_absolute_approximation_error": torch.sum(concatenated_absolute_approximation_error).item(),
             "mean_absolute_approximation_error": torch.mean(concatenated_absolute_approximation_error).item(),
             "mean_relative_approximation_error": mean_relative_approximation_error.item(),
-            "sum_norm_target_layers": torch.sum(concatenated_norm_target_layers).item(),
-            "mean_norm_target_layers": torch.mean(concatenated_norm_target_layers).item(),
+            "sum_norm_targets": torch.sum(concatenated_norm_targets).item(),
+            "mean_norm_targets": torch.mean(concatenated_norm_targets).item(),
             "sum_norm_approximated_layers": torch.sum(concatenated_norm_approximated_layers).item(),
             "mean_norm_approximated_layers": torch.mean(concatenated_norm_approximated_layers).item()
         }
@@ -709,7 +706,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             child = model_tree._modules[layer_name]
             if len(child._modules) == 0:
                 if (type(child) in self.conversions.keys() and
-                        layer_name in self.target_layers.keys()):
+                        layer_name in self.targets.keys()):
                     target_name = layer_name if self.mapping_layer_name_key is None else self.mapping_layer_name_key[layer_name]
                     if target_name not in average_matrices.keys():
                         average_matrices[target_name] = [child]
@@ -811,15 +808,15 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
                 # Checking if the layer has to be converted in the current subclass of the GlobalDependentModel.
                 # The checks are 3:
                 # 1. The layer is in the layers that the model has to convert;
-                # 2. The layer is in the target_layers keys that are the names of the layers to convert;
-                # 3. A target_layers key is contained in some part of the path of the currently considered layer.
+                # 2. The layer is in the targets keys that are the names of the layers to convert;
+                # 3. A targets key is contained in some part of the path of the currently considered layer.
                 if type(child) in self.conversions.keys():
                     # Additional check to see allow to distinguish layers that have the same name but are in different
                     # paths in the model, e.g. dense layers called 'dense' that are in both the attention component and
                     # in the multi-layer perceptron
-                    targets_in_path = [layer_name_ for layer_name_ in self.target_layers.keys() if layer_name_ in path]
+                    targets_in_path = [layer_name_ for layer_name_ in self.targets.keys() if layer_name_ in path]
 
-                    if layer_name in self.target_layers.keys() or len(targets_in_path) > 0:
+                    if layer_name in self.targets.keys() or len(targets_in_path) > 0:
                         # Initializing the target name with the layer name, if the target name is contained in some part
                         # of the path, we use that label as the target name.
                         target_label = layer_name
@@ -832,7 +829,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
 
                         # Setting the arguments to pass to the global-dependent layer constructor
                         kwargs_layer = kwargs.copy()
-                        kwargs_layer.update(self.target_layers[target_label])
+                        kwargs_layer.update(self.targets[target_label])
 
                         # Setting the average matrix for the layer (if needed)
                         target_name_for_average = self.mapping_layer_name_key[target_label] if self.mapping_layer_name_key is not None else "entire_model_average"
@@ -1211,7 +1208,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         """
 
         if layers_to_merge is None:
-            layers_to_merge = tuple(self.target_layers.keys())
+            layers_to_merge = tuple(self.targets.keys())
 
         merged_model = deepcopy(self.model)
         self._merge_model(merged_model, layers_to_merge, **kwargs)
@@ -1281,7 +1278,7 @@ class LocalSVDModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1297,7 +1294,7 @@ class LocalSVDModel(GlobalDependentModel):
             names to have the same global layer.
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -1311,7 +1308,7 @@ class LocalSVDModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1323,7 +1320,7 @@ class LocalSVDModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            target_layers,
+            targets,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1363,7 +1360,7 @@ class GlobalBaseModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1379,7 +1376,7 @@ class GlobalBaseModel(GlobalDependentModel):
             names to have the same global layer.
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -1393,7 +1390,7 @@ class GlobalBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1410,7 +1407,7 @@ class GlobalBaseModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            target_layers,
+            targets,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1429,8 +1426,8 @@ class GlobalBaseModel(GlobalDependentModel):
 
             key_0 = list(global_layers.keys())[0]
             layer_0 = global_layers[key_0]
-            target_layers = {key: layer.get_target_layer() for key, layer in global_layers.items()}
-            #target_layers = {key: torch.ones(layer.get_target_layer().out_features, layer_0.get_target_layer().in_features) for key, layer in global_layers.items()}
+            targets = {key: layer.get_target_layer() for key, layer in global_layers.items()}
+            #targets = {key: torch.ones(layer.get_target_layer().out_features, layer_0.get_target_layer().in_features) for key, layer in global_layers.items()}
 
             # Configuring the optimizer
             eps = 1e-7 if layer_0.dtype == torch.float16 else 1e-8
@@ -1450,9 +1447,9 @@ class GlobalBaseModel(GlobalDependentModel):
                 for epoch in range(num_epochs):
                     # Forward pass
                     key_0 = list(global_layers.keys())[0]
-                    loss = loss_fn(global_layers[key_0].weight.to(device), target_layers[key_0].weight.to(device))
+                    loss = loss_fn(global_layers[key_0].weight.to(device), targets[key_0].weight.to(device))
                     for key in list(global_layers.keys())[1:]:
-                        loss += loss_fn(global_layers[key].weight.to(device), target_layers[key].weight.to(device))
+                        loss += loss_fn(global_layers[key].weight.to(device), targets[key].weight.to(device))
 
                     if epoch % 10 == 0:
                         print("????????????????????????????????????????????????????????????????????????????????????????????")
@@ -1535,7 +1532,7 @@ class GlobalBaseModel(GlobalDependentModel):
             # Obtaining the mapping from the group name in which the layers share the global features to the specific layer
             # name of the layers of the group
             if self.mapping_layer_name_key is None:
-                mapping_key_layer_name = {"": [key for key in self.target_layers.keys()]}
+                mapping_key_layer_name = {"": [key for key in self.targets.keys()]}
             else:
                 mapping_key_layer_name = {}
                 for key, value in self.mapping_layer_name_key.items():
@@ -1547,7 +1544,7 @@ class GlobalBaseModel(GlobalDependentModel):
                 label = "" if factorization_group == "" else factorization_group + "_"
                 # Getting the ranks for the factorization of the layers in the group and checking that they are all equal,
                 # otherwise grouping makes no sense
-                ranks = {layer_name: self.target_layers[layer_name]["rank"] for layer_name in target_names}
+                ranks = {layer_name: self.targets[layer_name]["rank"] for layer_name in target_names}
 
                 # Getting the mapping between the layers path and the actual layers to be used in the computation of the
                 # global average layer
@@ -1618,7 +1615,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1634,7 +1631,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
             names to have the same global layer.
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -1648,7 +1645,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1662,7 +1659,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            target_layers,
+            targets,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1702,7 +1699,7 @@ class LocalHadamardModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1718,7 +1715,7 @@ class LocalHadamardModel(GlobalDependentModel):
             names to have the same global layer.
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -1732,7 +1729,7 @@ class LocalHadamardModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model=None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1744,7 +1741,7 @@ class LocalHadamardModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            target_layers,
+            targets,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1796,7 +1793,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        target_layers (dict):
+        targets (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1812,7 +1809,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
             names to have the same global layer.
         remove_average (bool):
             Whether to remove the average matrices from the layers of the model. Averages are computed considering the
-            grouping imposed by target_layers or mapping_layer_name_key.
+            grouping imposed by targets or mapping_layer_name_key.
         from_pretrained (bool):
             Whether the model is being loaded from a pretrained model.
         preserve_original_model (bool):
@@ -1834,7 +1831,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     def __init__(
             self,
             pretrained_model=None,
-            target_layers: dict = None,
+            targets: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1858,7 +1855,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            target_layers,
+            targets,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,

@@ -7,9 +7,9 @@ import transformers
 
 from exporch import Config
 from exporch.utils import LoggingInterface
-from neuroflex.factorization.factorized_model import FactorizedModel
 
 from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
+from exporch.wrapping.model_wrapper import ModelWrapper
 
 
 class AlphaStrategy(Enum):
@@ -17,7 +17,7 @@ class AlphaStrategy(Enum):
     EXPONENTIAL = "exponential"
 
 
-class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
+class ABACOModel(ModelWrapper):
     """
     Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
     the output computation as the training goes on.
@@ -54,9 +54,7 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
             horizon: int = 10000,
             alpha_strategy: str = "exponential"
     ) -> None:
-        torch.nn.Module.__init__(self)
-        LoggingInterface.__init__(self)
-        FactorizedModel.__init__(self)
+        super().__init__()
 
         # TODO To change the code to improve these lines
         config.set("target_modules", list(config.get("targets")))
@@ -157,7 +155,7 @@ class ABACOModel(torch.nn.Module, LoggingInterface, FactorizedModel):
         Returns additional information to log.
 
         Returns:
-            dict:
+            list:
                 Additional information to log.
         """
 

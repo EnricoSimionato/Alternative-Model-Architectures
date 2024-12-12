@@ -56,7 +56,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
                 else:
                     prepared_models[f"{replacement_method}"] = get_layer_replaced_model(
                         copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.config
-                    ).get_model()
+                    )
                     self.log(f"Model prepared replacing the layers.", print_message=True)
                 self.log(f"Replacement method: {replacement_method}.", print_message=True)
                 self.store(prepared_models[f"{replacement_method}"], f"{replacement_method}.pt", "pt")

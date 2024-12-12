@@ -9,8 +9,9 @@ import transformers
 from typing_extensions import override
 
 from exporch import Config, GeneralPurposeExperiment, get_available_device
-from exporch.experiment import evaluate_model_on_benchmark, benchmark_id_metric_name_mapping
+from exporch.experiment import benchmark_id_metric_name_mapping, evaluate_model_on_benchmark
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm, load_tokenizer_for_causal_lm
+from exporch.wrapping.model_wrapper import ModelWrapper
 
 
 class BenchmarkEvaluation(GeneralPurposeExperiment):
@@ -135,7 +136,10 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(model.get_model(), tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
+                results = evaluate_model_on_benchmark(
+                    model.get_model() if isinstance(model, ModelWrapper) else model,
+                    tokenizer, benchmark_id, benchmark_evaluation_args, device_str
+                )
                 #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}", print_message=True)
 
