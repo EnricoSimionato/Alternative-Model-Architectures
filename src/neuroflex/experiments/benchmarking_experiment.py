@@ -135,7 +135,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(model, tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
+                results = evaluate_model_on_benchmark(model.get_model(), tokenizer, benchmark_id, benchmark_evaluation_args, device_str)
                 #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}", print_message=True)
 
@@ -279,8 +279,7 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         for benchmark_id in performance_dict:
             for model_key in performance_dict[benchmark_id]:
                 results = performance_dict[benchmark_id][model_key]
-                self.log(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
-                print(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.")
+                self.log(f"The performance of the model {model_key} on the benchmark {benchmark_id} is {results}.", print_message=True)
 
         figure_size = config.get("figure_size") if config.contains("figure_size") else (10, 15)
         # Plotting histograms of the results
