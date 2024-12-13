@@ -23,7 +23,7 @@ __all__ = [
     "GlobalFixedBaseModel",
     "GLAMSVDModel",
 
-    "KFCTrainedModel",
+    "ABACORegularizationModel",
 
     "LocalHadamardModel"
 ]
@@ -60,7 +60,7 @@ from neuroflex.factorization.factorized_model import (
     GlobalFixedBaseModel,
     GLAMSVDModel,
 
-    KFCTrainedModel,
+    ABACORegularizationModel,
 
     LocalHadamardModel
 )
