@@ -42,24 +42,49 @@ from neuroflex.factorization.layers.factorized_linear_layer import (
 from neuroflex.utils.plot_utils.heatmap import create_heatmap_global_layers
 
 
-class FactorizedModel(ABC):
+class FactorizedModel(torch.nn.Module, LoggingInterface, ABC):
     """
-    Factorized model.
+    Abstract class for factorized models.
     """
 
+    def __init__(
+            self,
+    ) -> None:
+        torch.nn.Module.__init__(self)
+        LoggingInterface.__init__(self)
+
     @abstractmethod
+    def forward(
+            self,
+            *args,
+            **kwargs
+    ) -> torch.Tensor:
+        """
+        Forward pass of the model.
+
+        Args:
+            *args:
+                Arguments.
+            **kwargs:
+                Keyword arguments.
+
+        Returns:
+            torch.Tensor:
+                Output tensor.
+        """
+
     def get_model(
             self
-    ) -> None | torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
+    ) -> torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
         """
         Returns the model.
 
         Returns:
-            None | torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
+            torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
                 Model.
         """
 
-        return None
+        return self.model
 
 
 class RegularizedTrainingInterface(LoggingInterface, ABC):
@@ -2220,7 +2245,7 @@ def provide_hyperparameters_for_glam_training(
     pass
 
 
-class KFCTrainedModel(torch.nn.Module, RegularizedTrainingInterface):
+class ABACORegularizationModel(torch.nn.Module, RegularizedTrainingInterface):
     """
     Model wrapper that allows to penalize the L1-norm of the weights of the pretrained model performing KFC training.
 
@@ -2254,7 +2279,7 @@ class KFCTrainedModel(torch.nn.Module, RegularizedTrainingInterface):
         if not issubclass(type(model), PeftModel):
             raise ValueError("The model must be an instance of PeftModel to perform KFC training.")
 
-        torch.nn.Module.__init__(self, **kwargs)
+        torch.nn.Module.__init__(self)
         RegularizedTrainingInterface.__init__(
             self,
             initial_regularization_weight=initial_regularization_weight,
@@ -2271,12 +2296,12 @@ class KFCTrainedModel(torch.nn.Module, RegularizedTrainingInterface):
         self.layers_to_penalize = [
             name
             for name, param in self.named_parameters()
-            if not any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
+            if not any(substring in name for substring in ABACORegularizationModel.weights_to_exclude)
         ]
         self.layers_to_exclude = [
             name
             for name, param in self.named_parameters()
-            if any(substring in name for substring in KFCTrainedModel.weights_to_exclude)
+            if any(substring in name for substring in ABACORegularizationModel.weights_to_exclude)
         ]
         self.verbose = Verbose(verbose)
 

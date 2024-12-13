@@ -1,7 +1,7 @@
 huggingface_hub
 numba
 numpy
-#opencv-python
+opencv-python
 peft
 protobuf
 seaborn

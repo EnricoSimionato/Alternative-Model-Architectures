@@ -14,16 +14,9 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
     """
     Class to replace layers in a model with a shared average layer.
 
-    Args:
-        model ([transformers.PreTrainedModel | transformers.AutoModel]):
-            The model to be wrapped.
-        destination_layer_path_source_layer_path_mapping (dict[list | tuple: list | tuple]):
-            The mapping between the path to the layers to be replaced and the path to the layers to be used to replace
-            them. The source_layer_path will be ignored, if given.
-
     Attributes:
-        model ([transformers.PreTrainedModel | transformers.AutoModel]):
-            The wrapped model.
+        model (transformers.PreTrainedModel | transformers.AutoModel):
+            The model to wrap.
         destination_layer_path_source_layer_path_mapping (dict[list | tuple: list | tuple]):
             The mapping between the path to the layers to be replaced and the path to the layers to be used to replace
             them.
@@ -35,17 +28,22 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
 
             }
             The source_layer_path will be ignored, if given.
+
+        Args:
+            model (transformers.PreTrainedModel | transformers.AutoModel):
+                The model to wrap.
+            destination_layer_path_source_layer_path_mapping (dict[list | tuple: list | tuple]):
+                The mapping between the path to the layers to be replaced and the path to the layers to be used to replace
+                them.
+                The source_layer_path will be ignored, if given.
     """
 
     def __init__(
             self,
-            model: [transformers.PreTrainedModel | transformers.AutoModel],
+            model: transformers.PreTrainedModel | transformers.AutoModel,
             destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple] = None,
     ) -> None:
-        super().__init__(
-            model,
-            destination_layer_path_source_layer_path_mapping
-        )
+        super().__init__(model, destination_layer_path_source_layer_path_mapping)
 
     @override
     def preprocess_source_layers(
@@ -54,6 +52,7 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
     ) -> dict[list | tuple: torch.nn.Module]:
         """
         Pre-processes the source layers.
+        The method groups the layers based on their name and averages them.
 
         Args:
             source_layer_path_source_layer_mapping (dict[str: torch.nn.Module]):
@@ -61,14 +60,14 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
 
         Returns:
             dict[str: torch.nn.Module]:
-                The pre-processed source layers.
+                The mapping between the path to the source layers and the associated pre-processed weights.
         """
 
         source_layer_path_average_layer_mapping = {}
-
         source_layer_path_source_layer_grouped_mapping = self.group_layers(source_layer_path_source_layer_mapping)
         for source_layer_paths, source_layers_to_average in source_layer_path_source_layer_grouped_mapping.items():
             average_layer = self.compute_average_layer(source_layers_to_average)
+
             for source_layer_path in source_layer_paths:
                 source_layer_path_average_layer_mapping.update({source_layer_path: average_layer})
 
@@ -116,62 +115,116 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
     ) -> torch.nn.Module:
         """
         Computes the average layer from the given layers.
+        Given some layers, they are traversed recursively, and the weights and biases of each base module, e.g.
+        torch.nn.Linear, are averaged.
 
         Args:
             layers_to_average (list[torch.nn.Module]):
-                The layers to be averaged.
+                The layers to average.
 
         Returns:
             torch.nn.Module:
                 The average layer.
         """
 
-        average_layer = copy.deepcopy(layers_to_average[0])
-        try:
-            weight = layers_to_average[0].weight.data
-            for layer in layers_to_average[1:]:
-                weight += layer.weight.data
-            weight /= len(layers_to_average)
-            #weight = torch.mean(torch.stack([layer.weight.data for layer in layers_to_average]), dim=0)
-            average_layer.weight = torch.nn.Parameter(weight)
-        except AttributeError as e:
-            print(f"Error computing the average layer weight: {e}")
-            raise e
-        except Exception as e:
-            print(f"Error computing the average layer weight: {e}")
-            raise e
-        try:
-            bias = layers_to_average[0].bias.data
-            for layer in layers_to_average[1:]:
-                bias += layer.bias.data
-            bias /= len(layers_to_average)
-            #bias = torch.mean(torch.stack([layer.bias.data for layer in layers_to_average]), dim=0)
-            average_layer.bias = torch.nn.Parameter(bias)
-        except AttributeError as e:
-            print(f"Error computing the average layer bias: {e}")
-            print("Setting the layer to have no bias.")
-            average_layer.bias = None
+        if not layers_to_average:
+            raise ValueError("The blocks list is empty.")
 
-        return average_layer
+        # Copying the structure of the first block
+        average_block = copy.deepcopy(layers_to_average[0])
 
+        def average_parameters(modules: list[torch.nn.Module]) -> dict[str: torch.Tensor]:
+            """"
+            Recursively averages weights and biases of submodules.
+
+            Args:
+                modules (list[torch.nn.Module]):
+                    The modules to average.
+
+            Returns:
+                dict[str: torch.Tensor]:
+                    The averaged parameters.
+            """
+
+            # Collecting parameter names and their aggregated data
+            param_sums = {}
+            dtypes = {}
+            count = len(modules)
+
+            for module in modules:
+                for name, param in module.named_parameters(recurse=False):
+                    if param is not None:
+                        if name not in param_sums:
+                            param_sums[name] = param.data.clone().to(torch.float32)
+                            dtypes[name] = param.data.dtype
+                        else:
+                            param_sums[name] += param.data.to(torch.float32)
+
+            # Computing the average
+            averaged_params = {name: param.to(dtypes[name]) / count for name, param in param_sums.items()}
+            return averaged_params
+
+        def apply_averaged_parameters(target_module: torch.nn.Module, averaged_params: dict[str: torch.Tensor]) -> None:
+            """
+            Applies the averaged parameters to the target module.
+
+            Args:
+                target_module (torch.nn.Module):
+                    The target module to apply the averaged parameters to.
+                averaged_params (dict[str: torch.Tensor]):
+                    The averaged parameters to apply.
+            """
+
+            for name, param in target_module.named_parameters(recurse=False):
+                if name in averaged_params:
+                    param.data.copy_(averaged_params[name])
+
+        def recursive_average(source_blocks: list[torch.nn.Module], target_block: torch.nn.Module) -> None:
+            """
+            Recursively traverses submodules for averaging.
+
+            Args:
+                source_blocks (list[torch.nn.Module]):
+                    Source layers to average.
+                target_block (torch.nn.Module):
+                    Target layer to store the averaged parameters.
+            """
+            # Base Case: If the module itself has parameters, average them directly
+            if list(target_block.parameters(recurse=False)):
+                averaged_params = average_parameters(source_blocks)
+                apply_averaged_parameters(target_block, averaged_params)
+                return  # No need to recurse further
+
+            # Recursive Case: Traverse submodules
+            for name, submodule in target_block.named_children():
+                # Collecting submodules with the same name across blocks
+                submodules_to_average = [getattr(block, name) for block in source_blocks]
+
+                # Recursing into nested submodules
+                recursive_average(submodules_to_average, getattr(target_block, name))
+        # Starting recursive averaging
+        recursive_average(layers_to_average, average_block)
+
+        return average_block
 
 def get_layer_replaced_model(
-        model: transformers.AutoModel,
+        model: transformers.AutoModel | transformers.PreTrainedModel,
         replacement_method: str,
         destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple],
         config: Config
 ) -> ProcessedLayerReplacingModelWrapper:
     """
-    Returns the model with the replaced layers based on the given replacement method.
+    Returns the model with the replaced layers based on the chosen replacement method.
 
     Args:
-        model (transformers.AutoModel):
-            The original model to modify.
+        model (transformers.AutoModel | transformers.PreTrainedModel):
+            The original model to wrap.
         replacement_method (str):
             The method to use to replace the layers.
         destination_layer_path_source_layer_path_mapping (dict[list | tuple: list | tuple]):
             The mapping between the path to the layers to be replaced and the path to the layers to be used to replace
-            them. The meaning of the paths depends on the replacement method.
+            them.
+            The meaning of the paths depends on the replacement method.
         config (Config):
             The configuration parameters for the experiment.
 

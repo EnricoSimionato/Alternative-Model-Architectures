@@ -1,15 +1,13 @@
 from enum import Enum
 
 import torch
-from torch import device
 
 import transformers
 
 from exporch import Config
-from exporch.utils import LoggingInterface
+from exporch.wrapping.model_wrapper import ModelWrapper
 
 from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
-from exporch.wrapping.model_wrapper import ModelWrapper
 
 
 class AlphaStrategy(Enum):
@@ -19,9 +17,11 @@ class AlphaStrategy(Enum):
 
 class ABACOModel(ModelWrapper):
     """
-    Model wrapper that allows to perform KFC-alpha training in which the pre-trained weights become less relevant for
-    the output computation as the training goes on.
-
+    Model wrapper that allows to perform Adapter-Based Approximation and Compression Optimization method to compress a
+    pre-trained model.
+    ABACO aims at moving the information from pre-trained weights to low-rank adapters put on top of the model.
+    The method performs fine-tuning in such a way that pre-trained parameters become less relevant for the output
+    computation, and the adapters take over the main role.
 
     Attributes:
         model (peft.PeftModel | peft.PeftMixedMode):
@@ -30,18 +30,24 @@ class ABACOModel(ModelWrapper):
             Initial value of the alpha parameter.
         alpha (float):
             Alpha parameter.
+            Alpha parameter is used to balance the contribution of the pre-trained model and the adapters.
+            During fine-tuning, the alpha parameter is updated to make the pre-trained model less relevant.
         horizon (int):
-            Number of steps before the alpha parameter reaches the maximum.
+            Number of steps of fine-tuning that will be performed.
+            Depending on the alpha strategy, the alpha parameter will approach 0 differently.
         alpha_strategy (AlphaStrategy):
             Strategy to update the alpha parameter.
 
     Args:
         model (transformers.AutoModel | transformers.PreTrainedModel)
-            Model to wrap.
+            Model with adapters on top of it.
+        config (Config):
+            Configuration object that contains additional information.
         initial_alpha (float):
             Initial value of the alpha parameter.
         horizon (int):
-            Number of steps before the alpha parameter reaches the maximum.
+            Number of steps of fine-tuning that will be performed.
+            Depending on the alpha strategy, the alpha parameter will approach 0 differently.
         alpha_strategy (AlphaStrategy):
             Strategy to update the alpha parameter.
     """
@@ -56,10 +62,11 @@ class ABACOModel(ModelWrapper):
     ) -> None:
         super().__init__()
 
-        # TODO To change the code to improve these lines
-        config.set("target_modules", list(config.get("targets")))
+        # Wrapping the model with the adapters
         self.model = get_adapted_model(model, config)
-        # just for now making the adapters trainable
+
+        # TODO For now the code is explicitly using LoRA
+        # Making the adapters trainable
         for name, param in self.named_parameters():
             if "lora" in name:
                 param.requires_grad = True
@@ -68,19 +75,6 @@ class ABACOModel(ModelWrapper):
         self.alpha = initial_alpha
         self.horizon = horizon
         self.alpha_strategy = AlphaStrategy(alpha_strategy)
-
-    def get_model(
-            self
-    ) -> None | torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
-        """
-        Returns the model.
-
-        Returns:
-            None | torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
-                Model.
-        """
-
-        return self.model
 
     def forward(
             self,
@@ -111,21 +105,21 @@ class ABACOModel(ModelWrapper):
 
     def before_training_step(
             self,
-            training_step: int,
-            **kwargs
+            training_step: int
     ) -> None:
         """
         Method to call before the training step to take some operations.
-        In the case of KFC-alpha training, it updates the alpha parameter of the underlying model.
+        In the case of ABACO, it updates the alpha parameter of the underlying model.
 
         Args:
             training_step (int):
                 Current training step.
-            **kwargs:
-                Additional keyword arguments.
         """
 
+        # Setting the current alpha parameter to the model
         self.model.set_alpha(self.alpha)
+
+        # Updating the alpha parameter
         self.update_alpha(training_step)
 
     def update_alpha(
@@ -145,7 +139,7 @@ class ABACOModel(ModelWrapper):
         elif self.alpha_strategy == AlphaStrategy.EXPONENTIAL:
             self.alpha = max(0.0, self.initial_alpha * 2 ** (- 5 * training_step / self.horizon))
         else:
-            raise ValueError("Invalid alpha strategy.")
+            raise ValueError("Invalid update strategy for alpha.")
 
     @torch.no_grad()
     def get_logging_info(
@@ -163,13 +157,21 @@ class ABACOModel(ModelWrapper):
             {"name": "alpha", "value": self.alpha, "on_step": True, "on_epoch": False, "prog_bar": True},
         ]
 
-    @property
-    def device(self) -> device:
+    def factorization(
+            self,
+            value: bool
+    ) -> None:
         """
-        Device where the model is located.
+        Factorizes the model.
 
-        Returns:
-            Device.
+        Args:
+            value (bool):
+                If True, the model is factorized: weights that are wrapped by the adapters are replaced by the wrappers
+                themselves. If False, the model uses the current alpha to weight the contributions of the pre-trained
+                weights.
         """
 
-        return next(self.parameters()).device
+        if value:
+            self.model.set_alpha(0.0)
+        else:
+            self.model.set_alpha(self.alpha)

@@ -15,9 +15,7 @@ def convert_bytes_in_other_units(
             The number of bytes to be converted.
         units_of_measure (list, optional):
             List of units of measure into which the bytes are to be converted.
-            Defaults to ["GB", "MB"]. Supported units are "B" (bytes), "KB"
-            (kilobytes), "MB" (megabytes), "GB" (gigabytes), and "TB"
-            (terabytes).
+            Supported units are "B" (bytes), "KB" (kilobytes), "MB" (megabytes), "GB" (gigabytes), and "TB" (terabytes).
 
     Returns:
         dict:
@@ -28,9 +26,9 @@ def convert_bytes_in_other_units(
             If an invalid unit of measure is provided.
 
     Note:
-        The function returns the conversion in the specified units of measure
-        while maintaining precision up to the second last specified unit. The
-        final unit will have the remaining bytes after conversion.
+        The function returns the conversion in the specified units of measure while maintaining precision up to the
+        second last specified unit.
+        The final unit will have the remaining bytes after conversion.
     """
 
     units_of_measure = [unit.upper() + "B" if unit.upper()[-1] != "B" else unit.upper() for unit in units_of_measure]
@@ -66,19 +64,18 @@ def convert_bytes_in_other_units(
 
 
 def compute_model_memory_usage(
-        model: [transformers.PreTrainedModel | transformers.AutoModel],
+        model: transformers.PreTrainedModel | transformers.AutoModel,
         unit_of_measure: str = "B"
 ) -> float:
     """
     Computes the memory usage of a PyTorch model in the specified unit of measure.
 
     Args:
-        model ([transformers.PreTrainedModel | transformers.AutoModel]):
+        model (transformers.PreTrainedModel | transformers.AutoModel):
             The PyTorch model whose memory usage is to be computed.
         unit_of_measure (str, optional):
             The unit of measure for memory usage. Defaults to "B".
-            Supported units are "B" (bytes), "KB" (kilobytes), "MB" (megabytes),
-            "GB" (gigabytes), and "TB" (terabytes).
+            Supported units are "B" (bytes), "KB" (kilobytes), "MB" (megabytes), "GB" (gigabytes), and "TB" (terabytes).
 
     Returns:
         float:

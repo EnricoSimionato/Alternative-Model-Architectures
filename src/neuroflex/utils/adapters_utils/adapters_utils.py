@@ -19,7 +19,7 @@ def get_adapted_model(
         config: Config
 ) -> Union[PeftModel, PeftMixedModel]:
     """
-    Returns the adapted model to be used in the task.
+    Wraps and returns the model with the specified adapter method.
 
     Args:
         model (transformers.PreTrainedModel):
@@ -39,7 +39,7 @@ def get_adapted_model(
         peft_config = LoraConfig(
             r=config.get("lora_rank"),
             lora_alpha=config.get("lora_alpha"),
-            target_modules=config.get("target_modules"),
+            target_modules=config.get("targets"),
             lora_dropout=config.get("lora_dropout"),
             bias=config.get("bias"),
             task_type=config.get("task_type")
@@ -51,7 +51,7 @@ def get_adapted_model(
     elif config.get("adapter_method").lower() == "vera":
         peft_config = VeraConfig(
             r=config.get("lora_rank"),
-            target_modules=config.get("target_modules"),
+            target_modules=config.get("targets"),
             projection_prng_key=config.get("projection_prng_key"),
             vera_dropout=config.get("lora_dropout"),
             bias=config.get("bias"),
@@ -65,7 +65,7 @@ def get_adapted_model(
         peft_config = KFCLoraConfig(
             r=config.get("lora_rank"),
             lora_alpha=config.get("lora_alpha"),
-            target_modules=config.get("target_modules"),
+            target_modules=config.get("targets"),
             lora_dropout=config.get("lora_dropout"),
             bias=config.get("bias"),
             task_type=config.get("task_type")

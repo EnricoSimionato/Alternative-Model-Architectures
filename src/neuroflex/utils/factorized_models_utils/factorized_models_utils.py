@@ -1,17 +1,17 @@
 import transformers
 
+from exporch import Config
+
 import neuroflex
 from neuroflex.factorization.factorized_model import (
     LocalSVDModel,
     GlobalBaseModel,
     GlobalFixedBaseModel,
     GLAMSVDModel,
-    LocalHadamardModel
+    LocalHadamardModel,
+    update_config_with_model_parameters
 )
 
-from exporch import Config
-
-from neuroflex.factorization.factorized_model import update_config_with_model_parameters
 
 regularized_training_keys = [
     "initial_regularization_weight",
@@ -40,15 +40,15 @@ glam_svd_keys = [
 
 
 def get_factorized_model(
-        model: transformers.AutoModel,
+        model: transformers.AutoModel | transformers.PreTrainedModel,
         factorization_method: str,
         config: Config,
 ) -> neuroflex.GlobalDependentModel:
     """
-    Returns the factorized model to use in the experiment.
+    Returns the factorized version of the model based on the given factorization method.
 
     Args:
-        model (transformers.AutoModel):
+        model (transformers.AutoModel | transformers.PreTrainedModel):
             The original model to factorize.
         factorization_method (str):
             The factorization method to use.
@@ -56,8 +56,8 @@ def get_factorized_model(
             The configuration parameters for the experiment.
 
     Returns:
-        gbm.GlobalDependentModel:
-            The factorized model to use in the experiment.
+        neuroflex.factorization.factorized_model.GlobalDependentModel:
+            Factorized version of the model based on the given factorization method.
     """
 
     alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)

@@ -9,7 +9,9 @@ from neuroflex.abaco.abaco import ABACOModel
 
 class ABACOExperiment(FineTuningExperiment):
     """
-    Class to perform the fine-tuning of a factorized model.
+    Class to do experiments using ABACO method.
+    See neuroflex.abaco.abaco.ABACOModel for more information.
+
     """
 
     mandatory_keys = ["adapter_methods", "targets"]

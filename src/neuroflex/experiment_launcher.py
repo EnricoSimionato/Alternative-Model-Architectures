@@ -21,7 +21,6 @@ GeneralPurposeExperimentFactory.register({
     "layer_replacement_fine_tuning_adapter_on_entire_model_experiment": LayerReplacementFineTuningAdapterOnEntireModelExperiment,
 
     "abaco_experiment": ABACOExperiment
-
 })
 
 

@@ -1,4 +1,3 @@
-
 def convert_seconds_in_other_units(
         number_of_seconds: float,
         units_of_measure: list = ("h", "m", "s")
@@ -11,7 +10,7 @@ def convert_seconds_in_other_units(
             The number of seconds to be converted.
         units_of_measure (list, optional):
             List of units of measure into which the bytes are to be converted.
-            Defaults to ["h", "m", "s"]. Supported units are "s" (seconds), "m" (minutes), "h" (hours), "d" (days).
+            Supported units are "s" (seconds), "m" (minutes), "h" (hours), "d" (days).
 
     Returns:
         dict:
@@ -22,9 +21,9 @@ def convert_seconds_in_other_units(
             If an invalid unit of measure is provided.
 
     Note:
-        The function returns the conversion in the specified units of measure
-        while maintaining precision up to the second last specified unit. The
-        final unit will have the remaining bytes after conversion.
+        The function returns the conversion in the specified units of measure while maintaining precision up to the
+        second last specified unit.
+        The final unit will have the remaining bytes after conversion.
     """
 
     units_of_measure = [unit.lower() for unit in units_of_measure]
