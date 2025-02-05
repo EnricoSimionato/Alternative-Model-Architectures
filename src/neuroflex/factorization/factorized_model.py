@@ -1,3 +1,4 @@
+# TODO FIX and WRITE DOC
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -431,7 +432,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
     def __init__(
             self,
             target_model: torch.nn.Module = None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -446,12 +447,12 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
         self.approximation_stats = None
 
         if not from_pretrained:
-            if target_model is None or targets is None:
+            if target_model is None or target_layers is None:
                 raise ValueError("Both target_model and targets must be provided.")
 
-            self.targets = targets
+            self.targets = target_layers
             if mapping_layer_name_key is None and use_names_as_keys:
-                self.mapping_layer_name_key = {layer_name: layer_name for layer_name in targets.keys()}
+                self.mapping_layer_name_key = {layer_name: layer_name for layer_name in target_layers.keys()}
             else:
                 self.mapping_layer_name_key = mapping_layer_name_key
 

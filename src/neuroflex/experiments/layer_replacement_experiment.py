@@ -22,7 +22,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
     layer of the model that has been replaced and the evaluation on the same benchmarks again.
     """
 
-    mandatory_keys = ["replacement_methods", "num_layers", "targets"]
+    mandatory_keys = ["replacement_methods", "num_layers", "target_layers"]
 
     @override
     def prepare_models(
