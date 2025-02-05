@@ -21,12 +21,12 @@ regularized_training_keys = [
 ]
 
 alternative_architectures_keys = [
+    "from_pretrained",
+    "mapping_layer_name_key",
+    "preserve_original_model",
+    "remove_average",
     "target_layers",
     "use_names_as_keys",
-    "mapping_layer_name_key",
-    "remove_average",
-    "from_pretrained",
-    "preserve_original_model",
     "verbose"
 ]
 
@@ -62,7 +62,8 @@ def get_factorized_model(
 
     alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)
     factorization_method = factorization_method.lower()
-
+    print(alternative_architectures_arguments)
+    
     if factorization_method.endswith("model"):
         factorization_method = factorization_method[:-5]
 
