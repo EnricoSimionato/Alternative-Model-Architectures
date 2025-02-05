@@ -1,6 +1,8 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
+version: 0
+
 verbose: 1
 device: "cuda"
 seed: 42
@@ -39,7 +41,7 @@ num_layers: 32
 
 ########################################        Factorization Experiment        ########################################
 #experiment_type: "factorization_benchmark_evaluation"
-#experiment_type: "factorization_fine_tuning_experiment"
+experiment_type: "factorization_fine_tuning_experiment"
 
 ########################################      Layer Replacement Experiment      ########################################
 #experiment_type: "layer_replacement_fine_tuning_experiment"
@@ -48,24 +50,24 @@ num_layers: 32
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
 
 ########################################            ABACO Experiment            ########################################
-experiment_type: "abaco_experiment"
+#experiment_type: "abaco_experiment"
 
 ########################################        Factorization Experiment        ########################################
-#factorization_methods:
+factorization_methods:
 #    - "LocalSVD"
 #    - "Hadamard"
-#    - "GlobalBase"
+    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
-#target_layers:
-#    q_proj:
-#        rank: 256
-#    k_proj:
-#        rank: 256
-#    v_proj:
-#        rank: 256
-#    o_proj:
-#        rank: 256
+target_layers:
+    q_proj:
+        rank: 1024
+    k_proj:
+        rank: 256
+    v_proj:
+        rank: 256
+    o_proj:
+        rank: 1024
 
 #target_layers:
 #    gate_proj:
@@ -77,35 +79,35 @@ experiment_type: "abaco_experiment"
 #    down_proj:
 #        rank: 3972
 
-#use_names_as_keys: True
-#figure_size: [5, 10]
+use_names_as_keys: True
+figure_size: [5, 10]
 
 #------------------------------ GlobaL Fact ------------------------------#
-#average_svd_initialization: "svd_of_average_matrix"
+average_svd_initialization: "svd_of_average_matrix"
 
 ########################################            ABACO Experiment            ########################################
-adapter_methods:
-    - "abaco-lora"
-initial_alpha: 1.0
-horizon: 10000
-alpha_strategy: "exponential"
+#adapter_methods:
+#    - "abaco-lora"
+#initial_alpha: 1.0
+#horizon: 10000,
+#alpha_strategy: "exponential"
 
-targets:
-    q_proj:
-        rank: 512
+#targets:
+#    q_proj:
+#        rank: 256
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-    o_proj:
-        rank: 512
+#    o_proj:
+#        rank: 256
 
-lora_rank: 512
-lora_alpha: 64
-lora_dropout: 0.05
-bias: "none"
-task_type: "CAUSAL_LM"
-figure_size: [5, 10]
+#lora_rank: 512
+#lora_alpha: 64
+#lora_dropout: 0.05
+#bias: "none"
+#task_type: "CAUSAL_LM"
+#figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
 #replacement_methods:
@@ -164,10 +166,10 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-    - ["block_index", "self_attn", "q_proj"]
-#    - ["block_index", "self_attn", "k_proj"]
-#    - ["block_index", "self_attn", "v_proj"]
-    - ["block_index", "self_attn", "o_proj"]
+    - [ "block_index", "self_attn", "q_proj" ]
+#    - [ "block_index", "self_attn", "k_proj" ]
+#    - [ "block_index", "self_attn", "v_proj" ]
+    - [ "block_index", "self_attn", "o_proj" ]
 
 #    - [ "block_index", "mlp", "gate_proj" ]
 #    - [ "block_index", "mlp", "up_proj" ]
