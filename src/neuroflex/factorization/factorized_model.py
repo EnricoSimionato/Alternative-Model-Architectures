@@ -377,7 +377,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
     Args:
         target_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Information to factorize the layers.
             The structure is:
             [
@@ -413,7 +413,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             Additional keyword arguments.
 
     Attributes:
-        targets (dict):
+        target_layers (dict):
             Layers to factorize.
         mapping_layer_name_key (dict):
             Mapping of the layer names to the keys of the global layers.
@@ -1304,7 +1304,7 @@ class LocalSVDModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1334,7 +1334,7 @@ class LocalSVDModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1346,7 +1346,7 @@ class LocalSVDModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            targets,
+            target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1386,7 +1386,7 @@ class GlobalBaseModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1416,7 +1416,7 @@ class GlobalBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1433,7 +1433,7 @@ class GlobalBaseModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            targets,
+            target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1641,7 +1641,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1671,7 +1671,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model = None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1685,7 +1685,7 @@ class GlobalFixedBaseModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            targets,
+            target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1725,7 +1725,7 @@ class LocalHadamardModel(GlobalDependentModel):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1755,7 +1755,7 @@ class LocalHadamardModel(GlobalDependentModel):
     def __init__(
             self,
             pretrained_model=None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1767,7 +1767,7 @@ class LocalHadamardModel(GlobalDependentModel):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            targets,
+            target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
@@ -1819,7 +1819,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     Args:
         pretrained_model (PreTrainedModel):
             Pretrained model.
-        targets (dict):
+        target_layers (dict):
             Layers to factorize. The keys are the names of the layers and the values are dictionaries with at least the
             rank of the decomposition for the layer.
             >> Example:
@@ -1857,7 +1857,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
     def __init__(
             self,
             pretrained_model=None,
-            targets: dict = None,
+            target_layers: dict = None,
             use_names_as_keys: bool = False,
             mapping_layer_name_key: dict = None,
             remove_average: bool = False,
@@ -1881,7 +1881,7 @@ class GLAMSVDModel(GlobalDependentModel, RegularizedTrainingInterface):
         GlobalDependentModel.__init__(
             self,
             pretrained_model,
-            targets,
+            target_layers,
             use_names_as_keys=use_names_as_keys,
             mapping_layer_name_key=mapping_layer_name_key,
             remove_average=remove_average,
