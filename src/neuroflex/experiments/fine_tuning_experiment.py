@@ -25,7 +25,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
     evaluation on the same benchmark again.
     """
 
-    mandatory_keys = ["task_id", "optimizers_settings"]
+    mandatory_keys = ["task_id", "optimizers_settings", "fine-tuning_targets"]
     fine_tuned_models_prefix = "fine_tuned_model_"
 
     @override

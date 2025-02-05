@@ -11,10 +11,9 @@ class ABACOExperiment(FineTuningExperiment):
     """
     Class to do experiments using ABACO method.
     See neuroflex.abaco.abaco.ABACOModel for more information.
-
     """
 
-    mandatory_keys = ["adapter_methods", "targets"]
+    mandatory_keys = ["adapter_methods"]
 
     def prepare_models(
             self,

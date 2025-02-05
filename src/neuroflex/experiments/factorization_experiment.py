@@ -15,7 +15,7 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
     Class to perform the benchmark evaluation on a factorized model.
     """
 
-    mandatory_keys = ["factorization_methods", "targets"]
+    mandatory_keys = ["factorization_methods", "target_layers"]
 
     def prepare_models(
             self,
@@ -66,7 +66,7 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
     Class to perform the fine-tuning of a factorized model.
     """
 
-    mandatory_keys = ["factorization_methods", "targets"]
+    mandatory_keys = ["factorization_methods", "target_layers"]
 
     def prepare_models(
             self,

@@ -1,5 +1,12 @@
 FROM python:3.12-slim
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
 # Setting the PYTHONPATH
 ENV PYTHONPATH=/Alternative-Model-Architectures/src
 # Setting the working directory
