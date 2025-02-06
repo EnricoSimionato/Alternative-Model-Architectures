@@ -307,4 +307,4 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
         plt.tight_layout()
 
         # Storing the plot
-        self.store(fig, "results_plot.png", "plt")
+        self.store(fig, "results_plot.pdf", "plt")

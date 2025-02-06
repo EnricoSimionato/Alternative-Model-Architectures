@@ -13,7 +13,7 @@ class ABACOExperiment(FineTuningExperiment):
     See neuroflex.abaco.abaco.ABACOModel for more information.
     """
 
-    mandatory_keys = ["adapter_methods"]
+    mandatory_keys = ["adapter_methods", "target_layers"]
 
     def prepare_models(
             self,

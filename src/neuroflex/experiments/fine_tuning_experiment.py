@@ -561,7 +561,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         plt.tight_layout()
 
         # Storing the plot of the benchmark results
-        self.store(fig, "results_on_benchmark.png", "plt")
+        self.store(fig, "results_on_benchmark.pdf", "plt")
         self.log("Benchmark performance plot saved.", print_message=True)
 
         # TODO Add the training and validation loss plots
@@ -603,7 +603,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
         ax.legend()
 
         plt.tight_layout()
-        fig_path = "training_validation_loss.png"
+        fig_path = "training_validation_loss.pdf"
         plt.savefig(fig_path)
         print(f"Training and validation loss plot saved to {fig_path}")
         plt.show()

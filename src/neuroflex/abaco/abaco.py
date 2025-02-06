@@ -65,6 +65,8 @@ class ABACOModel(ModelWrapper):
         # Wrapping the model with the adapters
         self.model = get_adapted_model(model, config)
 
+        print(self.model)
+
         # TODO For now the code is explicitly using LoRA
         # Making the adapters trainable
         for name, param in self.named_parameters():
