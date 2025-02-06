@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 0
+version:
 
 verbose: 1
 device: "cuda"
@@ -61,13 +61,13 @@ factorization_methods:
 
 target_layers:
     q_proj:
-        rank: 1024
-    k_proj:
-        rank: 256
-    v_proj:
-        rank: 256
+        rank: 512
+#    k_proj:
+#        rank: 256
+#    v_proj:
+#        rank: 256
     o_proj:
-        rank: 1024
+        rank: 512
 
 #target_layers:
 #    gate_proj:
@@ -133,7 +133,7 @@ average_svd_initialization: "svd_of_average_matrix"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
-#    - "gms8k"
+    - "gms8k"
     - "hellaswag"
 evaluation_args:
     gms8k:
