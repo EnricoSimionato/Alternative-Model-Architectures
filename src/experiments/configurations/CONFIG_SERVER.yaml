@@ -131,7 +131,7 @@ average_svd_initialization: "svd_of_average_matrix"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
-    - "gms8k"
+    - "gsm8k"
     - "hellaswag"
 evaluation_args:
     gms8k:
