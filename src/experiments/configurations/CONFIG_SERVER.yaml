@@ -1,6 +1,8 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
+version: 1
+
 verbose: 1
 device: "cuda"
 seed: 42
