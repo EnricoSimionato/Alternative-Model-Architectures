@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 1
+version: 2
 
 verbose: 1
 device: "cuda"
@@ -42,6 +42,7 @@ num_layers: 32
 ########################################        Factorization Experiment        ########################################
 #experiment_type: "factorization_benchmark_evaluation"
 experiment_type: "factorization_fine_tuning_experiment"
+figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
 #experiment_type: "layer_replacement_fine_tuning_experiment"
@@ -60,27 +61,24 @@ factorization_methods:
 #    - "GlobalBaseAverageSVDInitialization"
 
 target_layers:
-    q_proj:
-        rank: 512
+#    q_proj:
+#        rank: 512
 #    k_proj:
 #        rank: 256
 #    v_proj:
 #        rank: 256
-    o_proj:
-        rank: 512
-
-#target_layers:
-#    gate_proj:
+#    o_proj:
+#        rank: 512
+    gate_proj:
 #        rank: 1986
-#        rank: 1024
-#    up_proj:
+        rank: 1024
+    up_proj:
 #        rank: 1986
-#        rank: 1024
+        rank: 1024
 #    down_proj:
 #        rank: 3972
 
 use_names_as_keys: True
-figure_size: [5, 10]
 
 #------------------------------ GlobaL Fact ------------------------------#
 average_svd_initialization: "svd_of_average_matrix"
@@ -89,7 +87,7 @@ average_svd_initialization: "svd_of_average_matrix"
 #adapter_methods:
 #    - "abaco-lora"
 #initial_alpha: 1.0
-#horizon: 10000,
+#horizon: 10000
 #alpha_strategy: "exponential"
 
 #targets:
@@ -131,9 +129,22 @@ average_svd_initialization: "svd_of_average_matrix"
 #    - ["block_index", "mlp", "down_proj"]
 #figure_size: [40, 40]
 
+#adapter_methods:
+#    - "lora"
+
+#targets:
+#    q_proj:
+#        rank: 128
+#    k_proj:
+#        rank: 32
+#    v_proj:
+#        rank: 32
+#    o_proj:
+#        rank: 128
+
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
-    - "gsm8k"
+#    - "gsm8k"
     - "hellaswag"
 evaluation_args:
     gsm8k:
@@ -166,11 +177,11 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-    - [ "block_index", "self_attn", "q_proj" ]
-    - [ "block_index", "self_attn", "k_proj" ]
-    - [ "block_index", "self_attn", "v_proj" ]
-    - [ "block_index", "self_attn", "o_proj" ]
+#    - [ "block_index", "self_attn", "q_proj" ]
+#    - [ "block_index", "self_attn", "k_proj" ]
+#    - [ "block_index", "self_attn", "v_proj" ]
+#    - [ "block_index", "self_attn", "o_proj" ]
 
-#    - [ "block_index", "mlp", "gate_proj" ]
-#    - [ "block_index", "mlp", "up_proj" ]
+    - [ "block_index", "mlp", "gate_proj" ]
+    - [ "block_index", "mlp", "up_proj" ]
 #    - [ "block_index", "mlp", "down_proj" ]
