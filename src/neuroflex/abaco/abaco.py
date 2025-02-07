@@ -159,21 +159,30 @@ class ABACOModel(ModelWrapper):
             {"name": "alpha", "value": self.alpha, "on_step": True, "on_epoch": False, "prog_bar": True},
         ]
 
-    def factorization(
-            self,
-            value: bool
-    ) -> None:
+    def activate_original_model(self):
         """
-        Factorizes the model.
-
-        Args:
-            value (bool):
-                If True, the model is factorized: weights that are wrapped by the adapters are replaced by the wrappers
-                themselves. If False, the model uses the current alpha to weight the contributions of the pre-trained
-                weights.
+        Activates the original model.
         """
 
-        if value:
-            self.model.set_alpha(0.0)
-        else:
-            self.model.set_alpha(self.alpha)
+        self.model.set_alpha(self.alpha)
+
+    def deactivate_original_model(self):
+        """
+        Deactivates the original model.
+        """
+
+        self.model.set_alpha(0.0)
+
+    def activate_adapters(self):
+        """
+        Activates the adapters.
+        """
+
+        self.model.set_alpha(self.alpha)
+
+    def deactivate_adapters(self):
+        """
+        Deactivates the adapters.
+        """
+
+        self.model.set_alpha(1.0)

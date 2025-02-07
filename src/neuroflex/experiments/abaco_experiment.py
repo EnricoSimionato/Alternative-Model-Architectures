@@ -1,3 +1,5 @@
+from typing import override
+
 import copy
 import gc
 
@@ -13,7 +15,7 @@ class ABACOExperiment(FineTuningExperiment):
     See neuroflex.abaco.abaco.ABACOModel for more information.
     """
 
-    mandatory_keys = ["adapter_methods", "target_layers"]
+    mandatory_keys = ["adapter_methods", "adapted_layers"]
 
     def prepare_models(
             self,
@@ -33,6 +35,11 @@ class ABACOExperiment(FineTuningExperiment):
             dict[str, torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel | None]:
                 The prepared models to be evaluated.
         """
+
+        adapted_layers = self.config.get("adapted_layers").keys()
+        fine_tuning_targets = [layer[-1] for layer in self.config.get("fine-tuning_targets")]
+        if not all(layer in fine_tuning_targets for layer in adapted_layers) and all(layer in adapted_layers for layer in fine_tuning_targets):
+            raise ValueError("Adapted layers and fine-tuning targets must be the same.")
 
         self.log(f"Preparing the models using replacement methods {self.config.get('adapter_methods')}.")
 
@@ -83,3 +90,27 @@ class ABACOExperiment(FineTuningExperiment):
         self.log("In the case of ABACO trainable elements are already set", print_message=True)
 
         return prepared_model
+
+    @override
+    def _postprocess_fine_tuned_model(
+            self,
+            fine_tuned_model: ABACOModel
+    ) -> ABACOModel:
+        """
+        Post-processes the fine-tuned model.
+        In ABACO the original model is deactivated.
+
+        Args:
+            fine_tuned_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The fine-tuned model.
+
+        Returns:
+            torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
+                The post-processed fine-tuned model.
+        """
+
+        self.log("Post-processing the fine-tuned model based on ABACO.", print_message=True)
+        fine_tuned_model.deactivate_original_model()
+
+        return fine_tuned_model
+
