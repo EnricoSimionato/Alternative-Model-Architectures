@@ -48,10 +48,12 @@ figure_size: [5, 10]
 #experiment_type: "layer_replacement_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
-#experiment_type: "layer_replacement_fine_tuning_adapter_on_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
+#figure_size: [5, 10]
 
 ########################################            ABACO Experiment            ########################################
 #experiment_type: "abaco_experiment"
+#figure_size: [5, 10]
 
 ########################################        Factorization Experiment        ########################################
 factorization_methods:
@@ -71,10 +73,10 @@ target_layers:
 #        rank: 512
     gate_proj:
 #        rank: 1986
-        rank: 1024
+        rank: 2048
     up_proj:
 #        rank: 1986
-        rank: 1024
+        rank: 2048
 #    down_proj:
 #        rank: 3972
 
@@ -90,7 +92,7 @@ average_svd_initialization: "svd_of_average_matrix"
 #horizon: 10000
 #alpha_strategy: "exponential"
 
-#targets:
+#adapted_layers:
 #    q_proj:
 #        rank: 256
 #    k_proj:
@@ -100,12 +102,9 @@ average_svd_initialization: "svd_of_average_matrix"
 #    o_proj:
 #        rank: 256
 
-#lora_rank: 512
-#lora_alpha: 64
 #lora_dropout: 0.05
 #bias: "none"
 #task_type: "CAUSAL_LM"
-#figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
 #replacement_methods:
@@ -116,7 +115,7 @@ average_svd_initialization: "svd_of_average_matrix"
 #    - 1
 #    - 31
 
-#targets:
+#target_layers:
 #    - ["block_index", "self_attn"]
 
 #    - ["block_index", "self_attn", "q_proj"]
@@ -127,20 +126,18 @@ average_svd_initialization: "svd_of_average_matrix"
 #    - ["block_index", "mlp", "gate_proj"]
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
-#figure_size: [40, 40]
 
-#adapter_methods:
-#    - "lora"
+#adapter_method: "lora"
 
-#targets:
+#adapted_layers:
 #    q_proj:
-#        rank: 128
+#        rank: 16
 #    k_proj:
-#        rank: 32
-#    v_proj:
-#        rank: 32
-#    o_proj:
-#        rank: 128
+#        rank: 16
+
+#lora_dropout: 0.05
+#bias: "none"
+#task_type: "CAUSAL_LM"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -177,11 +174,11 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-#    - [ "block_index", "self_attn", "q_proj" ]
-#    - [ "block_index", "self_attn", "k_proj" ]
-#    - [ "block_index", "self_attn", "v_proj" ]
-#    - [ "block_index", "self_attn", "o_proj" ]
+#    - ["block_index", "self_attn", "q_proj"]
+#    - ["block_index", "self_attn", "k_proj"]
+#    - ["block_index", "self_attn", "v_proj"]
+#    - ["block_index", "self_attn", "o_proj"]
 
-    - [ "block_index", "mlp", "gate_proj" ]
-    - [ "block_index", "mlp", "up_proj" ]
-#    - [ "block_index", "mlp", "down_proj" ]
+    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "down_proj"]
