@@ -13,10 +13,9 @@ from exporch.experiment import benchmark_id_metric_name_mapping
 from exporch.utils.general_framework_utils.model_dispatcher import get_pytorch_lightning_model
 from exporch.utils.general_framework_utils.trainer_dispatcher import get_pytorch_lightning_trainer
 from exporch.utils.general_framework_utils.datamodule_dispatcher import get_pytorch_lightning_dataset
+from exporch.utils.model_utils import get_parameters
 
 from neuroflex.experiments.benchmarking_experiment import BenchmarkEvaluation
-
-from exporch.utils.model_utils import get_parameters
 
 
 class FineTuningExperiment(BenchmarkEvaluation):
@@ -137,6 +136,9 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 fine_tuned_model = pl_model.model
                 # Storing the fine-tuned model
                 self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
+
+                # Post-processing after training before validation and testing
+                fine_tuned_model = self._postprocess_fine_tuned_model(fine_tuned_model)
 
                 # Validating the model after training
                 _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
@@ -440,6 +442,24 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         return pl_model, results
 
+    def _postprocess_fine_tuned_model(
+            self,
+            fine_tuned_model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
+        """
+        Post-processes the fine-tuned model.
+
+        Args:
+            fine_tuned_model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The fine-tuned model.
+
+        Returns:
+            torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel:
+                The post-processed fine-tuned model.
+        """
+
+        return fine_tuned_model
+
     def clean_storage(
             self
     ) -> None:
@@ -515,7 +535,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                              f"{benchmark_id} -> \t\t{benchmark_id_metric_name_mapping[benchmark_id]}: {metric_value}.",
                              print_message=True)
                 self.log("", print_message=True)
-            self.log("                    --------------------------------------                    ",print_message=True)
+            self.log("                    --------------------------------------                    ", print_message=True)
         self.log("------------------------------------------------------------------------------\n", print_message=True)
 
         # Plotting histograms of the results
