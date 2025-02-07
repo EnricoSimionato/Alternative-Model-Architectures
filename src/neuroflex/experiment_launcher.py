@@ -8,7 +8,7 @@ from neuroflex.experiments.layer_replacement_experiment import (
     LayerReplacementFineTuningExperiment,
     LayerReplacementFineTuningEntireModelExperiment,
     LayerReplacementFineTuningAdapterOnTargetsExperiment,
-    LayerReplacementFineTuningAdapterOnEntireModelExperiment
+    LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment
 )
 
 GeneralPurposeExperimentFactory.register({
@@ -18,7 +18,7 @@ GeneralPurposeExperimentFactory.register({
     "layer_replacement_fine_tuning_experiment": LayerReplacementFineTuningExperiment,
     "layer_replacement_fine_tuning_entire_model_experiment": LayerReplacementFineTuningEntireModelExperiment,
     "layer_replacement_fine_tuning_adapter_on_targets_experiment": LayerReplacementFineTuningAdapterOnTargetsExperiment,
-    "layer_replacement_fine_tuning_adapter_on_entire_model_experiment": LayerReplacementFineTuningAdapterOnEntireModelExperiment,
+    "layer_replacement_fine_tuning_different_adapter_on_targets_experiment": LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment,
 
     "abaco_experiment": ABACOExperiment
 })

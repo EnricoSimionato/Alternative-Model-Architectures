@@ -19,10 +19,11 @@ from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
 class LayerReplacementFineTuningExperiment(FineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    layer of the model that has been replaced and the evaluation on the same benchmarks again.
+    layer of the model that has been replaced and the evaluation on the same benchmarks following the re-training.
     """
 
     mandatory_keys = ["replacement_methods", "num_layers", "target_layers"]
+    deepcopy = False
 
     @override
     def prepare_models(
@@ -45,7 +46,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
         """
 
         self.log(f"Preparing the models using replacement methods {self.config.get('replacement_methods')}.")
-
+        print(self.deepcopy)
         prepared_models = {}
         try:
             for replacement_method in self.config.get("replacement_methods"):
@@ -55,7 +56,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
                     self.log(f"Model with replaced layers loaded from storage.",print_message=True)
                 else:
                     prepared_models[f"{replacement_method}"] = get_layer_replaced_model(
-                        copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.config
+                        copy.deepcopy(base_model), replacement_method, self.get_layers_replacement_mapping(), self.deepcopy, self.config
                     )
                     self.log(f"Model prepared replacing the layers.", print_message=True)
                 self.log(f"Replacement method: {replacement_method}.", print_message=True)
@@ -89,7 +90,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
 
         self.log(f"Creating the layers replacement mapping.")
 
-        targets_lists = self.config.get("targets")
+        targets_lists = self.config.get("target_layers")
         num_layers = self.config.get("num_layers")
         excluded_blocks = self.config.get("excluded_blocks") if self.config.contains("excluded_blocks") else []
 
@@ -129,7 +130,7 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
 class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    entire model and the evaluation on the same benchmarks again.
+    entire model and the evaluation on the same benchmarks following the re-training.
     """
 
     @override
@@ -149,14 +150,16 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
                 The layers to train.
         """
 
+        not_trainable_names = ["norm", "layernorm", "ln", "batchnorm", "bn", "embedding", "emb", "position", "pos", "activation", "act"]
         target_names = []
-        for name, _ in model.named_parameters():
-            layer_name = name.split(".")[:-1]
-            if layer_name not in target_names:
-                target_names.append(layer_name)
+        for name, parameter in model.named_parameters():
+            if not any(el in name.lower() for el in not_trainable_names):
+                layer_name = name.split(".")[:-1]
+                if layer_name not in target_names:
+                    target_names.append(layer_name)
 
         extracted_layers = {}
-        get_parameters(model, target_names, extracted_layers, [])
+        get_parameters(model, target_names, extracted_layers, blacklist=self.config.get("blacklist") if self.config.contains("blacklist") else [])
 
         layers_to_train = {}
         for path, layer in extracted_layers.items():
@@ -173,8 +176,11 @@ class LayerReplacementFineTuningEntireModelExperiment(LayerReplacementFineTuning
 class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineTuningExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    replaced layers of the model using adapters and the evaluation on the same benchmarks again.
+    replaced layers of the model using adapters on the aggregated layers and the evaluation on the same benchmarks
+    following the re-training.
     """
+
+    mandatory_keys = ["adapter_method", "adapted_layers"]
 
     @override
     def prepare_fine_tuning(
@@ -195,13 +201,12 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
         """
 
         # Wrapping the model with the adapter
-        adapted_model = self.get_adapted_model(prepared_model)
+        adapted_model = self._get_adapted_model(prepared_model)
         self.log(f"Model with adapters: {adapted_model}.", print_message=True)
 
         return adapted_model
 
-    # TODO FIX THESE 2 METHODS
-    def get_adapted_model(
+    def _get_adapted_model(
             self,
             model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
     ) -> Union[PeftModel, PeftMixedModel]:
@@ -217,82 +222,29 @@ class LayerReplacementFineTuningAdapterOnTargetsExperiment(LayerReplacementFineT
                 The adapted model.
         """
 
-        default_dict = {
-            "adapter_method": "lora",
-            "lora_rank": 16,
-            "lora_alpha": 64,
-            "target_modules": self.get_label_layers_to_train(model),
+        config_dict = self.config.get_dict(["adapter_method", "adapted_layers"])
+        config_dict.update({
             "lora_dropout": 0.05,
             "bias": "none",
             "task_type": "CAUSAL_LM",
-        }
-        keys = ["adapter_method", "lora_rank", "lora_alpha", "target_modules", "lora_dropout", "bias", "task_type"]
-        config_dict = self.config.get_dict(keys)
-        default_dict.update(config_dict)
-        config_dict = default_dict
+        })
+        config_dict.update(self.config.get_dict(["lora_dropout", "bias", "task_type"]))
 
         self.log(f"Creating the adapted model with the following configuration: {config_dict}.")
         try:
-            a = get_adapted_model(model, Config.convert_to_config(config_dict))
-            print(a)
+            adapted_model = get_adapted_model(model.model, Config.convert_to_config(config_dict))
+            model.model = adapted_model
+            return model
         except Exception as e:
-            print(e)
             raise e
 
-        adapted_model = get_adapted_model(model, Config.convert_to_config(config_dict))
-        self.log(f"Adapted model created: {adapted_model}.")
 
-        return adapted_model
-
-    def get_label_layers_to_train(
-            self,
-            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
-    ) -> list | str:
-        """
-        Returns the names to use in the target_modules parameter of the peft configuration to have the adapters in the
-        desired layers.
-
-        Args:
-            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
-                The model to be adapted.
-
-        Returns:
-            list | str:
-                The names of the layers to train or the string "all-linear" to train all the linear layers.
-        """
-
-        layers_to_train = {}
-        get_parameters(model, self.config.get("targets"), layers_to_train, self.config.get("blacklist") if self.config.contains("blacklist") else [])
-        target_names = []
-        for layer_path in layers_to_train:
-            if layer_path[-1] not in target_names:
-                target_names.append(layer_path[-1])
-
-        return target_names
-
-
-class LayerReplacementFineTuningAdapterOnEntireModelExperiment(LayerReplacementFineTuningAdapterOnTargetsExperiment):
+class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplacementFineTuningAdapterOnTargetsExperiment):
     """
     Class to perform the evaluation of a model with unique average layer on some benchmarks, the fine-tuning of the
-    entire model using adapters and the evaluation on the same benchmarks again.
+    replaced layers of the model using different adapters on the aggregated layers and the evaluation on the same
+    benchmarks following the re-training.
     """
 
-    @override
-    def get_label_layers_to_train(
-            self,
-            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
-    ) -> list | str:
-        """
-        Returns the names to use in the target_modules parameter of the peft configuration to have the adapters in the
-        desired layers.
-
-        Args:
-            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
-                The model to be adapted.
-
-        Returns:
-            list | str:
-                The names of the layers to train or the string "all-linear" to train all the linear layers.
-        """
-
-        return "all-linear"
+    mandatory_keys = ["adapter_method", "adapted_layers"]
+    deepcopy = True

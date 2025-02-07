@@ -42,8 +42,9 @@ class SharedAverageLayerReplacingModelWrapper(ProcessedLayerReplacingModelWrappe
             self,
             model: transformers.PreTrainedModel | transformers.AutoModel,
             destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple] = None,
+            deepcopy: bool = False
     ) -> None:
-        super().__init__(model, destination_layer_path_source_layer_path_mapping)
+        super().__init__(model, destination_layer_path_source_layer_path_mapping, deepcopy)
 
     @override
     def preprocess_source_layers(
@@ -211,6 +212,7 @@ def get_layer_replaced_model(
         model: transformers.AutoModel | transformers.PreTrainedModel,
         replacement_method: str,
         destination_layer_path_source_layer_path_mapping: dict[list | tuple: list | tuple],
+        deepcopy: bool,
         config: Config
 ) -> ProcessedLayerReplacingModelWrapper:
     """
@@ -237,7 +239,7 @@ def get_layer_replaced_model(
 
     if replacement_method == "sharedaveragelayer":
         layer_replaced_model = SharedAverageLayerReplacingModelWrapper(
-            model, destination_layer_path_source_layer_path_mapping
+            model, destination_layer_path_source_layer_path_mapping, deepcopy
         )
     else:
         raise ValueError("Replacement method not recognized")
