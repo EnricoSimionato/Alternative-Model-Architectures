@@ -73,10 +73,10 @@ target_layers:
 #        rank: 512
     gate_proj:
 #        rank: 1986
-        rank: 2048
-    up_proj:
+        rank: 512
+#    up_proj:
 #        rank: 1986
-        rank: 2048
+#        rank: 2048
 #    down_proj:
 #        rank: 3972
 
