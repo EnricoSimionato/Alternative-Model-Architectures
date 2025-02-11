@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 4
+version: 0
 
 verbose: 1
 device: "cuda"
@@ -41,8 +41,8 @@ num_layers: 32
 
 ########################################        Factorization Experiment        ########################################
 #experiment_type: "factorization_benchmark_evaluation"
-experiment_type: "factorization_fine_tuning_experiment"
-figure_size: [5, 10]
+#experiment_type: "factorization_fine_tuning_experiment"
+#figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
 #experiment_type: "layer_replacement_fine_tuning_experiment"
@@ -52,17 +52,17 @@ figure_size: [5, 10]
 #figure_size: [5, 10]
 
 ########################################            ABACO Experiment            ########################################
-#experiment_type: "abaco_experiment"
-#figure_size: [5, 10]
+experiment_type: "abaco_experiment"
+figure_size: [5, 10]
 
 ########################################        Factorization Experiment        ########################################
-factorization_methods:
+#factorization_methods:
 #    - "LocalSVD"
 #    - "Hadamard"
-    - "GlobalBase"
+#    - "GlobalBase"
 #    - "GlobalBaseAverageSVDInitialization"
 
-target_layers:
+#target_layers:
 #    q_proj:
 #        rank: 512
 #    k_proj:
@@ -71,28 +71,28 @@ target_layers:
 #        rank: 256
 #    o_proj:
 #        rank: 512
-    gate_proj:
+#    gate_proj:
 #        rank: 1986
-        rank: 512
+#        rank: 512
 #    up_proj:
 #        rank: 1986
 #        rank: 2048
 #    down_proj:
 #        rank: 3972
 
-use_names_as_keys: True
+#use_names_as_keys: True
 
 #------------------------------ GlobaL Fact ------------------------------#
-average_svd_initialization: "svd_of_average_matrix"
+#average_svd_initialization: "svd_of_average_matrix"
 
 ########################################            ABACO Experiment            ########################################
-#adapter_methods:
-#    - "abaco-lora"
-#initial_alpha: 1.0
-#horizon: 10000
-#alpha_strategy: "exponential"
+adapter_methods:
+    - "abaco-lora"
+initial_alpha: 1.0
+horizon: 10000
+alpha_strategy: "exponential"
 
-#adapted_layers:
+adapted_layers:
 #    q_proj:
 #        rank: 256
 #    k_proj:
@@ -101,10 +101,12 @@ average_svd_initialization: "svd_of_average_matrix"
 #        rank: 256
 #    o_proj:
 #        rank: 256
+    gate_proj:
+        rank: 1024
 
-#lora_dropout: 0.05
-#bias: "none"
-#task_type: "CAUSAL_LM"
+lora_dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
 
 ########################################      Layer Replacement Experiment      ########################################
 #replacement_methods:
