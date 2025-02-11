@@ -68,6 +68,7 @@ class ABACOExperiment(FineTuningExperiment):
             self.log(f"Error preparing factorized models: {e}")
             raise e
 
+        print(prepared_models)
         for name, param in prepared_models["abaco-lora"].named_parameters():
             print(name, param.requires_grad, param.device)
         return prepared_models
