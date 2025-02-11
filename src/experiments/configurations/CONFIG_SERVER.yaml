@@ -181,6 +181,6 @@ fine-tuning_targets:
 #    - ["block_index", "self_attn", "v_proj"]
 #    - ["block_index", "self_attn", "o_proj"]
 
-#    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "gate_proj"]
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]

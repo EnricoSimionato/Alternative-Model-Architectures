@@ -114,6 +114,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             model.to(get_available_device(self.config.get("device") if self.config.contains("device") else "cpu"))
 
             if not already_fine_tuned:
+                print(f"Number of trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
                 # Creating the Lightning model
                 pl_model = self.get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
                 self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
