@@ -62,8 +62,7 @@ def get_factorized_model(
 
     alternative_architectures_arguments = config.get_dict(alternative_architectures_keys)
     factorization_method = factorization_method.lower()
-    print(alternative_architectures_arguments)
-    
+
     if factorization_method.endswith("model"):
         factorization_method = factorization_method[:-5]
 
