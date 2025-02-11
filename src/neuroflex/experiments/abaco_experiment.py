@@ -55,6 +55,8 @@ class ABACOExperiment(FineTuningExperiment):
                         raise ValueError("Adapter method already set.")
                     self.config.set("adapter_method", adapter_method)
                     prepared_models[f"{adapter_method}"] = ABACOModel(copy.deepcopy(base_model), self.config, **self.config.get_dict(["initial_alpha", "horizon", "alpha_strategy"]))
+                    for name, param in prepared_models["abaco-lora"].named_parameters():
+                        print(name, param.requires_grad, param.device)
                     self.config.set("adapter_method", None)
                     self.log(f"ABACO model {adapter_method} prepared.", print_message=True)
                 self.log(f"ABACO method: {adapter_method}.", print_message=True)
@@ -68,9 +70,6 @@ class ABACOExperiment(FineTuningExperiment):
             self.log(f"Error preparing factorized models: {e}")
             raise e
 
-        print(prepared_models)
-        for name, param in prepared_models["abaco-lora"].named_parameters():
-            print(name, param.requires_grad, param.device)
         return prepared_models
 
     def prepare_fine_tuning(
