@@ -10,10 +10,10 @@ seed: 42
 #just_plot: True
 
 ########################################          Parameters gemma-2-2b         ########################################
-#model_id: "google/gemma-2-2b"
-#dtype: "float16"
-#tokenizer_id: "google/gemma-2-2b"
-#num_layers: 26
+model_id: "google/gemma-2-2b"
+dtype: "float16"
+tokenizer_id: "google/gemma-2-2b"
+num_layers: 26
 
 ########################################          Parameters gemma-2-9b         ########################################
 #model_id: "google/gemma-2-9b"
@@ -34,10 +34,10 @@ seed: 42
 #num_layers: 32
 
 ########################################       Parameters Mistral-7B-v0.3       ########################################
-model_id: "mistralai/Mistral-7B-v0.3"
-dtype: "float16"
-tokenizer_id: "mistralai/Mistral-7B-v0.3"
-num_layers: 32
+#model_id: "mistralai/Mistral-7B-v0.3"
+#dtype: "float16"
+#tokenizer_id: "mistralai/Mistral-7B-v0.3"
+#num_layers: 32
 
 ########################################        Factorization Experiment        ########################################
 #experiment_type: "factorization_benchmark_evaluation"
