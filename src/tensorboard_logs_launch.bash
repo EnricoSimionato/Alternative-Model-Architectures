@@ -51,7 +51,7 @@ fi
 
 # Running the Python script to copy logs
 echo "Running Python script to copy logs..."
-python "$PYTHON_SCRIPT" $model_args $experiment_args
+python3 "$PYTHON_SCRIPT" $model_args $experiment_args
 
 # Startomg TensorBoard on port 6006
 echo "Starting TensorBoard..."
