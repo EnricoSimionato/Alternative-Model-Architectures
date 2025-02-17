@@ -5,6 +5,7 @@ import torch
 import transformers
 
 from exporch import Config
+from exporch.utils.model_utils import get_parameters
 from exporch.wrapping.model_wrapper import ModelWrapper
 
 from neuroflex.utils.adapters_utils.adapters_utils import get_adapted_model
@@ -66,6 +67,8 @@ class ABACOModel(ModelWrapper):
         self.model = get_adapted_model(model, config)
 
         print(self.model)
+
+        self.adapted_layers = config.get("adapted_layers")
 
         # TODO For now the code is explicitly using LoRA
         # Making the adapters trainable
@@ -172,6 +175,22 @@ class ABACOModel(ModelWrapper):
         """
 
         self.model.set_alpha(0.0)
+
+    def delete_original_model(self):
+        """
+        Deactivates the original model.
+        """
+
+        layers_storage = {}
+        get_parameters(self.model, [[key,] for key in self.adapted_layers.keys()], layers_storage, [])
+        layers_storage = {key: value for key, value in layers_storage.items() if "base_layer" in key}
+
+        null_tensors = {}
+        for path, layer in layers_storage.items():
+            shape = layer.weight.shape
+            if shape not in null_tensors.keys():
+                null_tensors[shape] = torch.zeros(shape)
+            layer.weight.data = null_tensors[shape]
 
     def activate_adapters(self):
         """

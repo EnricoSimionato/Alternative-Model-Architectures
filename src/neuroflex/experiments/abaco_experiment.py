@@ -111,6 +111,8 @@ class ABACOExperiment(FineTuningExperiment):
 
         self.log("Post-processing the fine-tuned model based on ABACO.", print_message=True)
         fine_tuned_model.deactivate_original_model()
+        if self.is_low_memory_mode():
+            fine_tuned_model.delete_original_model()
 
         return fine_tuned_model
 
