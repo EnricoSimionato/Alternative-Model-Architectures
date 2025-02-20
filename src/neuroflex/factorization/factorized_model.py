@@ -498,6 +498,7 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
             self._processing_after_conversion(**kwargs)
 
             # Computing the approximation statistics
+            self.approximation_stats = None
             #self.approximation_stats = self.compute_approximation_stats()
             #for key in self.approximation_stats:
             #    self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)

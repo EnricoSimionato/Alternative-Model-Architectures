@@ -47,6 +47,11 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
                     self.log(f"Factorized model loaded from storage.\nFactorization method: {factorization_method}.", print_message=True)
                 else:
                     prepared_models[f"{factorization_method}"] = get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+                    prepared_models[f"{factorization_method}"].approximation_stats = prepared_models[f"{factorization_method}"].compute_approximation_stats()
+                    for key in prepared_models[f"{factorization_method}"].approximation_stats:
+                        self.log(f"{key}: {prepared_models[f"{factorization_method}"].approximation_stats[key]}", print_message=True)
+                    self.log("", print_message=True)
+
                     self.log(f"Model prepared factorizing the original one.\nFactorization method: {factorization_method}.", print_message=True)
                 self.store(prepared_models[f"{factorization_method}"], f"{factorization_method}.pt", "pt")
                 if self.is_low_memory_mode():
