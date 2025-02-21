@@ -988,7 +988,8 @@ class StructureSpecificGlobalDependent(torch.nn.Module, MergeableLayer, ABC):
         Deletes the target layer.
         """
 
-        del self.target_layer
+        if hasattr(self, "target_layer"):
+            del self.target_layer
         gc.collect()
 
     def get_approximation_stats(

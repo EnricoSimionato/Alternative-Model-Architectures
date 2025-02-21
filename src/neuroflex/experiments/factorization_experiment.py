@@ -46,10 +46,7 @@ class FactorizationBenchmarkEvaluation(BenchmarkEvaluation):
                     prepared_models[f"{factorization_method}"] = loaded_model
                     self.log(f"Factorized model loaded from storage.\nFactorization method: {factorization_method}.", print_message=True)
                 else:
-                    print(base_model)
                     prepared_models[f"{factorization_method}"] = get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
-                    print(prepared_models[f"{factorization_method}"])
-
                     prepared_models[f"{factorization_method}"].approximation_stats = prepared_models[f"{factorization_method}"].compute_approximation_stats()
                     for key in prepared_models[f"{factorization_method}"].approximation_stats:
                         self.log(f"{key}: {prepared_models[f"{factorization_method}"].approximation_stats[key]}", print_message=True)
@@ -105,7 +102,9 @@ class FactorizationFineTuningExperiment(FineTuningExperiment):
                     prepared_models[f"{factorization_method}"] = loaded_model
                     self.log(f"Factorized model loaded from storage..", print_message=True)
                 else:
+                    self.log(base_model, print_message=True)
                     prepared_models[f"{factorization_method}"] = get_factorized_model(copy.deepcopy(base_model), factorization_method, self.config).get_model()
+                    self.log(prepared_models[f"{factorization_method}"], print_message=True)
                     self.log(f"Model prepared factorizing the original one.", print_message=True)
                 self.log(f"Factorization method: {factorization_method}.", print_message=True)
                 self.store(prepared_models[f"{factorization_method}"], f"{factorization_method}.pt", "pt")
