@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 12
+version: 90
 
 verbose: 1
 device: "cuda"
@@ -19,12 +19,13 @@ figure_size: [5, 10]
 
 ########################################        Factorization Experiment        ########################################
 factorization_methods:
-    - "GlobalBase"
-#    - "GlobalBaseAverageSVDInitialization"
+    - "LocalSVD"
 
 target_layers:
+    gate_proj:
+        rank: 402
     up_proj:
-        rank: 512
+        rank: 402
 
 use_names_as_keys: True
 
@@ -54,7 +55,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 8
+batch_size: 2
 num_workers: 2
 max_len: 512
 
@@ -66,4 +67,5 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
+    - ["block_index", "mlp", "gate_proj"]
     - ["block_index", "mlp", "up_proj"]
