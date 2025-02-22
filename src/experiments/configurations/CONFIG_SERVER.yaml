@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 10
+version: 11
 
 verbose: 1
 device: "cuda"
@@ -14,10 +14,10 @@ tokenizer_id: "meta-llama/Llama-3.1-8B"
 num_layers: 32
 
 ########################################      Layer Replacement Experiment      ########################################
-experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
-#experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
+experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
 figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
@@ -41,19 +41,19 @@ target_layers:
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
 
-#adapter_method: "lora"
+adapter_method: "lora"
 
-#adapted_layers:
+adapted_layers:
 #    q_proj:
 #        rank: 16
 #    k_proj:
 #        rank: 16
-#    gate_proj:
-#        rank: 16
+    gate_proj:
+        rank: 16
 
-#lora_dropout: 0.05
-#bias: "none"
-#task_type: "CAUSAL_LM"
+lora_dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -78,7 +78,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 2
+batch_size: 16
 num_workers: 2
 max_len: 512
 
