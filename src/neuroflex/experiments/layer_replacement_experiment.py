@@ -46,7 +46,6 @@ class LayerReplacementFineTuningExperiment(FineTuningExperiment):
         """
 
         self.log(f"Preparing the models using replacement methods {self.config.get('replacement_methods')}.")
-        print(self.deepcopy)
         prepared_models = {}
         try:
             for replacement_method in self.config.get("replacement_methods"):
