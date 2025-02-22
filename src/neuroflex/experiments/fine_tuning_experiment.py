@@ -114,7 +114,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
             model.to(get_available_device(self.config.get("device") if self.config.contains("device") else "cpu"))
 
             if not already_fine_tuned:
-                print(f"Number of trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+                self.log(f"Number of trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}", print_message=True)
                 # Creating the Lightning model
                 pl_model = self.get_pytorch_lightning_model(model, tokenizer, self.config.get("task_id"), self.config)
                 self.log(f"Model wrapped with PyTorch Lightning.", print_message=True)
@@ -131,8 +131,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
                 except (KeyboardInterrupt, SystemExit, RuntimeError) as e:
-                    self.log("Training interrupted by the user.", print_message=True)
-                    self.log(e, print_message=True)
+                    self.log(f"Training interrupted by the user. Exception: {e}", print_message=True)
 
                 fine_tuned_model = pl_model.model
                 # Storing the fine-tuned model
