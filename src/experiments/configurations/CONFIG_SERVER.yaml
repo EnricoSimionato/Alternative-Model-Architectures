@@ -1,17 +1,11 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 11
+version: 12
 
 verbose: 1
 device: "cuda"
 seed: 42
-
-########################################          Parameters gemma-2-2b         ########################################
-#model_id: "google/gemma-2-2b"
-#dtype: "float16"
-#tokenizer_id: "google/gemma-2-2b"
-#num_layers: 26
 
 ########################################         Parameters Llama-3.1-8B        ########################################
 model_id: "meta-llama/Llama-3.1-8B"
@@ -19,24 +13,72 @@ dtype: "float16"
 tokenizer_id: "meta-llama/Llama-3.1-8B"
 num_layers: 32
 
-########################################            ABACO Experiment            ########################################
-experiment_type: "abaco_experiment"
+########################################      Layer Replacement Experiment      ########################################
+experiment_type: "layer_replacement_fine_tuning_experiment"
+#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
+#experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
+#experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
 figure_size: [5, 10]
 
-########################################            ABACO Experiment            ########################################
-adapter_methods:
-    - "abaco-lora"
-initial_alpha: 1.0
-horizon: 80000
-alpha_strategy: "exponential"
+########################################      Layer Replacement Experiment      ########################################
+replacement_methods:
+    - "sharedaveragelayer"
 
-adapted_layers:
-    gate_proj:
-        rank: 512
+excluded_blocks:
+    - 0
+    - 1
+    - 2
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30
+    - 31
 
-lora_dropout: 0.05
-bias: "none"
-task_type: "CAUSAL_LM"
+target_layers:
+#    - ["block_index", "self_attn"]
+
+#    - ["block_index", "self_attn", "q_proj"]
+#    - ["block_index", "self_attn", "k_proj"]
+#    - ["block_index", "self_attn", "v_proj"]
+#    - ["block_index", "self_attn", "o_proj"]
+
+    - ["block_index", "mlp", "gate_proj"]
+#    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "down_proj"]
+
+#adapter_method: "lora"
+
+#adapted_layers:
+#    q_proj:
+#        rank: 16
+#    k_proj:
+#        rank: 16
+#    gate_proj:
+#        rank: 16
+
+#lora_dropout: 0.05
+#bias: "none"
+#task_type: "CAUSAL_LM"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -44,16 +86,16 @@ benchmark_ids:
     - "hellaswag"
 evaluation_args:
     gsm8k:
-        batch_size: 8
-    hellaswag:
         batch_size: 16
+    hellaswag:
+        batch_size: 32
 
 ########################################     General Fine-Tuning Parameters     ########################################
 task_id: "causallm"
 
 max_epochs: 20
 gradient_accumulation_steps: 2
-val_check_interval: 5000
+val_check_interval: 10000
 
 dataset_id: "openwebtext"
 
@@ -61,7 +103,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 1
+batch_size: 2
 num_workers: 2
 max_len: 512
 
@@ -72,5 +114,42 @@ optimizers_settings:
       warmup_steps: 100
       monitored_metric: "loss"
 
+layers_excluded_from_training:
+    - 0
+    - 1
+    - 2
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30
+    - 31
+
 fine-tuning_targets:
+#    - ["block_index", "self_attn", "q_proj"]
+#    - ["block_index", "self_attn", "k_proj"]
+#    - ["block_index", "self_attn", "v_proj"]
+#    - ["block_index", "self_attn", "o_proj"]
+
     - ["block_index", "mlp", "gate_proj"]
+#    - ["block_index", "mlp", "up_proj"]
+#    - ["block_index", "mlp", "down_proj"]
