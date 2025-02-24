@@ -263,10 +263,12 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
         for parameter in prepared_model.parameters():
             parameter.requires_grad = False
-
+        layers_excluded_from_training = self.config.get("layers_excluded_from_training") if self.config.contains("layers_excluded_from_training") else []
         mapping_path_layers_to_train = self.get_layers_to_train(prepared_model)
-        layers_to_train = mapping_path_layers_to_train.values()
-        for layer in layers_to_train:
+        for key, layer in mapping_path_layers_to_train.items():
+            if any(excluded_layer in key for excluded_layer in layers_excluded_from_training):
+                self.log(f"Layer {key} is excluded from training.")
+                continue
             try:
                 layer.weight.requires_grad = True
             except AttributeError as e:
