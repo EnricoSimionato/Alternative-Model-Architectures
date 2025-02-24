@@ -32,7 +32,7 @@ alpha_strategy: "exponential"
 
 adapted_layers:
     gate_proj:
-        rank: 512
+        rank: 128
 
 lora_dropout: 0.05
 bias: "none"
