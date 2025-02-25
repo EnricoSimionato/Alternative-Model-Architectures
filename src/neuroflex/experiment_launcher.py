@@ -23,12 +23,11 @@ GeneralPurposeExperimentFactory.register({
     "abaco_experiment": ABACOExperiment
 })
 
-
-#def main() -> None:
 """
+def main() -> None:
+""
     Main method to start the various types of experiments on a deep model.
-"""
-"""
+""
     if len(sys.argv) < 2:
         raise Exception("Please provide the name of the configuration file.\n"
                         "Example: python src/redhunter/analysis_launcher.py config_name")
@@ -39,17 +38,13 @@ GeneralPurposeExperimentFactory.register({
     # Creating and launching the experiment
     experiment = GeneralPurposeExperimentFactory.create(f"src/experiments/configurations/{config_file_name}")
     experiment.launch_experiment()
-    """
-
+"""
+"""
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
 from exporch import Config
 
 def main() -> None:
-    """
-    Main method to start the various types of experiments on a deep model.
-    """
-
     if len(sys.argv) < 2:
         raise Exception("Please provide the name of the configuration file.\n"
                         "Example: python src/redhunter/analysis_launcher.py config_name")
@@ -98,6 +93,50 @@ def main() -> None:
 
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
+"""
+
+import torch
+from exporch.utils.causal_language_modeling import load_model_for_causal_lm
+from exporch import Config
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        raise Exception("Please provide the name of the configuration file.\n"
+                        "Example: python src/redhunter/analysis_launcher.py config_name")
+
+    # Extracting the configuration name and the environment
+    config_file_name = sys.argv[1]
+
+    num_layers = 12
+    #path_1 = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_0/GlobalBase.pt"
+    #path_2 = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_1/GlobalBase.pt"
+    #dest_path = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_2/GlobalBase.pt"
+
+    path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
+    path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
+    dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_16/GlobalBase.pt"
+
+    #path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/fine_tuned_GlobalBase.pt"
+    #path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
+    #dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_17/GlobalBase.pt"
+
+    with open(path_1, "rb") as f:
+        model_1 = torch.load(f, weights_only=False)
+        print(model_1)
+        print("#################################################################################################\n\n\n")
+
+    with open(path_2, "rb") as f:
+        model_2 = torch.load(f, weights_only=False)
+        print(model_2)
+        print("#################################################################################################\n\n\n")
+
+    for i in range(num_layers):
+        #model_1.model.layers[i].mlp.up_proj = model_2.model.layers[i].mlp.up_proj
+        model_1.bert.encoder.layer[i].attention.self.key = model_2.bert.encoder.layer[i].attention.self.key
+
+    print(model_1)
+    with open(dest_path, "wb") as f:
+        torch.save(model_1, f)
 
 if __name__ == "__main__":
     main()
