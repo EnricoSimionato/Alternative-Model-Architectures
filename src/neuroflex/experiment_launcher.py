@@ -112,13 +112,13 @@ def main() -> None:
     #path_2 = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_1/GlobalBase.pt"
     #dest_path = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_2/GlobalBase.pt"
 
-    path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
-    path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
-    dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_16/GlobalBase.pt"
-
-    #path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/fine_tuned_GlobalBase.pt"
+    #path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
     #path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
-    #dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_17/GlobalBase.pt"
+    #dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_16/GlobalBase.pt"
+
+    path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/fine_tuned_GlobalBase.pt"
+    path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
+    dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_17/GlobalBase.pt"
 
     with open(path_1, "rb") as f:
         model_1 = torch.load(f, weights_only=False)
