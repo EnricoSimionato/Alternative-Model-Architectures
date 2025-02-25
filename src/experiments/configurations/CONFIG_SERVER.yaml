@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 11
+version: 10
 
 verbose: 1
 device: "cuda"
@@ -31,8 +31,8 @@ horizon: 80000
 alpha_strategy: "exponential"
 
 adapted_layers:
-    gate_proj:
-        rank: 288
+    q_proj:
+        rank: 144
 
 lora_dropout: 0.05
 bias: "none"
@@ -73,4 +73,4 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "self_attn", "q_proj"]
