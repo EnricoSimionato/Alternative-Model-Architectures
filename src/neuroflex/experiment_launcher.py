@@ -116,7 +116,7 @@ def main() -> None:
     #path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
     #dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_16/GlobalBase.pt"
 
-    path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/fine_tuned_GlobalBase.pt"
+    path_1 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/fine_tuned_model_GlobalBase.pt"
     path_2 = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
     dest_path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_17/GlobalBase.pt"
 
