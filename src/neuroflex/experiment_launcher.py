@@ -39,7 +39,6 @@ def main() -> None:
     experiment = GeneralPurposeExperimentFactory.create(f"src/experiments/configurations/{config_file_name}")
     experiment.launch_experiment()
 """
-"""
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
 from exporch import Config
@@ -94,7 +93,6 @@ def main() -> None:
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
 """
-
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
 from exporch import Config
@@ -137,6 +135,6 @@ def main() -> None:
     print(model_1)
     with open(dest_path, "wb") as f:
         torch.save(model_1, f)
-
+"""
 if __name__ == "__main__":
     main()
