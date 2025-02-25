@@ -90,6 +90,8 @@ def main() -> None:
     avg_sse /= num_layers
     avg_rsse /= num_layers
 
+    print(f"path:{path}")
+
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
 """
