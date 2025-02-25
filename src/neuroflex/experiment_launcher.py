@@ -131,8 +131,8 @@ def main() -> None:
         print("#################################################################################################\n\n\n")
 
     for i in range(num_layers):
-        #model_1.model.layers[i].mlp.up_proj = model_2.model.layers[i].mlp.up_proj
-        model_1.bert.encoder.layer[i].attention.self.key = model_2.bert.encoder.layer[i].attention.self.key
+        model_1.model.layers[i].mlp.up_proj = model_2.model.layers[i].mlp.up_proj
+        #model_1.bert.encoder.layer[i].attention.self.key = model_2.bert.encoder.layer[i].attention.self.key
 
     print(model_1)
     with open(dest_path, "wb") as f:
