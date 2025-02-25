@@ -1,42 +1,36 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 10
+version: 16
 
 verbose: 1
 device: "cuda"
 seed: 42
 
-########################################          Parameters gemma-2-2b         ########################################
-model_id: "google/gemma-2-2b"
-dtype: "float16"
-tokenizer_id: "google/gemma-2-2b"
-num_layers: 26
-
 ########################################         Parameters Llama-3.1-8B        ########################################
-#model_id: "meta-llama/Llama-3.1-8B"
-#dtype: "float16"
-#tokenizer_id: "meta-llama/Llama-3.1-8B"
-#num_layers: 32
+model_id: "meta-llama/Llama-3.1-8B"
+dtype: "float16"
+tokenizer_id: "meta-llama/Llama-3.1-8B"
+num_layers: 32
 
-########################################            ABACO Experiment            ########################################
-experiment_type: "abaco_experiment"
+########################################        Factorization Experiment        ########################################
+experiment_type: "factorization_fine_tuning_experiment"
 figure_size: [5, 10]
 
-########################################            ABACO Experiment            ########################################
-adapter_methods:
-    - "abaco-lora"
-initial_alpha: 1.0
-horizon: 80000
-alpha_strategy: "exponential"
+########################################        Factorization Experiment        ########################################
+factorization_methods:
+    - "GlobalBase"
 
-adapted_layers:
-    q_proj:
-        rank: 144
+target_layers:
+    gate_proj:
+        rank: 512
+    up_proj:
+        rank: 512
 
-lora_dropout: 0.05
-bias: "none"
-task_type: "CAUSAL_LM"
+use_names_as_keys: True
+
+#------------------------------ GlobaL Fact ------------------------------#
+average_svd_initialization: "svd_of_average_matrix"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -44,16 +38,16 @@ benchmark_ids:
     - "hellaswag"
 evaluation_args:
     gsm8k:
-        batch_size: 8
-    hellaswag:
         batch_size: 16
+    hellaswag:
+        batch_size: 32
 
 ########################################     General Fine-Tuning Parameters     ########################################
 task_id: "causallm"
 
 max_epochs: 20
 gradient_accumulation_steps: 2
-val_check_interval: 5000
+val_check_interval: 10000
 
 dataset_id: "openwebtext"
 
@@ -73,4 +67,5 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-    - ["block_index", "self_attn", "q_proj"]
+    - ["block_index", "mlp", "gate_proj"]
+    - ["block_index", "mlp", "up_proj"]
