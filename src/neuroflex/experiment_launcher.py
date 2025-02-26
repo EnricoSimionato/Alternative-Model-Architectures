@@ -72,8 +72,8 @@ def main() -> None:
     for i in range(num_layers):
         print(f"Layer {i}")
         #original_weights.append(original_model.bert.encoder.layer[i].attention.self.key.weight)
-        original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
-        #original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
+        #original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
+        original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
     original_model.to("cpu")
 
     with open(path, "rb") as f:

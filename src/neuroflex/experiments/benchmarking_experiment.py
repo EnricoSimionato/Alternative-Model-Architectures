@@ -136,11 +136,11 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                #results = evaluate_model_on_benchmark(
-                #    model.get_model() if isinstance(model, ModelWrapper) else model,
-                #    tokenizer, benchmark_id, benchmark_evaluation_args, device_str
-                #)
-                results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
+                results = evaluate_model_on_benchmark(
+                    model.get_model() if isinstance(model, ModelWrapper) else model,
+                    tokenizer, benchmark_id, benchmark_evaluation_args, device_str
+                )
+                #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
                 self.log(f"Results of the model {model_key}: {results}", print_message=True)
 
                 # Storing the results in the dictionary
