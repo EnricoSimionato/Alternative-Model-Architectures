@@ -56,11 +56,11 @@ def main() -> None:
 
     num_layers = 32
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_92/LocalSVD.pt"
-    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
+    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
 
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_91/LocalSVD.pt"
-    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_11/GlobalBase.pt"
+    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_11/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
 
     config = Config(path.replace("GlobalBase.pt", "config.yaml").replace("LocalSVD.pt", "config.yaml"))
