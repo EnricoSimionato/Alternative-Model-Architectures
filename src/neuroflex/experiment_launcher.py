@@ -82,8 +82,8 @@ def main() -> None:
     for i in range(num_layers):
         print(f"Layer {i}")
         #weights.append(model.bert.encoder.layer[i].attention.self.key.weight)
-        weights.append(model.model.layers[i].mlp.gate_proj.weight.to("cpu"))
-        #weights.append(model.model.layers[i].mlp.up_proj.weight)
+        #weights.append(model.model.layers[i].mlp.gate_proj.weight.to("cpu"))
+        weights.append(model.model.layers[i].mlp.up_proj.weight)
     model.to("cpu")
 
     avg_sse = 0
