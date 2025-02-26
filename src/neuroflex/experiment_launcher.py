@@ -66,14 +66,13 @@ def main() -> None:
     config = Config(path.replace("GlobalBase.pt", "config.yaml").replace("LocalSVD.pt", "config.yaml"))
 
     original_model = load_model_for_causal_lm(config)
-    original_model.to("cuda")
+    original_model.to("cpu")
     original_weights = []
     for i in range(num_layers):
         print(f"Layer {i}")
         #original_weights.append(original_model.bert.encoder.layer[i].attention.self.key.weight)
         #original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
         original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
-    original_model.to("cpu")
 
     with open(path, "rb") as f:
         model = torch.load(f, weights_only=False)
@@ -85,7 +84,8 @@ def main() -> None:
         #weights.append(model.model.layers[i].mlp.gate_proj.weight.to("cpu"))
         weights.append(model.model.layers[i].mlp.up_proj.weight)
     model.to("cpu")
-
+    del model
+    del original_model
     avg_sse = 0
     avg_rsse = 0
 
