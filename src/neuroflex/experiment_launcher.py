@@ -91,8 +91,8 @@ def main() -> None:
 
     for i in range(num_layers):
         print(f"Layer {i}")
-        print(original_weights[i])
-        print(weights[i])
+        #print(original_weights[i])
+        #print(weights[i])
         original_weight = original_weights[i]
         approximated_weight = weights[i]
         original_weight = original_weight.to(torch.float32).to("cuda")
