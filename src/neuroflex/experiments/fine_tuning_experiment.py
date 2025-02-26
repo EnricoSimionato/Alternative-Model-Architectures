@@ -128,6 +128,16 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results before fit:\n {validation_results_before_fit}")
 
+                from exporch.utils.causal_language_modeling import load_model_for_causal_lm
+                original_model = load_model_for_causal_lm(self.config)
+                pl_model = self.get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"),
+                                                        self.config)
+                # Creating the trainer
+                pl_trainer = self.get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
+                # Validating the original model
+                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
+                self.log(validation_results, print_message=True)
+
                 exit()
                 # Training the model
                 try:

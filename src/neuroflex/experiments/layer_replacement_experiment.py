@@ -247,3 +247,46 @@ class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplace
 
     mandatory_keys = ["adapter_method", "adapted_layers"]
     deepcopy = True
+
+    def _get_adapted_model(
+            self,
+            model: torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel
+    ) -> Union[PeftModel, PeftMixedModel]:
+        """
+        Returns the adapted model to be trained given the model to be wrapped by the adapter.
+
+        Args:
+            model (torch.nn.Module | transformers.AutoModel | transformers.PreTrainedModel):
+                The model to be adapted.
+
+        Returns:
+            Union[PeftModel, PeftMixedModel]:
+                The adapted model.
+        """
+
+        config_dict = self.config.get_dict(["adapter_method", "adapted_layers"])
+        config_dict.update({
+            "lora_dropout": 0.05,
+            "bias": "none",
+            "task_type": "CAUSAL_LM",
+        })
+        config_dict.update(self.config.get_dict(["lora_dropout", "bias", "task_type"]))
+
+        self.log(f"Creating the adapted model with the following configuration: {config_dict}.")
+        try:
+            adapted_model = get_adapted_model(model.model, Config.convert_to_config(config_dict))
+            print(adapted_model)
+            #base_layer = adapted_model.base_model.model.bert.encoder.layer[0].attention.self.key.base_layer
+            # base_layer = adapted_model.base_model.model.layers[0].mlp.gate_proj.base_layer
+            base_layer = adapted_model.base_model.model.layers[0].self_attn.q_proj.base_layer
+            for i in range(1, self.config.get("num_layers")):
+                print(f"Layer {i}")
+                #adapted_model.bert.encoder.layer[i].attention.self.key.base_layer = base_layer
+                # adapted_model.base_model.model.layers[i].mlp.gate_proj.base_layer = base_layer
+                adapted_model.base_model.model.layers[i].self_attn.q_proj.base_layer = base_layer
+
+            model.model = adapted_model
+            print(adapted_model)
+            return model
+        except Exception as e:
+            raise e
