@@ -52,9 +52,10 @@ def main() -> None:
     # Extracting the configuration name and the environment
     config_file_name = sys.argv[1]
 
-    num_layers = 12
+    #num_layers = 12
     #path = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_0/GlobalBase.pt"
 
+    num_layers = 32
     path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_92/LocalSVD.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
@@ -66,21 +67,33 @@ def main() -> None:
     config = Config(path.replace("GlobalBase.pt", "config.yaml").replace("LocalSVD.pt", "config.yaml"))
 
     original_model = load_model_for_causal_lm(config)
+    original_model.to("cuda")
+    original_weights = []
+    for i in range(num_layers):
+        print(f"Layer {i}")
+        #original_weights.append(original_model.bert.encoder.layer[i].attention.self.key.weight)
+        original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
+        #original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
+    original_model.to("cpu")
 
     with open(path, "rb") as f:
         model = torch.load(f, weights_only=False)
+    model.to("cuda")
+    weights = []
+    for i in range(num_layers):
+        print(f"Layer {i}")
+        #weights.append(model.bert.encoder.layer[i].attention.self.key.weight)
+        weights.append(model.model.layers[i].mlp.gate_proj.weight)
+        #weights.append(model.model.layers[i].mlp.up_proj.weight)
+    model.to("cpu")
 
     avg_sse = 0
     avg_rsse = 0
 
     for i in range(num_layers):
         print(f"Layer {i}")
-        #original_weight = original_model.bert.encoder.layer[i].attention.self.query.weight
-        original_weight = original_model.model.layers[i].mlp.gate_proj.weight
-        #original_weight = original_model.model.layers[i].mlp.up_proj.weight
-        #approximated_weight = model.bert.encoder.layer[i].attention.self.query.weight
-        approximated_weight = model.model.layers[i].mlp.gate_proj.weight
-        #approximated_weight = model.model.layers[i].mlp.up_proj.weight
+        original_weight = original_weights[i]
+        approximated_weight = weights[i]
 
         sse = torch.sum((original_weight.to(torch.float32).to("cuda") - approximated_weight.to(torch.float32).to("cuda")) ** 2)
         rsse = torch.sum((original_weight.to(torch.float32).to("cuda") - approximated_weight.to(torch.float32).to("cuda")) ** 2) / torch.sum(original_weight.to(torch.float32).to("cuda") ** 2)
