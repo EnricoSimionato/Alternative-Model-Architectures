@@ -23,7 +23,7 @@ GeneralPurposeExperimentFactory.register({
 
     "abaco_experiment": ABACOExperiment
 })
-"""
+
 def main() -> None:
     #""
     #Main method to start the various types of experiments on a deep model.
@@ -38,6 +38,7 @@ def main() -> None:
     # Creating and launching the experiment
     experiment = GeneralPurposeExperimentFactory.create(f"src/experiments/configurations/{config_file_name}")
     experiment.launch_experiment()
+
 """
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
@@ -113,7 +114,7 @@ def main() -> None:
 
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
-
+"""
 """
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm

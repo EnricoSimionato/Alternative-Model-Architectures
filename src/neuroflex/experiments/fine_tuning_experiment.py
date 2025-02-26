@@ -128,17 +128,6 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 _, validation_results_before_fit = self._validate(pl_model, pl_trainer, pl_dataset)
                 self.log(f"Validation results before fit:\n {validation_results_before_fit}")
 
-                from exporch.utils.causal_language_modeling import load_model_for_causal_lm
-                original_model = load_model_for_causal_lm(self.config)
-                pl_model = self.get_pytorch_lightning_model(original_model, tokenizer, self.config.get("task_id"),
-                                                        self.config)
-                # Creating the trainer
-                pl_trainer = self.get_pytorch_lightning_trainer(self.config.get("task_id"), self.config)
-                # Validating the original model
-                _, validation_results = self._validate(pl_model, pl_trainer, pl_dataset)
-                self.log(validation_results, print_message=True)
-
-                exit()
                 # Training the model
                 try:
                     _ = self._fit(pl_model, pl_trainer, pl_dataset)
@@ -176,6 +165,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 fine_tuned_models[f"{self.fine_tuned_models_prefix}{model_key}"] = None
 
         # Evaluating the original model if there is at least one model that has not been fine-tuned
+        # TODO Probably there is an error and the performance are not the one of the original model or MAYBE NOT
         if not all_models_already_fine_tuned:
             # Loading the original model if it is not in memory
             if original_model is None:
