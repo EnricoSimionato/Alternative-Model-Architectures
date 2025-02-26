@@ -23,11 +23,11 @@ GeneralPurposeExperimentFactory.register({
     "abaco_experiment": ABACOExperiment
 })
 
-"""
+
 def main() -> None:
-""
+    """
     Main method to start the various types of experiments on a deep model.
-""
+    """
     if len(sys.argv) < 2:
         raise Exception("Please provide the name of the configuration file.\n"
                         "Example: python src/redhunter/analysis_launcher.py config_name")
@@ -38,7 +38,6 @@ def main() -> None:
     # Creating and launching the experiment
     experiment = GeneralPurposeExperimentFactory.create(f"src/experiments/configurations/{config_file_name}")
     experiment.launch_experiment()
-"""
 """
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
@@ -96,7 +95,7 @@ def main() -> None:
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
 """
-
+"""
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
 from exporch import Config
@@ -139,6 +138,6 @@ def main() -> None:
     print(model_1)
     with open(dest_path, "wb") as f:
         torch.save(model_1, f)
-
+"""
 if __name__ == "__main__":
     main()
