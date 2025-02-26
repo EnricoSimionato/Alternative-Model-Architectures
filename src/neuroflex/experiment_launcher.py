@@ -1,4 +1,5 @@
 import sys
+from torch import device
 
 from exporch import GeneralPurposeExperimentFactory
 
@@ -63,7 +64,6 @@ def main() -> None:
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
 
     config = Config(path.replace("GlobalBase.pt", "config.yaml").replace("LocalSVD.pt", "config.yaml"))
-    config.set("device", "cuda")
 
     original_model = load_model_for_causal_lm(config)
 
@@ -75,10 +75,10 @@ def main() -> None:
 
     for i in range(num_layers):
         #original_weight = original_model.bert.encoder.layer[i].attention.self.query.weight
-        original_weight = original_model.model.layers[i].mlp.gate_proj.weight
+        original_weight = original_model.model.layers[i].mlp.gate_proj.weight.to("cuda")
         #original_weight = original_model.model.layers[i].mlp.up_proj.weight
         #approximated_weight = model.bert.encoder.layer[i].attention.self.query.weight
-        approximated_weight = model.model.layers[i].mlp.gate_proj.weight
+        approximated_weight = model.model.layers[i].mlp.gate_proj.weight.to("cuda")
         #approximated_weight = model.model.layers[i].mlp.up_proj.weight
 
         sse = torch.sum((original_weight.to(torch.float32) - approximated_weight.to(torch.float32)) ** 2)
