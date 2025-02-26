@@ -23,12 +23,11 @@ GeneralPurposeExperimentFactory.register({
 
     "abaco_experiment": ABACOExperiment
 })
-
 """
 def main() -> None:
-    ""
-    Main method to start the various types of experiments on a deep model.
-    ""
+    #""
+    #Main method to start the various types of experiments on a deep model.
+    #""
     if len(sys.argv) < 2:
         raise Exception("Please provide the name of the configuration file.\n"
                         "Example: python src/redhunter/analysis_launcher.py config_name")
@@ -92,6 +91,8 @@ def main() -> None:
 
     for i in range(num_layers):
         print(f"Layer {i}")
+        print(original_weights[i])
+        print(weights[i])
         original_weight = original_weights[i]
         approximated_weight = weights[i]
         original_weight = original_weight.to(torch.float32).to("cuda")
