@@ -23,11 +23,11 @@ GeneralPurposeExperimentFactory.register({
     "abaco_experiment": ABACOExperiment
 })
 
-
+"""
 def main() -> None:
-    """
+    ""
     Main method to start the various types of experiments on a deep model.
-    """
+    ""
     if len(sys.argv) < 2:
         raise Exception("Please provide the name of the configuration file.\n"
                         "Example: python src/redhunter/analysis_launcher.py config_name")
@@ -54,8 +54,8 @@ def main() -> None:
     num_layers = 12
     #path = "src/experiments/results/bert-base-uncased/factorization_fine_tuning_experiment/version_0/GlobalBase.pt"
 
-    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_92/LocalSVD.pt"
-    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
+    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_92/LocalSVD.pt"
+    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
 
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_91/LocalSVD.pt"
@@ -94,7 +94,6 @@ def main() -> None:
 
     print(f"Average SSE: {avg_sse}")
     print(f"Average RSSE: {avg_rsse}")
-"""
 """
 import torch
 from exporch.utils.causal_language_modeling import load_model_for_causal_lm
