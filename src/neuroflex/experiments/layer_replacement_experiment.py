@@ -283,6 +283,8 @@ class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplace
                 print(f"Layer {i}")
                 #adapted_model.bert.encoder.layer[i].attention.self.key.base_layer = base_layer
                 # adapted_model.base_model.model.layers[i].mlp.gate_proj.base_layer = base_layer
+                del adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer
+                torch.cuda.empty_cache()
                 adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer = base_layer
 
             model.model = adapted_model
