@@ -93,19 +93,20 @@ def main() -> None:
         print(f"Layer {i}")
         #print(original_weights[i])
         #print(weights[i])
-        original_weight = original_weights[i]
-        approximated_weight = weights[i]
-        original_weight = original_weight.to(torch.float32).to("cuda")
-        approximated_weight = approximated_weight.to(torch.float32).to("cuda")
+        with torch.no_grad():
+            original_weight = original_weights[i]
+            approximated_weight = weights[i]
+            original_weight = original_weight.to(torch.float32).to("cuda")
+            approximated_weight = approximated_weight.to(torch.float32).to("cuda")
 
-        sse = torch.sum((original_weight - approximated_weight) ** 2).to("cpu")
-        rsse = torch.sum((original_weight - approximated_weight) ** 2) / torch.sum(original_weight ** 2).to("cpu")
+            sse = torch.sum((original_weight - approximated_weight) ** 2).to("cpu")
+            rsse = torch.sum((original_weight - approximated_weight) ** 2) / torch.sum(original_weight ** 2).to("cpu")
 
-        original_weight.to("cpu")
-        approximated_weight.to("cpu")
+            original_weight.to("cpu")
+            approximated_weight.to("cpu")
 
-        avg_sse += sse
-        avg_rsse += rsse
+            avg_sse += sse
+            avg_rsse += rsse
 
     avg_sse /= num_layers
     avg_rsse /= num_layers
