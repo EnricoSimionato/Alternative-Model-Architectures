@@ -74,15 +74,16 @@ def main() -> None:
     avg_rsse = 0
 
     for i in range(num_layers):
+        print(f"Layer {i}")
         #original_weight = original_model.bert.encoder.layer[i].attention.self.query.weight
-        original_weight = original_model.model.layers[i].mlp.gate_proj.weight.to("cuda")
+        original_weight = original_model.model.layers[i].mlp.gate_proj.weight
         #original_weight = original_model.model.layers[i].mlp.up_proj.weight
         #approximated_weight = model.bert.encoder.layer[i].attention.self.query.weight
-        approximated_weight = model.model.layers[i].mlp.gate_proj.weight.to("cuda")
+        approximated_weight = model.model.layers[i].mlp.gate_proj.weight
         #approximated_weight = model.model.layers[i].mlp.up_proj.weight
 
-        sse = torch.sum((original_weight.to(torch.float32) - approximated_weight.to(torch.float32)) ** 2)
-        rsse = torch.sum((original_weight.to(torch.float32) - approximated_weight.to(torch.float32)) ** 2) / torch.sum(original_weight.to(torch.float32) ** 2)
+        sse = torch.sum((original_weight.to(torch.float32).to("cuda") - approximated_weight.to(torch.float32).to("cuda")) ** 2)
+        rsse = torch.sum((original_weight.to(torch.float32).to("cuda") - approximated_weight.to(torch.float32).to("cuda")) ** 2) / torch.sum(original_weight.to(torch.float32).to("cuda") ** 2)
 
         avg_sse += sse
         avg_rsse += rsse
