@@ -56,11 +56,11 @@ def main() -> None:
 
     num_layers = 32
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_92/LocalSVD.pt"
-    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
+    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_10/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_14/GlobalBase.pt"
 
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_91/LocalSVD.pt"
-    path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_11/GlobalBase.pt"
+    #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_11/GlobalBase.pt"
     #path = "src/experiments/results/Llama-3.1-8B/factorization_fine_tuning_experiment/version_15/GlobalBase.pt"
 
     config = Config(path.replace("GlobalBase.pt", "config.yaml").replace("LocalSVD.pt", "config.yaml"))
@@ -71,8 +71,8 @@ def main() -> None:
     for i in range(num_layers):
         print(f"Layer {i}")
         #original_weights.append(original_model.bert.encoder.layer[i].attention.self.key.weight)
-        #original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
-        original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
+        original_weights.append(original_model.model.layers[i].mlp.gate_proj.weight)
+        #original_weights.append(original_model.model.layers[i].mlp.up_proj.weight)
 
     with open(path, "rb") as f:
         model = torch.load(f, weights_only=False)
@@ -81,8 +81,8 @@ def main() -> None:
     for i in range(num_layers):
         print(f"Layer {i}")
         #weights.append(model.bert.encoder.layer[i].attention.self.key.weight)
-        #weights.append(model.model.layers[i].mlp.gate_proj.weight.to("cpu"))
-        weights.append(model.model.layers[i].mlp.up_proj.weight)
+        weights.append(model.model.layers[i].mlp.gate_proj.weight.to("cpu"))
+        #weights.append(model.model.layers[i].mlp.up_proj.weight)
     del model
     del original_model
     torch.cuda.empty_cache()
