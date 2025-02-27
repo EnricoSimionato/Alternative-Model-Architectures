@@ -42,7 +42,7 @@ class FactorizedLinearLayer(FactorizedLayer, ABC):
         """
 
         approximation_stats = {
-            "MSE approximation": (target_layer.weight.data - self.weight.data).pow(2).mean().item(),
+            "MSE approximation": (target_layer.weight.data.to(torch.float32) - self.weight.data.to(torch.float32)).pow(2).mean().item(),
         }
 
         return approximation_stats
