@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 11
+version: 12
 
 verbose: 1
 device: "cuda"
@@ -14,20 +14,35 @@ tokenizer_id: "meta-llama/Llama-3.1-8B"
 num_layers: 32
 
 ########################################      Layer Replacement Experiment      ########################################
-#experiment_type: "layer_replacement_fine_tuning_experiment"
+experiment_type: "layer_replacement_fine_tuning_experiment"
 #experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
 #experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
-experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
+#experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
 figure_size: [5, 10]
 
 ########################################      Layer Replacement Experiment      ########################################
 replacement_methods:
     - "sharedaveragelayer"
 
-#excluded_blocks:
-#    - 0
-#    - 1
-#    - 31
+excluded_blocks:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 7
+    - 8
+
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30
+    - 31
 
 target_layers:
 #    - ["block_index", "self_attn"]
@@ -41,19 +56,19 @@ target_layers:
 #    - ["block_index", "mlp", "up_proj"]
 #    - ["block_index", "mlp", "down_proj"]
 
-adapter_method: "lora"
+#adapter_method: "lora"
 
-adapted_layers:
+#adapted_layers:
 #    q_proj:
 #        rank: 16
 #    k_proj:
 #        rank: 16
-    gate_proj:
-        rank: 64
+#    gate_proj:
+#        rank: 16
 
-lora_dropout: 0.05
-bias: "none"
-task_type: "CAUSAL_LM"
+#lora_dropout: 0.05
+#bias: "none"
+#task_type: "CAUSAL_LM"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -88,6 +103,26 @@ optimizers_settings:
       lr_scheduler: "cosine_with_warmup"
       warmup_steps: 100
       monitored_metric: "loss"
+
+layers_excluded_from_training:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 7
+    - 8
+
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30
+    - 31
 
 fine-tuning_targets:
 #    - ["block_index", "self_attn", "q_proj"]
