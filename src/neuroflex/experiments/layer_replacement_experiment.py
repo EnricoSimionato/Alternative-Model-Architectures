@@ -277,15 +277,17 @@ class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplace
             adapted_model = get_adapted_model(model.model, Config.convert_to_config(config_dict))
             print(adapted_model)
             #base_layer = adapted_model.base_model.model.bert.encoder.layer[0].attention.self.key.base_layer
-            # base_layer = adapted_model.base_model.model.layers[0].mlp.gate_proj.base_layer
-            base_layer = adapted_model.base_model.model.model.layers[0].self_attn.q_proj.base_layer
+            base_layer = adapted_model.base_model.model.layers[0].mlp.gate_proj.base_layer
+            #base_layer = adapted_model.base_model.model.model.layers[0].self_attn.q_proj.base_layer
             for i in range(1, self.config.get("num_layers")):
                 print(f"Layer {i}")
                 #adapted_model.bert.encoder.layer[i].attention.self.key.base_layer = base_layer
-                # adapted_model.base_model.model.layers[i].mlp.gate_proj.base_layer = base_layer
-                del adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer
+
+                #del adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer
+                del adapted_model.base_model.model.layers[i].mlp.gate_proj.base_layer
                 torch.cuda.empty_cache()
-                adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer = base_layer
+                #adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer = base_layer
+                adapted_model.base_model.model.layers[i].mlp.gate_proj.base_layer = base_layer
 
             model.model = adapted_model
             print(adapted_model)
