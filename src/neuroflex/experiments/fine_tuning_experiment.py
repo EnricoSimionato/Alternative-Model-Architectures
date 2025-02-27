@@ -1,3 +1,7 @@
+import os
+
+import glob
+
 import gc
 from typing import Any, override
 
@@ -373,10 +377,18 @@ class FineTuningExperiment(BenchmarkEvaluation):
                 The trained model.
         """
 
+        checkpoint_files = sorted(glob.glob(os.path.join(self.get_experiment_path(), "checkpoints", "*.ckpt")), key=os.path.getctime, reverse=True)
+        checkpoint_path = None
+        if checkpoint_files:
+            checkpoint_path = checkpoint_files[0]
+
+        self.log(f"Resuming from checkpoint: {checkpoint_path}" if checkpoint_path else "No checkpoint found, training from scratch.")
+
         self.log("Fitting the model.", print_message=True)
         pl_trainer.fit(
             pl_model,
-            pl_dataset
+            pl_dataset,
+            ckpt_path=checkpoint_path if checkpoint_path else None
         )
         self.log("Training ended. Model fitted.", print_message=True)
 
