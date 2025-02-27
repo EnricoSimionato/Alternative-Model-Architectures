@@ -239,8 +239,10 @@ class FineTuningExperiment(BenchmarkEvaluation):
             for name, param in prepared_model.named_parameters():
                 if param.requires_grad:
                     self.log(f"Parameter {name} is set to trainable.")
-                else:
-                    self.log(f"Parameter {name} is NOT trainable!")
+                #else:
+                #    self.log(f"Parameter {name} is NOT trainable!")
+
+
 
         return already_fine_tuned
 
