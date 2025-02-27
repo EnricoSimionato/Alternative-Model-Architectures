@@ -499,10 +499,10 @@ class GlobalDependentModel(torch.nn.Module, LoggingInterface, ABC):
 
             # Computing the approximation statistics
             self.approximation_stats = None
-            #self.approximation_stats = self.compute_approximation_stats()
-            #for key in self.approximation_stats:
-            #    self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)
-            #self.log("", print_message=True)
+            self.approximation_stats = self.compute_approximation_stats()
+            for key in self.approximation_stats:
+                self.log(f"{key}: {self.approximation_stats[key]}", print_message=True)
+            self.log("", print_message=True)
 
             # Removing the target_layer attribute from the layers
             extracted_layers = {}

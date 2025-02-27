@@ -136,7 +136,7 @@ class FineTuningExperiment(BenchmarkEvaluation):
 
                 fine_tuned_model = pl_model.model
                 # Storing the fine-tuned model
-                #self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
+                self.store(fine_tuned_model, f"{self.fine_tuned_models_prefix}{model_key}.pt", "pt")
 
                 # Post-processing after training before validation and testing
                 fine_tuned_model = self._postprocess_fine_tuned_model(fine_tuned_model)
