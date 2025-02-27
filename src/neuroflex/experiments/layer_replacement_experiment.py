@@ -289,7 +289,6 @@ class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplace
                 #adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer = base_layer
                 adapted_model.base_model.model.model.layers[i].mlp.gate_proj.base_layer.weight = base_layer
                 torch.cuda.empty_cache()
-                
             for name, param in adapted_model.named_parameters():
                 print(name, param)
             model.model = adapted_model
