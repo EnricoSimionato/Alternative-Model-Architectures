@@ -289,6 +289,8 @@ class LayerReplacementFineTuningDifferentAdapterOnTargetsExperiment(LayerReplace
                 #adapted_model.base_model.model.model.layers[i].self_attn.q_proj.base_layer = base_layer
                 adapted_model.base_model.model.model.layers[i].mlp.gate_proj.base_layer = base_layer
 
+            for name, param in adapted_model.named_parameters():
+                print(name, param)
             model.model = adapted_model
             print(adapted_model)
             return model
