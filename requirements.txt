@@ -10,5 +10,5 @@ tensorboard
 torch==2.4.1
 transformers==4.45.1
 
-git+https://EnricoSimionato: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@github.com/EnricoSimionato/Experiment-Orchestrator.git@master#egg=exporch
-git+https://EnricoSimionato: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@github.com/EnricoSimionato/Redundancy-Hunter.git@master#egg=redhunter
+git+https://EnricoSimionato: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@github.com/EnricoSimionato/Experiment-Orchestrator.git@master#egg=exporch
+git+https://EnricoSimionato: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@github.com/EnricoSimionato/Redundancy-Hunter.git@master#egg=redhunter
