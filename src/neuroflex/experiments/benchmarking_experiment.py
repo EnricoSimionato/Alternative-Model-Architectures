@@ -136,16 +136,17 @@ class BenchmarkEvaluation(GeneralPurposeExperiment):
 
                 # Evaluating the model
                 self.log(f"Starting the evaluation of the model on the device {model.device}.")
-                results = evaluate_model_on_benchmark(
-                    model.get_model() if isinstance(model, ModelWrapper) else model,
-                    tokenizer, benchmark_id, benchmark_evaluation_args, device_str
-                )
-                #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
-                self.log(f"Results of the model {model_key}: {results}", print_message=True)
+                if model_key != "Original Model":
+                    results = evaluate_model_on_benchmark(
+                        model.get_model() if isinstance(model, ModelWrapper) else model,
+                        tokenizer, benchmark_id, benchmark_evaluation_args, device_str
+                    )
+                    #results = {benchmark_id: {"acc_norm,none": 0.7}} # Testing
+                    self.log(f"Results of the model {model_key}: {results}", print_message=True)
 
-                # Storing the results in the dictionary
-                performance_dict[benchmark_id][model_key] = results
-                self.log(f"Performance dictionary updated with the results.")
+                    # Storing the results in the dictionary
+                    performance_dict[benchmark_id][model_key] = results
+                    self.log(f"Performance dictionary updated with the results.")
 
                 # Moving the model to the CPU to be able to evaluate the next model
                 model.cpu()
