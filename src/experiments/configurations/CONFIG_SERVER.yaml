@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 20
+version: 92
 
 verbose: 1
 device: "cuda"
@@ -13,47 +13,22 @@ dtype: "float16"
 tokenizer_id: "meta-llama/Llama-3.1-8B"
 num_layers: 32
 
-########################################      Layer Replacement Experiment      ########################################
-experiment_type: "layer_replacement_fine_tuning_experiment"
-#experiment_type: "layer_replacement_fine_tuning_entire_model_experiment"
-#experiment_type: "layer_replacement_fine_tuning_adapter_on_targets_experiment"
-#experiment_type: "layer_replacement_fine_tuning_different_adapter_on_targets_experiment"
+########################################        Factorization Experiment        ########################################
+experiment_type: "factorization_fine_tuning_experiment"
 figure_size: [5, 10]
 
-########################################      Layer Replacement Experiment      ########################################
-replacement_methods:
-    - "sharedaveragelayer"
-
-#excluded_blocks:
-#    - 0
-#    - 1
-#    - 31
+########################################        Factorization Experiment        ########################################
+factorization_methods:
+    - "LocalSVD"
 
 target_layers:
-#    - ["block_index", "self_attn"]
+    gate_proj:
+        rank: 402
 
-    - ["block_index", "self_attn", "q_proj"]
-#    - ["block_index", "self_attn", "k_proj"]
-#    - ["block_index", "self_attn", "v_proj"]
-#    - ["block_index", "self_attn", "o_proj"]
+use_names_as_keys: True
 
-#    - ["block_index", "mlp", "gate_proj"]
-#    - ["block_index", "mlp", "up_proj"]
-#    - ["block_index", "mlp", "down_proj"]
-
-#adapter_method: "lora"
-
-#adapted_layers:
-#    q_proj:
-#        rank: 16
-#    k_proj:
-#        rank: 16
-#    gate_proj:
-#        rank: 16
-
-#lora_dropout: 0.05
-#bias: "none"
-#task_type: "CAUSAL_LM"
+#------------------------------ GlobaL Fact ------------------------------#
+#average_svd_initialization: "svd_of_average_matrix"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -61,9 +36,9 @@ benchmark_ids:
     - "hellaswag"
 evaluation_args:
     gsm8k:
-        batch_size: 2
+        batch_size: 16
     hellaswag:
-        batch_size: 4
+        batch_size: 32
 
 ########################################     General Fine-Tuning Parameters     ########################################
 task_id: "causallm"
@@ -90,11 +65,4 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
-    - ["block_index", "self_attn", "q_proj"]
-#    - ["block_index", "self_attn", "k_proj"]
-#    - ["block_index", "self_attn", "v_proj"]
-#    - ["block_index", "self_attn", "o_proj"]
-
-#    - ["block_index", "mlp", "gate_proj"]
-#    - ["block_index", "mlp", "up_proj"]
-#    - ["block_index", "mlp", "down_proj"]
+    - ["block_index", "mlp", "gate_proj"]
