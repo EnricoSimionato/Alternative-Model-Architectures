@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 91
+version: 90
 
 verbose: 1
 device: "cuda"
@@ -22,6 +22,8 @@ factorization_methods:
     - "LocalSVD"
 
 target_layers:
+    gate_proj:
+        rank: 402
     up_proj:
         rank: 402
 
@@ -65,4 +67,5 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
+    - ["block_index", "mlp", "gate_proj"]
     - ["block_index", "mlp", "up_proj"]
