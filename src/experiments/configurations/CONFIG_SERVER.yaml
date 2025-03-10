@@ -1,7 +1,7 @@
 ########################################    General configuration parameters    ########################################
 path_to_storage: "src/experiments/results"
 
-version: 17
+version: 13
 
 verbose: 1
 device: "cuda"
@@ -22,13 +22,15 @@ factorization_methods:
     - "GlobalBase"
 
 target_layers:
+    gate_proj:
+        rank: 512
     up_proj:
         rank: 512
 
 use_names_as_keys: True
 
 #------------------------------ GlobaL Fact ------------------------------#
-average_svd_initialization: "average_of_svds"
+#average_svd_initialization: "svd_of_average_matrix"
 
 ########################################          Benchmarks parameters         ########################################
 benchmark_ids:
@@ -53,7 +55,7 @@ split:
     - 0.8
     - 0.1
     - 0.1
-batch_size: 2
+batch_size: 8
 num_workers: 2
 max_len: 512
 
@@ -65,4 +67,5 @@ optimizers_settings:
       monitored_metric: "loss"
 
 fine-tuning_targets:
+    - ["block_index", "mlp", "gate_proj"]
     - ["block_index", "mlp", "up_proj"]
