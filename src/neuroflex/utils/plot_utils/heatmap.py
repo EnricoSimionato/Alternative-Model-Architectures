@@ -1,7 +1,7 @@
 import os
 
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
@@ -9,6 +9,7 @@ import numpy as np
 from exporch import Verbose
 
 
+# TODO to check and also possibly to remove
 def create_heatmap_global_layers(
         data: list,
         title: str = "Global layers used in different parts of the model",

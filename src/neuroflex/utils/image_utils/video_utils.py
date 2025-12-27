@@ -1,18 +1,24 @@
 import os
-import sys
-import cv2
 import re
+import sys
+
+import cv2
 
 
-def extract_number(filename: str) -> int:
+# TODO documentation
+def extract_number(
+        filename: str
+) -> int:
     """
     Extracts the first number found in the filename.
 
     Args:
-        filename (str): The name of the file.
+        filename (str):
+            The name of the file.
 
     Returns:
-        int: The extracted number.
+        int:
+            The extracted number.
     """
     match = re.search(r'\d+', filename)
     if match:
@@ -28,19 +34,19 @@ def create_video_from_images(
         fps: int = 1
 ) -> None:
     """
-    Create a video from a sequence of images that contain the filter string.
+    Creates a video from a sequence of images that contain the filter string.
 
     Args:
         path_to_images (str):
             The path to the directory containing the images.
         filter_string (str, optional):
-            The string to filter images. Defaults to "" (no filter).
+            The string to filter images.
         path_to_store_video (str, optional):
-            The path to store the video. Defaults to None.
+            The path to store the video.
         video_name (str, optional):
-            The name of the video file. Defaults to "video.mp4".
+            The name of the video file.
         fps (int, optional):
-            The frames per second of the video. Defaults to 1.
+            The frames per second of the video.
     """
 
     if not os.path.exists(path_to_images) or not os.path.isdir(path_to_images):
@@ -56,7 +62,7 @@ def create_video_from_images(
         path_to_store_video = os.path.join(path_to_store_video, video_name)
 
     images = [img for img in os.listdir(path_to_images) if
-              img.endswith(".png") and (filter_string in img if filter_string else True)]
+              img.endswith(".pdf") and (filter_string in img if filter_string else True)]
 
     # Sort images by the number extracted from their filenames
     images.sort(key=extract_number)
