@@ -1,0 +1,18 @@
+Alternative-Model-Architectures
+Copyright 2024-2025 Enrico Simionato
+
+The code written for this project is licensed under the Apache License, Version 2.0
+(see LICENSE). The following directories contain third-party code and are NOT covered
+by that grant:
+
+- src/imports/peft/
+  A modified copy of Hugging Face PEFT (https://github.com/huggingface/peft),
+  Copyright 2023-present the HuggingFace Inc. team, licensed under the Apache
+  License, Version 2.0. Original copyright notices are kept in the source files.
+
+- src/imports/HadamardDecomposition/
+  Code from https://github.com/maciap/HadamardDecomposition by Martino Ciaperoni,
+  accompanying "The Hadamard decomposition problem" (Ciaperoni, Gionis, Mannila,
+  Data Mining and Knowledge Discovery, 2024). The upstream repository does not state
+  a license; all rights remain with its authors. It is included only to reproduce
+  the experiments of the thesis.

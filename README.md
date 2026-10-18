@@ -31,7 +31,7 @@ Alternative-Model-Architectures/
 ## Installation
 1.	Clone the repository
   ```bash
-  git clone [https://github.com/EnricoSimionato/Redundancy-Hunter.git](https://github.com/EnricoSimionato/Alternative-Model-Architectures.git)
+  git clone https://github.com/EnricoSimionato/Alternative-Model-Architectures.git
   cd Alternative-Model-Architectures
   ```
 
@@ -72,3 +72,7 @@ After running experiments, results including training logs, evaluation metrics, 
 
 ## References
 
+
+## License
+
+Released under the [Apache License 2.0](LICENSE). Third-party code in `src/imports/` keeps its own terms: see [NOTICE](NOTICE).
